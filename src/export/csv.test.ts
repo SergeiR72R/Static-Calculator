@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { analyze } from '../core/analysis';
 import { computeView } from '../core/results';
-import { templateModel, pointLoad } from '../core/defaults';
+import { pointLoad } from '../core/defaults';
+import { exampleModel } from '../core/examples';
 import { buildCsv } from './csv';
 
 describe('CSV export', () => {
-  const m = templateModel('simple');
+  const m = exampleModel('simple');
   m.loads.push(pointLoad('G', 2, 10));
   const an = analyze(m);
   const vr = computeView(an, { type: 'case', id: 'G' })!;

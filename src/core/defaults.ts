@@ -98,24 +98,22 @@ export type TemplateId = 'cantilever' | 'simple' | 'twoSpan' | 'threeSpan' | 'ge
 
 export const TEMPLATE_IDS: TemplateId[] = ['simple', 'cantilever', 'twoSpan', 'threeSpan', 'gerber', 'elastic'];
 
+/** Structural system of a template: length, supports and hinges (no loads) */
 export function templateModel(id: TemplateId): BeamModel {
   switch (id) {
     case 'cantilever': {
       const m = baseModel(3);
       m.supports = [makeSupport('fixed', 0)];
-      m.loads = [udl('G', 0, 3, 2), pointLoad('Q', 3, 10)];
       return m;
     }
     case 'simple': {
       const m = baseModel(6);
       m.supports = [makeSupport('pinned', 0), makeSupport('roller', 6)];
-      m.loads = [udl('G', 0, 6, 5), udl('Q', 0, 6, 3)];
       return m;
     }
     case 'twoSpan': {
       const m = baseModel(10);
       m.supports = [makeSupport('pinned', 0), makeSupport('roller', 5), makeSupport('roller', 10)];
-      m.loads = [udl('G', 0, 10, 5), udl('Q', 0, 10, 4)];
       return m;
     }
     case 'threeSpan': {
@@ -126,7 +124,6 @@ export function templateModel(id: TemplateId): BeamModel {
         makeSupport('roller', 10),
         makeSupport('roller', 15),
       ];
-      m.loads = [udl('G', 0, 15, 5), udl('Q', 0, 15, 4)];
       m.settings.patternLoading = true;
       return m;
     }
@@ -134,7 +131,6 @@ export function templateModel(id: TemplateId): BeamModel {
       const m = baseModel(14);
       m.supports = [makeSupport('pinned', 0), makeSupport('roller', 6), makeSupport('roller', 14)];
       m.hinges = [makeHinge(7.5)];
-      m.loads = [udl('G', 0, 14, 5), udl('Q', 0, 14, 3), pointLoad('Q', 10.5, 15)];
       return m;
     }
     case 'elastic': {
@@ -143,7 +139,6 @@ export function templateModel(id: TemplateId): BeamModel {
       m.supports = [0, 2, 4, 6, 8].map((x, i) =>
         makeSupport('spring', x, { kw: k, ku: i === 0 ? 1e6 * kN : 0 }),
       );
-      m.loads = [udl('G', 0, 8, 5), udl('Q', 2, 6, 10)];
       return m;
     }
   }

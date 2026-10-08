@@ -23,7 +23,6 @@ describe('new project', () => {
         description: 'Dachpfette Achse B',
         template: 'twoSpan',
         L: 12,
-        withLoads: false,
         material: materialPreset('C24'),
         section: { kind: 'rect', b: 0.12, h: 0.24 },
         settings: { ...d.settings, selfWeight: true, deflLimitSpan: 300 },
@@ -45,10 +44,10 @@ describe('new project', () => {
     expect(an.ok).toBe(true);
   });
 
-  it('keeps the template loads on request', () => {
-    const m = createProject({ ...builtinUserDefaults(), name: 'A', description: '', template: 'cantilever', L: 4, withLoads: true });
-    expect(m.loads.length).toBeGreaterThan(0);
-    expect(m.loads.every((l) => (l.kind === 'dist' ? l.x2 <= 4 : l.x <= 4))).toBe(true);
+  it('templates contain no loads', () => {
+    const m = createProject({ ...builtinUserDefaults(), name: 'A', description: '', template: 'gerber', L: 10 });
+    expect(m.loads).toHaveLength(0);
+    expect(m.hinges).toHaveLength(1);
     expect(analyze(m).ok).toBe(true);
   });
 });

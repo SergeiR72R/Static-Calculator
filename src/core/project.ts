@@ -10,8 +10,6 @@ export interface NewProjectOptions {
   template: TemplateId;
   /** beam length, m */
   L: number;
-  /** keep the example loads of the template */
-  withLoads: boolean;
   material: Material;
   section: SectionDef;
   settings: AnalysisSettings;
@@ -66,7 +64,6 @@ export function createProject(o: NewProjectOptions, now = new Date()): BeamModel
   if (o.author.trim()) m.author = o.author.trim();
   if (o.description.trim()) m.description = o.description.trim();
   m.createdAt = now.toISOString();
-  if (!o.withLoads) m.loads = [];
   for (const s of m.segments) {
     s.material = structuredClone(o.material);
     s.section = structuredClone(o.section);

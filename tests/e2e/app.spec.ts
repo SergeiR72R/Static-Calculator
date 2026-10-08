@@ -1,14 +1,19 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { exampleModel } from '../../src/core/examples';
+import type { TemplateId } from '../../src/core/defaults';
+import { serializeProject } from '../../src/state/persist';
 
 // the first-start wizard is covered in wizard.spec.ts; here the app counts as already set up
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('balken.onboarded', '1'));
 });
 
-async function template(page: Page, id: string) {
-  await page.getByTestId('templates-menu').click();
-  await page.getByTestId(`template-${id}`).click();
+/** Load a template system with sample loads (test fixture) through "Open project" */
+async function template(page: Page, id: TemplateId) {
+  const json = serializeProject(exampleModel(id));
+  await page.getByTestId('file-input').setInputFiles({ name: `${id}.json`, mimeType: 'application/json', buffer: Buffer.from(json) });
+  await expect(page.getByTestId('toast')).toBeVisible();
 }
 
 test('opens in German by default, independent of the browser language', async ({ browser }) => {

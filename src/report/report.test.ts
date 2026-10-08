@@ -3,7 +3,8 @@ import katex from 'katex';
 import { analyze } from '../core/analysis';
 import { computeView } from '../core/results';
 import { runChecks } from '../core/checks';
-import { TEMPLATE_IDS, templateModel, udl } from '../core/defaults';
+import { TEMPLATE_IDS, udl } from '../core/defaults';
+import { exampleModel } from '../core/examples';
 import { buildReport, texNum, type Block } from './build';
 import { reportToHtml, reportToMarkdown } from './exporters';
 
@@ -14,7 +15,7 @@ function flat(blocks: Block[]): Block[] {
 describe('step-by-step report', () => {
   for (const id of TEMPLATE_IDS) {
     it(`${id}: all sections, valid KaTeX, all languages`, () => {
-      const m = templateModel(id);
+      const m = exampleModel(id);
       m.settings.selfWeight = true;
       const an = analyze(m);
       const vr = computeView(an, { type: 'combo', id: 'ULS1' })!;
@@ -34,7 +35,7 @@ describe('step-by-step report', () => {
   }
 
   it('large models are paginated', () => {
-    const m = templateModel('simple');
+    const m = exampleModel('simple');
     for (let i = 0; i < 60; i++) m.loads.push(udl('G', i * 0.1, i * 0.1 + 0.05, 1));
     const an = analyze(m);
     const r = buildReport(an, { lang: 'de', view: { type: 'case', id: 'G' } })!;
@@ -43,11 +44,11 @@ describe('step-by-step report', () => {
   });
 
   it('statically determinate beam includes the hand calculation', () => {
-    const an = analyze(templateModel('gerber'));
+    const an = analyze(exampleModel('gerber'));
     const r = buildReport(an, { lang: 'de', view: { type: 'case', id: 'G' } })!;
     const text = JSON.stringify(r.blocks);
     expect(text).toContain('Statisch bestimmtes System');
-    const an2 = analyze(templateModel('twoSpan'));
+    const an2 = analyze(exampleModel('twoSpan'));
     expect(JSON.stringify(buildReport(an2, { lang: 'de', view: { type: 'case', id: 'G' } })!.blocks)).toContain('1-fach statisch unbestimmt');
   });
 

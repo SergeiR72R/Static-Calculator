@@ -440,8 +440,6 @@
     "namePlaceholder": "e.g. Hall 3 – purlin axis B",
     "nameRequired": "Please enter a project name.",
     "systemIntro": "Choose the structural system as a starting point. Supports, hinges and loads can be edited freely afterwards.",
-    "withLoads": "Use the example loads of the template",
-    "withLoadsShort": "with example loads",
     "systemHint": "The geometry of the template is scaled to the entered length.",
     "combosHint": "Load cases G, Q, S, W and the EN 1990 combinations are created and can be adjusted under “Load cases”.",
     "system": "System",

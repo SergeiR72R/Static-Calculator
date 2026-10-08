@@ -59,7 +59,6 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
   const [description, setDescription] = useState('');
   const [template, setTemplate] = useState<TemplateId>(d.template);
   const [L, setL] = useState(d.L);
-  const [withLoads, setWithLoads] = useState(false);
   const [material, setMaterial] = useState<Material>(structuredClone(d.material));
   const [section, setSection] = useState<SectionDef>(structuredClone(d.section));
   const [settings, setSettings] = useState<AnalysisSettings>({ ...d.settings });
@@ -71,7 +70,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
   const canNext = step === 'project' ? nameOk : step === 'system' ? lOk : true;
 
   const finish = () => {
-    const m = createProject({ name, author, description, template, L, withLoads, material, section, settings });
+    const m = createProject({ name, author, description, template, L, material, section, settings });
     st.loadModel(m);
     if (saveDefaults) st.setUserDefaults({ author: author.trim(), template, L, material, section, settings });
     st.closeWizard();
@@ -230,9 +229,6 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <NumberField label={fmt.t('beam.length')} value={L} q="length" onChange={setL} testId="wizard-length" />
-                  <div className="pt-4">
-                    <SwitchField checked={withLoads} onChange={setWithLoads} label={fmt.t('wizard.withLoads')} testId="wizard-with-loads" />
-                  </div>
                 </div>
                 {!lOk && <p className="text-[11px] text-red-600">{fmt.t('err.positive')}</p>}
                 <p className="text-xs text-slate-500 dark:text-slate-400">{fmt.t('wizard.systemHint')}</p>
@@ -286,7 +282,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                       [
                         [fmt.t('beam.name'), name.trim()],
                         [fmt.t('beam.author'), author.trim() || '–'],
-                        [fmt.t('wizard.system'), `${fmt.t(`templates.${template}`)}, L = ${fmt.q(L, 'length')}${withLoads ? ` · ${fmt.t('wizard.withLoadsShort')}` : ''}`],
+                        [fmt.t('wizard.system'), `${fmt.t(`templates.${template}`)}, L = ${fmt.q(L, 'length')}`],
                         [fmt.t('section.label'), sectionLabel(section)],
                         [fmt.t('material.label'), `${fmt.t(`material.preset.${material.preset}`)}, f_d = ${fmt.q(designStrength(material), 'stress')}`],
                         [fmt.t('settings.theory'), fmt.t(settings.theory === 'euler' ? 'settings.euler' : 'settings.timoshenko')],

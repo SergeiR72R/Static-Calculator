@@ -3,7 +3,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { analyze } from '../core/analysis';
 import { computeView } from '../core/results';
-import { templateModel, TEMPLATE_IDS, pointLoad, momentLoad, udl } from '../core/defaults';
+import { TEMPLATE_IDS, pointLoad, momentLoad, udl } from '../core/defaults';
+import { exampleModel } from '../core/examples';
 import { DXF_LAYERS, buildDxf, type DxfOptions } from './dxf';
 import { decodeCodepage, encodeCodepage, escapeForCodepage } from './codepage';
 import type { Lang } from '../units/format';
@@ -23,7 +24,7 @@ function opts(lang: Lang): DxfOptions {
 }
 
 function build(id: (typeof TEMPLATE_IDS)[number], lang: Lang, view: 'combo' | 'envelope' = 'combo') {
-  const m = templateModel(id);
+  const m = exampleModel(id);
   if (id === 'simple') {
     m.loads.push(pointLoad('Q', 2, 12, 60), momentLoad('G', 4, 8), udl('G', 1, 5, 2, 2, 'x'));
   }

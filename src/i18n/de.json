@@ -440,8 +440,6 @@
     "namePlaceholder": "z. B. Halle 3 – Pfette Achse B",
     "nameRequired": "Bitte einen Projektnamen eingeben.",
     "systemIntro": "Wählen Sie das statische System als Ausgangspunkt. Auflager, Gelenke und Lasten können danach frei bearbeitet werden.",
-    "withLoads": "Beispiellasten der Vorlage übernehmen",
-    "withLoadsShort": "mit Beispiellasten",
     "systemHint": "Die Geometrie der Vorlage wird auf die eingegebene Länge skaliert.",
     "combosHint": "Lastfälle G, Q, S, W und die Kombinationen nach DIN EN 1990 werden angelegt und können unter „Lastfälle“ angepasst werden.",
     "system": "System",

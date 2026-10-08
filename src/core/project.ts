@@ -22,7 +22,6 @@ export interface UserDefaults {
   author: string;
   template: TemplateId;
   L: number;
-  withLoads: boolean;
   material: Material;
   section: SectionDef;
   settings: AnalysisSettings;
@@ -33,7 +32,6 @@ export function builtinUserDefaults(): UserDefaults {
     author: '',
     template: 'simple',
     L: 6,
-    withLoads: true,
     material: materialPreset('S235'),
     section: defaultSection(),
     settings: { ...DEFAULT_SETTINGS },

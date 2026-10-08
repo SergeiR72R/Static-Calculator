@@ -40,6 +40,10 @@ test('first start: wizard guides through settings and creates the project; later
   await expect(page.getByTestId('header-project')).toHaveText('Projekt: Halle 3 – Pfette');
   await expect(page.getByTestId('beam-length')).toHaveValue('12');
   await expect(page.getByTestId('kpi-reactions')).toBeVisible();
+  // example loads are off by default: the new project starts without loads
+  await page.getByTestId('tab-loads').click();
+  await expect(page.getByTestId('load-q1')).toHaveCount(0);
+  await page.getByTestId('tab-beam').click();
 
   // next start: no wizard, the last project opens
   await page.reload();

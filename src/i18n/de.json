@@ -189,12 +189,13 @@
     "patternLoading": "Feldweise ungünstige Laststellung (Schachbrett)",
     "patternLoadingHint": "Für Lastfälle der Kategorie Q werden alle Kombinationen belasteter Felder untersucht (Umhüllende).",
     "shearCheck": "Schubspannungsnachweis τ = V·S/(I·b)",
-    "limits": "Durchbiegungsgrenzen",
-    "deflLimitSpan": "Feld: L / …",
-    "deflLimitCantilever": "Kragarm: L / …",
+    "limits": "Zulässige Durchbiegung (Expressnachweis)",
+    "deflLimitSpan": "Feld zwischen Auflagern: w ≤ L / …",
+    "deflLimitCantilever": "Kragarm: w ≤ L_k / …",
     "display": "Darstellung",
     "decimals": "Nachkommastellen",
-    "snap": "Fangraster beim Ziehen"
+    "snap": "Fangraster beim Ziehen",
+    "limitsHint": "Grenzwerte für den Durchbiegungsnachweis mit den GZG-Kombinationen: L = Stützweite des Feldes, L_k = Kraglänge. Üblich: L/250 und L_k/125."
   },
   "results": {
     "view": "Ergebnis",

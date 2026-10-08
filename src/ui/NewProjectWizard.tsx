@@ -59,7 +59,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
   const [description, setDescription] = useState('');
   const [template, setTemplate] = useState<TemplateId>(d.template);
   const [L, setL] = useState(d.L);
-  const [withLoads, setWithLoads] = useState(d.withLoads);
+  const [withLoads, setWithLoads] = useState(false);
   const [material, setMaterial] = useState<Material>(structuredClone(d.material));
   const [section, setSection] = useState<SectionDef>(structuredClone(d.section));
   const [settings, setSettings] = useState<AnalysisSettings>({ ...d.settings });
@@ -73,7 +73,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
   const finish = () => {
     const m = createProject({ name, author, description, template, L, withLoads, material, section, settings });
     st.loadModel(m);
-    if (saveDefaults) st.setUserDefaults({ author: author.trim(), template, L, withLoads, material, section, settings });
+    if (saveDefaults) st.setUserDefaults({ author: author.trim(), template, L, material, section, settings });
     st.closeWizard();
     st.setInputTab('beam');
     st.setMainTab('results');
@@ -268,6 +268,8 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                   hint={fmt.t('settings.patternLoadingHint')}
                 />
                 <SwitchField checked={settings.shearCheck} onChange={(v) => setS({ shearCheck: v })} label={fmt.t('settings.shearCheck')} />
+                <h4 className="pt-1 text-sm font-medium">{fmt.t('settings.limits')}</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{fmt.t('settings.limitsHint')}</p>
                 <div className="grid grid-cols-2 gap-3">
                   <NumberField label={fmt.t('settings.deflLimitSpan')} value={settings.deflLimitSpan} onChange={(v) => setS({ deflLimitSpan: v })} />
                   <NumberField label={fmt.t('settings.deflLimitCantilever')} value={settings.deflLimitCantilever} onChange={(v) => setS({ deflLimitCantilever: v })} />

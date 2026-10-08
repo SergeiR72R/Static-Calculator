@@ -335,6 +335,7 @@ export function SettingsPanel() {
         </div>
       </Card>
       <Card title={fmt.t('settings.limits')}>
+        <p className="mb-2 text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('settings.limitsHint')}</p>
         <div className="grid grid-cols-2 gap-2">
           <NumberField label={fmt.t('settings.deflLimitSpan')} value={s.deflLimitSpan} path="settings.deflLimitSpan" onChange={(v) => set({ deflLimitSpan: v }, 'dls')} />
           <NumberField

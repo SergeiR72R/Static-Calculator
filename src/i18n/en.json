@@ -189,12 +189,13 @@
     "patternLoading": "Pattern loading (chessboard)",
     "patternLoadingHint": "For load cases of category Q all combinations of loaded spans are investigated (envelope).",
     "shearCheck": "Shear stress check τ = V·S/(I·b)",
-    "limits": "Deflection limits",
-    "deflLimitSpan": "Span: L / …",
-    "deflLimitCantilever": "Cantilever: L / …",
+    "limits": "Allowable deflection (express check)",
+    "deflLimitSpan": "Span between supports: w ≤ L / …",
+    "deflLimitCantilever": "Cantilever: w ≤ L_c / …",
     "display": "Display",
     "decimals": "Decimal places",
-    "snap": "Snap step for dragging"
+    "snap": "Snap step for dragging",
+    "limitsHint": "Limits for the deflection check with the SLS combinations: L = span length, L_c = cantilever length. Typical: L/250 and L_c/125."
   },
   "results": {
     "view": "Result",

@@ -2,6 +2,7 @@ import katex from 'katex';
 import type { Block, Report } from './build';
 import { txtNum } from './build';
 import type { Lang } from '../units/format';
+import logoDataUri from '../assets/promaintain-logo.png?inline';
 
 const KATEX_CSS = 'https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css';
 
@@ -64,7 +65,9 @@ export function reportToHtml(report: Report, lang: Lang, heading: string): strin
 <link rel="stylesheet" href="${KATEX_CSS}">
 <style>
 body{font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#0f172a;line-height:1.45}
-h1{font-size:1.5rem}h2{border-bottom:1px solid #cbd5e1;padding-bottom:.2rem;margin-top:2rem}
+h1{font-size:1.5rem;color:#004F7E}h2{color:#004F7E;border-bottom:2px solid #AFCB51;padding-bottom:.2rem;margin-top:2rem}
+.brand{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;border-bottom:3px solid #AFCB51;padding-bottom:.5rem}
+.brand img{height:44px}
 table{border-collapse:collapse;margin:.5rem 0;font-size:.8rem;font-variant-numeric:tabular-nums}
 th,td{border:1px solid #cbd5e1;padding:2px 6px;text-align:right}th{background:#f1f5f9}
 table.m td,table.m th{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.7rem;border:none;padding:0 4px}
@@ -73,8 +76,7 @@ details{border:1px solid #e2e8f0;border-radius:4px;padding:.3rem .6rem;margin:.4
 </style>
 </head>
 <body>
-<h1>${esc(heading)}</h1>
-<p>${esc(report.loadSetLabel)}</p>
+<div class="brand"><div><h1>${esc(heading)}</h1><p>${esc(report.loadSetLabel)}</p></div><img src="${logoDataUri}" alt="promaintain – Nah am Kunden. Nah am Projekt."></div>
 ${blocksHtml(report.blocks, lang)}
 </body>
 </html>

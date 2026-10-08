@@ -13,6 +13,7 @@ import { ResultsPanel, ResultsToolbar } from './ui/results/ResultsPanel';
 import { ReportTab } from './ui/ReportTab';
 import { PrintReport } from './ui/PrintReport';
 import { NewProjectWizard } from './ui/NewProjectWizard';
+import { BRAND } from './ui/Brand';
 import { cx } from './ui/common';
 
 const INPUT_TABS: InputTab[] = ['beam', 'supports', 'loads', 'cases', 'settings'];
@@ -54,7 +55,7 @@ export function App() {
   }, [theme]);
   useEffect(() => {
     document.documentElement.lang = lang;
-    document.title = `${fmt.t('app.title')} – FEM`;
+    document.title = `${fmt.t('app.title')} – ${BRAND.name}`;
   }, [lang, fmt]);
 
   useEffect(() => {
@@ -108,7 +109,7 @@ export function App() {
                       key={tb}
                       value={tb}
                       data-testid={`tab-${tb}`}
-                      className="flex-1 border-b-2 border-transparent px-1 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 data-[state=active]:border-accent-600 data-[state=active]:text-accent-800 dark:text-slate-300 dark:data-[state=active]:text-accent-300"
+                      className="flex-1 border-b-2 border-transparent px-1 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 data-[state=active]:border-lime-400 data-[state=active]:text-accent-700 dark:text-slate-300 dark:data-[state=active]:text-accent-200"
                     >
                       {fmt.t(`tabs.${tb}`)}
                     </Tabs.Trigger>
@@ -164,7 +165,15 @@ export function App() {
               </Tabs.Root>
             </section>
           </main>
-          <footer className="no-print border-t border-slate-200 px-3 py-2 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">{fmt.t('app.footer')}</footer>
+          <footer className="no-print flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-200 px-3 py-2 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+            <span className="font-semibold">
+              <span className="text-accent-700 dark:text-accent-300">pro</span>
+              <span className="text-lime-600 dark:text-lime-400">maintain</span>
+            </span>
+            <span className="italic">{BRAND.tagline}</span>
+            <span className="hidden sm:inline">·</span>
+            <span>{fmt.t('app.footer')}</span>
+          </footer>
           {printing && <PrintReport />}
           <NewProjectWizard />
           <Toast />

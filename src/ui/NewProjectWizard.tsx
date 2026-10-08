@@ -10,7 +10,8 @@ import { useStore } from '../state/store';
 import { LANGS } from '../i18n';
 import { Button, NumberField, SelectField, SwitchField, TextField, cx, downloadBlob } from './common';
 import { useFmt } from './hooks';
-import { IconBeamLogo, IconDownload, IconX } from './icons';
+import { IconDownload, IconX } from './icons';
+import { FullLogo, Wordmark } from './Brand';
 import { MaterialEditor, SectionEditor, SectionSketch } from './inputs/SectionEditor';
 
 type Step = 'prefs' | 'project' | 'system' | 'section' | 'analysis' | 'summary';
@@ -93,9 +94,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
           className="no-print fixed left-1/2 top-1/2 z-50 flex max-h-[calc(100vh-2rem)] w-[min(46rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900"
         >
           <div className="flex items-center gap-3 border-b border-slate-200 px-5 py-3 dark:border-slate-700">
-            <span className="text-accent-700 dark:text-accent-400">
-              <IconBeamLogo />
-            </span>
+            <Wordmark height="h-4" />
             <div className="min-w-0 flex-1">
               <Dialog.Title className="text-base font-semibold">{firstRun ? fmt.t('wizard.titleFirst') : fmt.t('wizard.title')}</Dialog.Title>
               <Dialog.Description className="text-xs text-slate-500 dark:text-slate-400">
@@ -120,7 +119,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                   aria-current={i === stepIdx ? 'step' : undefined}
                   className={cx(
                     'h-1.5 w-full rounded-full',
-                    i < stepIdx ? 'bg-accent-500' : i === stepIdx ? 'bg-accent-700' : 'bg-slate-200 dark:bg-slate-700',
+                    i < stepIdx ? 'bg-lime-400' : i === stepIdx ? 'bg-accent-700 dark:bg-accent-400' : 'bg-slate-200 dark:bg-slate-700',
                   )}
                   title={fmt.t(`wizard.steps.${s}`)}
                 />
@@ -131,6 +130,9 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {step === 'prefs' && (
               <div className="space-y-4" data-testid="wizard-step-prefs">
+                <div className="flex justify-center py-1">
+                  <FullLogo className="h-14 dark:rounded-lg dark:bg-white dark:p-2" />
+                </div>
                 <p className="text-sm">{fmt.t('wizard.welcome')}</p>
                 <div>
                   <p className="mb-1 text-xs font-medium text-slate-500">{fmt.t('header.language')}</p>

@@ -10,6 +10,7 @@ import { comboLabel } from './inputs/Panels';
 import { useReport } from './ReportTab';
 import { ReportBody } from '../report/render';
 import { viewLabel } from './viewLabel';
+import { BRAND, FullLogo } from './Brand';
 
 const W = 700;
 
@@ -27,8 +28,13 @@ export function PrintReport() {
   const td = 'border border-slate-400 px-1.5 py-0.5 text-right num';
   return (
     <div className="print-only text-[11px] text-black" data-testid="print-report">
-      <header className="mb-3 border-b-2 border-black pb-1">
-        <h1 className="text-xl font-bold">{model.name || fmt.t('app.title')}</h1>
+      <header className="mb-3 border-b-2 pb-1" style={{ borderColor: BRAND.green }}>
+        <div className="flex items-start justify-between gap-4">
+          <h1 className="text-xl font-bold" style={{ color: BRAND.blue }}>
+            {model.name || fmt.t('app.title')}
+          </h1>
+          <FullLogo className="h-10" />
+        </div>
         <p>
           {fmt.t('print.date')}: {new Date().toLocaleDateString(fmt.lang === 'en' ? 'en-US' : fmt.lang === 'ru' ? 'ru-RU' : 'de-DE')} · {viewLabel(fmt, model, view)} ·{' '}
           {fmt.t('print.software')}

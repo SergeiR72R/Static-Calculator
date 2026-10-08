@@ -27,6 +27,7 @@ describe('step-by-step report', () => {
           expect(() => katex.renderToString(b.tex, { throwOnError: true, displayMode: true }), b.tex).not.toThrow();
         }
         expect(reportToHtml(r, lang, 'T')).toContain('<h2>');
+        expect(reportToHtml(r, lang, 'T')).toContain('src="data:image/png;base64,');
         expect(reportToMarkdown(r, lang, 'T')).toContain('$$');
       }
     });

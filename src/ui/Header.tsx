@@ -7,8 +7,8 @@ import { LANGS } from '../i18n';
 import type { Lang } from '../units/format';
 import { Button, NumberField, cx, downloadBlob } from './common';
 import { useFmt, useResults } from './hooks';
+import { Wordmark } from './Brand';
 import {
-  IconBeamLogo,
   IconChevronDown,
   IconDownload,
   IconFile,
@@ -110,12 +110,13 @@ export function Header() {
   };
 
   return (
-    <header className="no-print sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b border-slate-200 bg-white/95 px-3 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
-      <div className="flex items-center gap-2 pr-2 text-accent-700 dark:text-accent-400">
-        <IconBeamLogo />
+    <header className="no-print sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b-[3px] border-lime-400 bg-white/95 px-3 py-2 backdrop-blur dark:bg-slate-900/95">
+      <div className="flex items-center gap-3 pr-2">
+        <Wordmark />
+        <span className="hidden h-8 w-px bg-slate-200 sm:block dark:bg-slate-700" aria-hidden />
         <div className="leading-tight">
-          <h1 className="text-base font-bold text-slate-900 dark:text-slate-100">{fmt.t('app.title')}</h1>
-          <p className="hidden max-w-[22rem] truncate text-[11px] text-slate-500 sm:block dark:text-slate-400" data-testid="header-project">
+          <h1 className="text-base font-bold text-accent-700 dark:text-accent-200">{fmt.t('app.title')}</h1>
+          <p className="hidden max-w-[15rem] truncate text-[11px] 2xl:max-w-[24rem] text-slate-500 sm:block dark:text-slate-400" data-testid="header-project">
             {st.model.name ? `${fmt.t('header.project')}: ${st.model.name}` : fmt.t('app.subtitle')}
           </p>
         </div>

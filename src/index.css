@@ -4,26 +4,35 @@
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --color-accent-50: #f0fdfa;
-  --color-accent-100: #ccfbf1;
-  --color-accent-200: #99f6e4;
-  --color-accent-300: #5eead4;
-  --color-accent-400: #2dd4bf;
-  --color-accent-500: #14b8a6;
-  --color-accent-600: #0d9488;
-  --color-accent-700: #0f766e;
-  --color-accent-800: #115e59;
-  --color-accent-900: #134e4a;
+  /* promaintain brand: blue #004F7E (accent-700), green #AFCB51 (lime-400) */
+  --color-accent-50: #eaf2f8;
+  --color-accent-100: #d2e4f0;
+  --color-accent-200: #a6c8df;
+  --color-accent-300: #74a8cb;
+  --color-accent-400: #3f86b3;
+  --color-accent-500: #17689b;
+  --color-accent-600: #005a8f;
+  --color-accent-700: #004f7e;
+  --color-accent-800: #003f66;
+  --color-accent-900: #00304e;
+  --color-lime-50: #f6f9ea;
+  --color-lime-100: #ebf2cc;
+  --color-lime-200: #d9e7a1;
+  --color-lime-300: #c4d977;
+  --color-lime-400: #afcb51;
+  --color-lime-500: #96b13a;
+  --color-lime-600: #7d9a26;
+  --color-lime-700: #5f761c;
 }
 
 :root {
   --beam: #1f2937;
   --support: #dc2626;
-  --load: #0e7490;
+  --load: #004f7e;
   --load-dim: #94a3b8;
   --diag-N: #9333ea;
-  --diag-V: #2563eb;
-  --diag-M: #16a34a;
+  --diag-V: #17689b;
+  --diag-M: #7d9a26;
   --diag-w: #ca8a04;
   --diag-sigma: #e11d48;
   --cursor: #f97316;
@@ -38,11 +47,11 @@
 .dark {
   --beam: #e5e7eb;
   --support: #f87171;
-  --load: #22d3ee;
+  --load: #74a8cb;
   --load-dim: #475569;
   --diag-N: #c084fc;
-  --diag-V: #60a5fa;
-  --diag-M: #4ade80;
+  --diag-V: #74a8cb;
+  --diag-M: #afcb51;
   --diag-w: #facc15;
   --diag-sigma: #fb7185;
   --cursor: #fb923c;
@@ -129,11 +138,16 @@ body {
   .dark {
     --beam: #111827;
     --support: #b91c1c;
-    --load: #0e7490;
+    --load: #004f7e;
     --text: #000;
     --muted: #374151;
     --grid: #d1d5db;
     --axis: #374151;
     --surface: #fff;
   }
+}
+
+/* white plate behind the brand logo (keeps the blue wordmark legible in dark mode) */
+.brand-plate {
+  @apply inline-flex items-center rounded-md bg-white px-2 py-1;
 }

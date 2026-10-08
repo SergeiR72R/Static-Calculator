@@ -33,32 +33,33 @@ export interface ViewResult {
   variants: number;
 }
 
-/** Linear decomposition of a combination: base + independent optional parts (pattern loading). */
+type Terms = [number, LinearResult][];
+
+/** Linear decomposition of a combination: base terms + independent optional parts (pattern loading). */
 export interface Decomposition {
-  base: LinearResult;
-  parts: LinearResult[];
+  base: Terms;
+  parts: Terms;
 }
 
 export function decomposeCombination(an: Analysis, factors: Record<Id, number>): Decomposition {
-  const prep = an.prep as Prepared;
-  const baseTerms: [number, LinearResult][] = [];
-  const parts: LinearResult[] = [];
+  const base: Terms = [];
+  const parts: Terms = [];
   for (const [cid, f] of Object.entries(factors)) {
     if (!f) continue;
     const cr = an.cases.get(cid);
     if (!cr) continue;
     if (cr.pattern) {
-      baseTerms.push([f, cr.pattern.rest]);
-      for (const s of cr.pattern.spans) parts.push(combineResults(prep, [[f, s]]));
-    } else baseTerms.push([f, cr.full]);
+      base.push([f, cr.pattern.rest]);
+      for (const s of cr.pattern.spans) parts.push([f, s]);
+    } else base.push([f, cr.full]);
   }
-  return { base: combineResults(prep, baseTerms), parts };
+  return { base, parts };
 }
 
 /** Plain (non-pattern) linear combination Σ γ·E */
 export function combinationResult(an: Analysis, factors: Record<Id, number>): LinearResult {
   const prep = an.prep as Prepared;
-  const terms: [number, LinearResult][] = [];
+  const terms: Terms = [];
   for (const [cid, f] of Object.entries(factors)) {
     const cr = an.cases.get(cid);
     if (cr && f) terms.push([f, cr.full]);
@@ -67,6 +68,46 @@ export function combinationResult(an: Analysis, factors: Record<Id, number>): Li
 }
 
 const LINEAR_FIELDS = ['N', 'V', 'M', 'u', 'w', 'theta'] as const;
+
+// Sampling is linear in the loads: every basic result is sampled once per analysis and
+// combinations / envelopes are formed from the sampled arrays (superposition).
+const gridCache = new WeakMap<Prepared, SampleGrid>();
+const sampleCache = new WeakMap<LinearResult, { s: FieldArrays; r: Float64Array }>();
+
+export function gridFor(prep: Prepared): SampleGrid {
+  let g = gridCache.get(prep);
+  if (!g) {
+    g = sampleGrid(prep);
+    gridCache.set(prep, g);
+  }
+  return g;
+}
+
+function sampled(prep: Prepared, lr: LinearResult, grid: SampleGrid): { s: FieldArrays; r: Float64Array } {
+  if (grid !== gridCache.get(prep)) return { s: sampleResult(prep, lr, grid), r: reactionVector(prep, lr) };
+  let c = sampleCache.get(lr);
+  if (!c) {
+    c = { s: sampleResult(prep, lr, grid), r: reactionVector(prep, lr) };
+    sampleCache.set(lr, c);
+  }
+  return c;
+}
+
+function superpose(prep: Prepared, grid: SampleGrid, terms: Terms): { s: FieldArrays; r: Float64Array } {
+  const n = grid.x.length;
+  const s = newFieldArrays(n);
+  const r = new Float64Array(3 * prep.model.supports.length);
+  for (const [f, lr] of terms) {
+    const c = sampled(prep, lr, grid);
+    for (const fld of LINEAR_FIELDS) {
+      const a = s[fld];
+      const b = c.s[fld];
+      for (let k = 0; k < n; k++) a[k] += f * b[k];
+    }
+    for (let i = 0; i < r.length; i++) r[i] += f * c.r[i];
+  }
+  return { s, r };
+}
 
 function deriveStress(prep: Prepared, grid: SampleGrid, max: FieldArrays, min: FieldArrays) {
   for (let k = 0; k < grid.x.length; k++) {
@@ -79,17 +120,18 @@ function deriveStress(prep: Prepared, grid: SampleGrid, max: FieldArrays, min: F
   }
 }
 
-function singleView(an: Analysis, view: ResultView, lr: LinearResult, grid: SampleGrid): ViewResult {
+function singleView(an: Analysis, view: ResultView, terms: Terms, grid: SampleGrid): ViewResult {
   const prep = an.prep as Prepared;
-  const f = sampleResult(prep, lr, grid);
-  const r = reactionVector(prep, lr);
+  const lr = terms.length === 1 && terms[0][0] === 1 ? terms[0][1] : combineResults(prep, terms);
+  const { s, r } = superpose(prep, grid, terms);
+  deriveStress(prep, grid, s, s);
   return {
     view,
     kind: 'single',
     lr,
     grid,
-    max: f,
-    min: f,
+    max: s,
+    min: s,
     reactions: { max: r, min: r },
     extremes: extremesSingle(prep, lr),
     variants: 1,
@@ -106,31 +148,31 @@ interface Env {
 
 /** Envelope over all subsets of the optional parts: max = base + Σ max(0, part), min = base + Σ min(0, part) */
 function decompositionEnvelope(prep: Prepared, d: Decomposition, grid: SampleGrid): Env {
-  const base = sampleResult(prep, d.base, grid);
+  const base = superpose(prep, grid, d.base);
   const max = newFieldArrays(grid.x.length);
   const min = newFieldArrays(grid.x.length);
   for (const f of LINEAR_FIELDS) {
-    max[f].set(base[f]);
-    min[f].set(base[f]);
+    max[f].set(base.s[f]);
+    min[f].set(base.s[f]);
   }
-  const rb = reactionVector(prep, d.base);
-  const rmax = Float64Array.from(rb);
-  const rmin = Float64Array.from(rb);
-  for (const p of d.parts) {
-    const s = sampleResult(prep, p, grid);
+  const rmax = Float64Array.from(base.r);
+  const rmin = Float64Array.from(base.r);
+  for (const [fac, lr] of d.parts) {
+    const c = sampled(prep, lr, grid);
     for (const f of LINEAR_FIELDS) {
-      const a = s[f];
+      const a = c.s[f];
       const mx = max[f];
       const mn = min[f];
       for (let k = 0; k < a.length; k++) {
-        if (a[k] > 0) mx[k] += a[k];
-        else mn[k] += a[k];
+        const v = fac * a[k];
+        if (v > 0) mx[k] += v;
+        else mn[k] += v;
       }
     }
-    const r = reactionVector(prep, p);
-    for (let i = 0; i < r.length; i++) {
-      if (r[i] > 0) rmax[i] += r[i];
-      else rmin[i] += r[i];
+    for (let i = 0; i < c.r.length; i++) {
+      const v = fac * c.r[i];
+      if (v > 0) rmax[i] += v;
+      else rmin[i] += v;
     }
   }
   deriveStress(prep, grid, max, min);
@@ -182,11 +224,11 @@ export function combinationsEnvelope(an: Analysis, combos: Combination[], grid: 
 export function computeView(an: Analysis, view: ResultView, grid?: SampleGrid): ViewResult | null {
   if (!an.ok || !an.prep) return null;
   const prep = an.prep;
-  const g = grid ?? sampleGrid(prep);
+  const g = grid ?? gridFor(prep);
   if (view.type === 'case') {
     const cr = an.cases.get(view.id);
     if (!cr) return null;
-    return singleView(an, view, cr.full, g);
+    return singleView(an, view, [[1, cr.full]], g);
   }
   if (view.type === 'combo') {
     const c = an.model.combinations.find((k) => k.id === view.id);

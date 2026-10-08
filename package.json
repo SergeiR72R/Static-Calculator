@@ -14,7 +14,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "catalog": "node scripts/generate-catalog.mjs",
-    "dxf:samples": "vitest run --config vitest.dxf.config.ts"
+    "dxf:samples": "DXF_SAMPLES_DIR=dxf-samples vitest run src/export/dxf.test.ts && python3 scripts/dxf_audit.py dxf-samples"
   },
   "dependencies": {
     "katex": "^0.16.47",

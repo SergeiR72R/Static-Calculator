@@ -77,7 +77,7 @@ export function PrintReport() {
           })}
         </tbody>
       </table>
-      <div className="flex flex-wrap gap-4">
+      <div className="flex flex-wrap items-start gap-4">
         <table className="my-1 border-collapse">
           <thead>
             <tr>

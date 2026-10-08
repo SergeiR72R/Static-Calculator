@@ -17,5 +17,5 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "vitest.dxf.config.ts", "playwright.config.ts", "tests/e2e/**/*.ts"]
+  "include": ["vite.config.ts", "playwright.config.ts", "tests/e2e/**/*.ts"]
 }

@@ -31,7 +31,7 @@ export function buildCsv(an: Analysis, vr: ViewResult, opt: CsvOptions): string 
   const t = (k: string) => translate(opt.lang, k);
   const sep = opt.lang === 'en' ? ',' : ';';
   const num = (v: number, q: Quantity) => (Number.isFinite(v) ? formatInput(fromSI(v, q, opt.units), opt.lang, 6) : '');
-  const esc = (s: string) => (/[";,\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
+  const esc = (s: string) => (s.includes(sep) || /["\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
   const row = (cells: string[]) => cells.map(esc).join(sep);
   const lines: string[] = [];
   const model = an.model;

@@ -249,7 +249,8 @@ export function dxfCodepageFor(lang: Lang): DxfCodepage {
 /** Build the complete drawing of the beam, loads and diagrams of the given result view. */
 export function buildDxf(an: Analysis, vr: ViewResult, opt: DxfOptions): DxfWriter {
   const t = (k: string, p?: Record<string, string | number>) => translate(opt.lang, k, p);
-  const fmtv = (v: number, q: Quantity, d = opt.decimals) => formatNumber(fromSI(v, q, opt.units), opt.lang, d, false);
+  // ASCII minus: the unicode minus sign (U+2212) is missing in the standard CAD fonts
+  const fmtv = (v: number, q: Quantity, d = opt.decimals) => formatNumber(fromSI(v, q, opt.units), opt.lang, d, false).replace('\u2212', '-');
   const unit = (q: Quantity) => unitSymbol(q, opt.units);
   const model = an.model;
   const dw = new DxfWriter(dxfCodepageFor(opt.lang));
@@ -327,7 +328,7 @@ export function buildDxf(an: Analysis, vr: ViewResult, opt: DxfOptions): DxfWrit
       }
     const yb = cursor - pos - 2.2 * th;
     // title and scale
-    dw.text('TEXT', [0, yb + pos + th * 0.8], th, `${t(`diag.${d.field}`)} ${t(`sym.${d.field}`)} [${unit(d.q)}]  —  ${t('dxf.scale')} 1 ${unit(d.q)} = ${formatNumber(d.scale, opt.lang, 2, false)} mm`);
+    dw.text('TEXT', [0, yb + pos + th * 0.8], th, `${t(`diag.${d.field}`)} ${t(`sym.${d.field}`)} [${unit(d.q)}],  ${t('dxf.scale')} 1 ${unit(d.q)} = ${formatNumber(d.scale, opt.lang, 2, false)} mm`);
     dw.line(d.layer, [0, yb], [Lmm, yb]);
     for (const c of curves) {
       const arr = c[d.field];

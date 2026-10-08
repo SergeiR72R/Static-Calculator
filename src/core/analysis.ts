@@ -1,7 +1,7 @@
 import type { BeamModel, Id, Issue } from './types';
 import { G_ACC, X_TOL } from './types';
 import { buildMesh, nodeIndexAt, supportRestraint, spanIndexAt, type Mesh } from './mesh';
-import { equivalentNodalLoads, globalStiffness, matVec, type ElementLoad, type Mat6 } from './element';
+import { dirCos, equivalentNodalLoads, globalStiffness, matVec, type ElementLoad, type Mat6 } from './element';
 import { choleskyBand, choleskySolve, conditionEstimate, SymBandMatrix } from './linalg';
 import { kinematicCheck } from './stability';
 import { validateModel } from './validate';
@@ -280,9 +280,9 @@ export function buildLoadVector(prep: Prepared, caseId: Id, filter: SpanFilter =
     if (l.kind === 'point') {
       if (!spanOk(l.x)) continue;
       const ni = nodeIndexAt(mesh.nodes, l.x);
-      const a = (l.angle * Math.PI) / 180;
-      const Px = l.P * Math.cos(a);
-      const Pz = l.P * Math.sin(a);
+      const [c, sn] = dirCos(l.angle);
+      const Px = l.P * c;
+      const Pz = l.P * sn;
       lv.Fn[dof.node[ni].u] += Px;
       lv.Fn[dof.node[ni].w] += Pz;
       lv.sum[0] += Px;

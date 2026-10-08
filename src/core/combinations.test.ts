@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { testModel, rel } from './testutil';
 import { udl, pointLoad } from './defaults';
 import { analyze } from './analysis';
-import { computeView, combinationResult } from './results';
+import { computeView, combinationResult, valuesAt } from './results';
+import { handCalculation, handMoment } from './handcalc';
 import { sampleGrid, sampleResult } from './postprocess';
 import { runChecks } from './checks';
 
@@ -112,5 +113,44 @@ describe('pattern loading (chessboard) on continuous beams', () => {
       id: 'G',
     })!;
     expect(v.extremes.w.max.value).toBeGreaterThan(both.extremes.w.max.value);
+  });
+});
+
+describe('hand calculation (statically determinate)', () => {
+  it('Gerber beam: reactions and moments by statics equal FEM', () => {
+    const m = testModel(14, [['pinned', 0], ['roller', 6], ['roller', 14]], [udl('G', 0, 14, 10), pointLoad('G', 10, 20, 60)], {
+      hinges: [7.5],
+    });
+    const an = analyze(m);
+    const hc = handCalculation(an, { G: 1 });
+    expect(hc.applicable).toBe(true);
+    const v = computeView(an, { type: 'case', id: 'G' })!;
+    const R = v.reactions.max;
+    hc.unknowns.forEach((u, i) => {
+      const si = m.supports.findIndex((s) => s.id === u.supportId);
+      const fem = u.comp === 'u' ? R[3 * si] : u.comp === 'w' ? -R[3 * si + 1] : R[3 * si + 2];
+      expect(Math.abs(hc.solution[i] - fem)).toBeLessThan(1e-6);
+    });
+    for (const x of [3, 6, 7.5, 10, 12]) {
+      const r = valuesAt(an, v, x);
+      expect(Math.abs(handMoment(hc, x, 'left') - r.left.M)).toBeLessThan(1e-6);
+      expect(Math.abs(handMoment(hc, x, 'right') - r.right.M)).toBeLessThan(1e-6);
+    }
+  });
+
+  it('moment at a hinge on the left side', () => {
+    const m = testModel(4, [['fixed', 0], ['roller', 4]], [{ id: 'm', kind: 'moment', caseId: 'G', x: 2, M: 10e3, hingeSide: 'left' }], { hinges: [2] });
+    const an = analyze(m);
+    const hc = handCalculation(an, { G: 1 });
+    expect(hc.applicable).toBe(true);
+    expect(handMoment(hc, 2, 'left')).toBeCloseTo(-10e3, 6);
+    expect(handMoment(hc, 2, 'right')).toBeCloseTo(0, 6);
+  });
+
+  it('indeterminate systems are detected', () => {
+    const m = testModel(10, [['pinned', 0], ['roller', 5], ['roller', 10]], [udl('G', 0, 10, 1)]);
+    const hc = handCalculation(analyze(m), { G: 1 });
+    expect(hc.applicable).toBe(false);
+    expect(hc.degree).toBe(1);
   });
 });

@@ -7,6 +7,17 @@
 
 export type Mat6 = number[][];
 
+/** Direction cosines of a force angle in degrees (clockwise from +x), exact for multiples of 90° */
+export function dirCos(angleDeg: number): [number, number] {
+  const a = ((angleDeg % 360) + 360) % 360;
+  if (a === 0) return [1, 0];
+  if (a === 90) return [0, 1];
+  if (a === 180) return [-1, 0];
+  if (a === 270) return [0, -1];
+  const r = (a * Math.PI) / 180;
+  return [Math.cos(r), Math.sin(r)];
+}
+
 export interface ElementProps {
   L: number;
   EA: number;

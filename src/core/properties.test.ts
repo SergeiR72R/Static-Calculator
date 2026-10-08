@@ -4,7 +4,7 @@ import { testModel } from './testutil';
 import { analyze } from './analysis';
 import { equilibrium } from './postprocess';
 import { computeView } from './results';
-import type { Load, SupportType } from './types';
+import type { Load, Support, SupportType } from './types';
 import { uid } from './defaults';
 
 const kN = 1e3;
@@ -57,7 +57,7 @@ const modelArb = fc
   .chain((r) =>
     fc.array(loadArb(r.L), { minLength: 1, maxLength: 6 }).map((loads) => {
       const xs = [...new Set(r.pos.map((p) => snap(p * r.L)))].sort((a, b) => a - b);
-      const sup: [SupportType, number, Record<string, number>?][] = [];
+      const sup: ([SupportType, number] | [SupportType, number, Partial<Support>])[] = [];
       const hinges: number[] = [];
       if (r.kind === 'pinnedRollers') {
         sup.push(['pinned', 0]);

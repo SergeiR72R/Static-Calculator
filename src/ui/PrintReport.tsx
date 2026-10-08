@@ -33,6 +33,13 @@ export function PrintReport() {
           {fmt.t('print.date')}: {new Date().toLocaleDateString(fmt.lang === 'en' ? 'en-US' : fmt.lang === 'ru' ? 'ru-RU' : 'de-DE')} · {viewLabel(fmt, model, view)} ·{' '}
           {fmt.t('print.software')}
         </p>
+        {(model.author || model.description) && (
+          <p>
+            {model.author ? `${fmt.t('beam.author')}: ${model.author}` : ''}
+            {model.author && model.description ? ' · ' : ''}
+            {model.description ?? ''}
+          </p>
+        )}
       </header>
 
       <h2 className="mt-2 text-base font-semibold">{fmt.t('print.input')}</h2>

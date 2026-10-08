@@ -12,6 +12,7 @@ import { CasesPanel, LoadsPanel, SettingsPanel, SupportsPanel } from './ui/input
 import { ResultsPanel, ResultsToolbar } from './ui/results/ResultsPanel';
 import { ReportTab } from './ui/ReportTab';
 import { PrintReport } from './ui/PrintReport';
+import { NewProjectWizard } from './ui/NewProjectWizard';
 import { cx } from './ui/common';
 
 const INPUT_TABS: InputTab[] = ['beam', 'supports', 'loads', 'cases', 'settings'];
@@ -165,6 +166,7 @@ export function App() {
           </main>
           <footer className="no-print border-t border-slate-200 px-3 py-2 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">{fmt.t('app.footer')}</footer>
           {printing && <PrintReport />}
+          <NewProjectWizard />
           <Toast />
         </div>
       </Tooltip.Provider>

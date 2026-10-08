@@ -38,6 +38,9 @@ export function normalizeModel(raw: unknown): BeamModel {
   return {
     schema: MODEL_SCHEMA_VERSION,
     name: typeof m.name === 'string' ? m.name : '',
+    ...(typeof m.author === 'string' ? { author: m.author } : {}),
+    ...(typeof m.description === 'string' ? { description: m.description } : {}),
+    ...(typeof m.createdAt === 'string' ? { createdAt: m.createdAt } : {}),
     L: m.L,
     segments: m.segments,
     supports: m.supports.map((s) => {

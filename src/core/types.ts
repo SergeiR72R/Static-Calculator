@@ -157,6 +157,12 @@ export interface AnalysisSettings {
 export interface BeamModel {
   schema: number;
   name: string;
+  /** engineer / author (optional) */
+  author?: string;
+  /** project description (optional) */
+  description?: string;
+  /** ISO timestamp of creation (optional) */
+  createdAt?: string;
   L: number;
   segments: Segment[];
   supports: Support[];

@@ -1,13 +1,14 @@
 import type { Material, MaterialPreset } from '../core/types';
 
 const MPa = 1e6;
-const SQRT3 = Math.sqrt(3);
+/** f_v,k = f_y/√3, rounded to 0.01 MPa */
+const fv = (fyMPa: number) => (Math.round((fyMPa / Math.sqrt(3)) * 100) / 100) * MPa;
 
 /** Material presets (express check only, not a code check). */
 export const MATERIAL_PRESETS: Record<Exclude<MaterialPreset, 'custom'>, Material> = {
-  S235: { preset: 'S235', E: 210000 * MPa, G: 81000 * MPa, rho: 7850, fk: 235 * MPa, fvk: (235 * MPa) / SQRT3, gammaM: 1.0, kmod: 1 },
-  S355: { preset: 'S355', E: 210000 * MPa, G: 81000 * MPa, rho: 7850, fk: 355 * MPa, fvk: (355 * MPa) / SQRT3, gammaM: 1.0, kmod: 1 },
-  AW6060: { preset: 'AW6060', E: 70000 * MPa, G: 27000 * MPa, rho: 2700, fk: 140 * MPa, fvk: (140 * MPa) / SQRT3, gammaM: 1.1, kmod: 1 },
+  S235: { preset: 'S235', E: 210000 * MPa, G: 81000 * MPa, rho: 7850, fk: 235 * MPa, fvk: fv(235), gammaM: 1.0, kmod: 1 },
+  S355: { preset: 'S355', E: 210000 * MPa, G: 81000 * MPa, rho: 7850, fk: 355 * MPa, fvk: fv(355), gammaM: 1.0, kmod: 1 },
+  AW6060: { preset: 'AW6060', E: 70000 * MPa, G: 27000 * MPa, rho: 2700, fk: 140 * MPa, fvk: fv(140), gammaM: 1.1, kmod: 1 },
   C24: { preset: 'C24', E: 11000 * MPa, G: 690 * MPa, rho: 420, fk: 24 * MPa, fvk: 4.0 * MPa, gammaM: 1.3, kmod: 0.8 },
 };
 

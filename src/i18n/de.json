@@ -7,14 +7,24 @@
     "mobileViewOnly": "Auf schmalen Bildschirmen (< 768 px) ist nur die Ansicht der Ergebnisse möglich. Zum Bearbeiten bitte ein größeres Fenster verwenden.",
     "footer": "Lineare Statik, Theorie I. Ordnung. Alle Berechnungen laufen lokal im Browser. Expressnachweise ersetzen keinen Nachweis nach Norm."
   },
-  "lang": { "de": "Deutsch", "en": "English", "ru": "Русский" },
-  "common": { "add": "Hinzufügen", "delete": "Löschen", "close": "Schließen", "yes": "ja", "no": "nein" },
+  "lang": {
+    "de": "Deutsch",
+    "en": "English",
+    "ru": "Русский"
+  },
+  "common": {
+    "add": "Hinzufügen",
+    "delete": "Löschen",
+    "close": "Schließen",
+    "yes": "ja",
+    "no": "nein"
+  },
   "header": {
     "templates": "Vorlagen",
     "undo": "Rückgängig",
     "redo": "Wiederholen",
     "file": "Datei",
-    "new": "Neues Projekt",
+    "new": "Neues Projekt…",
     "open": "Projekt öffnen (JSON)…",
     "save": "Projekt speichern (JSON)",
     "share": "Link zur Berechnung",
@@ -25,7 +35,9 @@
     "metric": "Metrisch",
     "imperial": "Imperial",
     "language": "Sprache",
-    "theme": "Hell/Dunkel umschalten"
+    "theme": "Hell/Dunkel umschalten",
+    "newProject": "Neues Projekt",
+    "project": "Projekt"
   },
   "templates": {
     "simple": "Einfeldträger",
@@ -52,7 +64,9 @@
     "addSegment": "Abschnitt teilen",
     "segment": "Abschnitt",
     "from": "von x",
-    "to": "bis x"
+    "to": "bis x",
+    "author": "Bearbeiter",
+    "description": "Beschreibung"
   },
   "section": {
     "label": "Querschnitt",
@@ -143,7 +157,13 @@
     "custom": "Lastfall",
     "customName": "Lastfall",
     "category": "Kategorie",
-    "cat": { "G": "ständig G", "Q": "veränderlich Q", "S": "Schnee S", "W": "Wind W", "custom": "benutzerdef." },
+    "cat": {
+      "G": "ständig G",
+      "Q": "veränderlich Q",
+      "S": "Schnee S",
+      "W": "Wind W",
+      "custom": "benutzerdef."
+    },
     "inUse": "Lastfall wird von Lasten verwendet",
     "selfWeightHint": "Das Eigengewicht wird automatisch dem ersten Lastfall der Kategorie G zugeordnet."
   },
@@ -151,7 +171,10 @@
     "title": "Kombinationen",
     "single": "Kombination",
     "type": "Art",
-    "types": { "ULS": "GZT", "SLS": "GZG" },
+    "types": {
+      "ULS": "GZT",
+      "SLS": "GZG"
+    },
     "presets": "DIN EN 1990 Vorgaben",
     "inEnvelope": "in Umhüllende berücksichtigen",
     "hint": "Vorgaben nach DIN EN 1990: GZT 1,35·G + 1,5·Q und 1,0·G + 1,5·Q, GZG 1,0·G + 1,0·Q. Der Festigkeitsnachweis verwendet die GZT-, der Durchbiegungsnachweis die GZG-Kombinationen."
@@ -183,7 +206,10 @@
     "envelopeOption": "Umhüllende (max/min) der gewählten Kombinationen",
     "envelopeInfo": "Umhüllende aus {n} Varianten",
     "momentSide": "Positives M zeichnen",
-    "side": { "bottom": "Zugfaser unten", "top": "Zugfaser oben" },
+    "side": {
+      "bottom": "Zugfaser unten",
+      "top": "Zugfaser oben"
+    },
     "deformed": "Biegelinie",
     "deformScale": "Überhöhung der Biegelinie",
     "time": "berechnet in {ms} ms · {n} Elemente",
@@ -205,8 +231,21 @@
     "sigma": "Spannung",
     "tau": "Schubspannung"
   },
-  "sym": { "N": "N", "V": "V", "M": "M", "w": "w", "u": "u", "theta": "θ", "sigma": "σ", "tau": "τ" },
-  "dof": { "u": "Längsverschiebung u", "w": "Durchbiegung w", "t": "Verdrehung θ" },
+  "sym": {
+    "N": "N",
+    "V": "V",
+    "M": "M",
+    "w": "w",
+    "u": "u",
+    "theta": "θ",
+    "sigma": "σ",
+    "tau": "τ"
+  },
+  "dof": {
+    "u": "Längsverschiebung u",
+    "w": "Durchbiegung w",
+    "t": "Verdrehung θ"
+  },
   "kpi": {
     "reactions": "Auflagerreaktionen",
     "springForce": "Federkraft",
@@ -225,7 +264,9 @@
     "basisSLS": "Grundlage: Umhüllende der GZG-Kombinationen",
     "basisView": "Grundlage: angezeigtes Ergebnis"
   },
-  "issues": { "failed": "Berechnung nicht möglich" },
+  "issues": {
+    "failed": "Berechnung nicht möglich"
+  },
   "err": {
     "positive": "Der Wert muss größer als 0 sein.",
     "nonNegative": "Der Wert darf nicht negativ sein.",
@@ -265,9 +306,12 @@
   "toast": {
     "loaded": "Projekt geladen.",
     "loadedFromLink": "Berechnung aus dem Link geladen.",
-    "linkCopied": "Link in die Zwischenablage kopiert."
+    "linkCopied": "Link in die Zwischenablage kopiert.",
+    "projectCreated": "Projekt „{name}“ angelegt."
   },
-  "share": { "description": "Das vollständige Modell ist komprimiert im Link enthalten. Link kopieren und weitergeben:" },
+  "share": {
+    "description": "Das vollständige Modell ist komprimiert im Link enthalten. Link kopieren und weitergeben:"
+  },
   "csv": {
     "title": "CSV-Export",
     "step": "Schrittweite Δx",
@@ -373,5 +417,42 @@
       "sections": "Schnittverfahren: M(x) aus dem linken Teilsystem an den charakteristischen Punkten, links (⁻) und rechts (⁺) der Stelle.",
       "sectionTable": "Biegemomente: Handrechnung und FEM"
     }
+  },
+  "wizard": {
+    "titleFirst": "Willkommen – erstes Projekt anlegen",
+    "title": "Neues Projekt",
+    "stepOf": "Schritt {n} von {total}",
+    "progress": "Fortschritt",
+    "steps": {
+      "prefs": "Grundeinstellungen",
+      "project": "Projekt",
+      "system": "Statisches System",
+      "section": "Querschnitt und Material",
+      "analysis": "Berechnungsoptionen",
+      "summary": "Zusammenfassung"
+    },
+    "welcome": "Der Assistent führt Sie einmalig durch die Grundeinstellungen und legt Ihr erstes Projekt an. Beim nächsten Start wird automatisch das zuletzt bearbeitete Projekt geöffnet.",
+    "theme": "Darstellung",
+    "light": "Hell",
+    "dark": "Dunkel",
+    "prefsHint": "Alle Einstellungen lassen sich später in der Kopfzeile und unter „Optionen“ ändern.",
+    "namePlaceholder": "z. B. Halle 3 – Pfette Achse B",
+    "nameRequired": "Bitte einen Projektnamen eingeben.",
+    "systemIntro": "Wählen Sie das statische System als Ausgangspunkt. Auflager, Gelenke und Lasten können danach frei bearbeitet werden.",
+    "withLoads": "Beispiellasten der Vorlage übernehmen",
+    "withLoadsShort": "mit Beispiellasten",
+    "systemHint": "Die Geometrie der Vorlage wird auf die eingegebene Länge skaliert.",
+    "combosHint": "Lastfälle G, Q, S, W und die Kombinationen nach DIN EN 1990 werden angelegt und können unter „Lastfälle“ angepasst werden.",
+    "system": "System",
+    "saveDefaults": "Als Vorgabe für neue Projekte speichern",
+    "saveDefaultsHint": "Bearbeiter, System, Querschnitt, Material und Berechnungsoptionen werden beim nächsten neuen Projekt vorbelegt.",
+    "replaceWarning": "Das aktuelle Projekt „{name}“ wird ersetzt. Gespeichert wird im Browser nur das zuletzt bearbeitete Projekt – bei Bedarf vorher als Datei sichern.",
+    "unnamed": "ohne Namen",
+    "saveCurrent": "Aktuelles Projekt sichern (JSON)",
+    "skip": "Überspringen",
+    "cancel": "Abbrechen",
+    "back": "Zurück",
+    "next": "Weiter",
+    "create": "Projekt anlegen"
   }
 }

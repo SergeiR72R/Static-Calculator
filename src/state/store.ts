@@ -5,6 +5,7 @@ import { defaultModel, templateModel, type TemplateId } from '../core/defaults';
 import type { Lang } from '../units/format';
 import type { UnitSystem } from '../units/units';
 import { modelFromHash, normalizeModel, storage } from './persist';
+import { builtinUserDefaults, type UserDefaults } from '../core/project';
 
 export type Selection = { kind: 'support' | 'hinge' | 'load' | 'segment'; id: Id } | null;
 export type InputTab = 'beam' | 'supports' | 'loads' | 'cases' | 'settings';
@@ -64,6 +65,10 @@ export interface AppState extends Prefs {
   mainTab: MainTab;
   /** transient notification (i18n key) */
   toast: { key: string; params?: Record<string, string | number> } | null;
+  /** new-project wizard; firstRun = first start on this computer (includes the preferences step) */
+  wizard: { open: boolean; firstRun: boolean };
+  /** defaults for new projects chosen by the user */
+  userDefaults: UserDefaults;
 
   setPrefs: (p: Partial<Prefs>) => void;
   /** apply an update to a copy of the model and push it on the undo stack */
@@ -82,9 +87,15 @@ export interface AppState extends Prefs {
   setInputTab: (t: InputTab) => void;
   setMainTab: (t: MainTab) => void;
   showToast: (key: string, params?: Record<string, string | number>) => void;
+  openWizard: () => void;
+  /** close the wizard; marks the first start as done */
+  closeWizard: () => void;
+  setUserDefaults: (d: UserDefaults) => void;
 }
 
 const MODEL_KEY = 'balken.model';
+const ONBOARDED_KEY = 'balken.onboarded';
+const DEFAULTS_KEY = 'balken.defaults';
 const PREFS_KEY = 'balken.prefs';
 const LANG_KEY = 'balken.lang';
 const THEME_KEY = 'balken.theme';
@@ -131,7 +142,11 @@ function initialModel(): { model: BeamModel; fromLink: boolean } {
   if (typeof window !== 'undefined') {
     try {
       const m = modelFromHash(window.location.hash);
-      if (m) return { model: m, fromLink: true };
+      if (m) {
+        // the model is autosaved from now on; without the hash a reload opens the edited project
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        return { model: m, fromLink: true };
+      }
     } catch {
       /* invalid link → fall through */
     }
@@ -160,6 +175,21 @@ function fixView(model: BeamModel, view: ResultView): ResultView {
 
 const init = initialModel();
 
+/** First start on this computer: nothing saved yet and not opened via a share link */
+const firstRun = !init.fromLink && !storage.get(ONBOARDED_KEY) && !storage.get(MODEL_KEY);
+
+function loadUserDefaults(): UserDefaults {
+  const d = builtinUserDefaults();
+  const raw = storage.get(DEFAULTS_KEY);
+  if (!raw) return d;
+  try {
+    const p = JSON.parse(raw) as Partial<UserDefaults>;
+    return { ...d, ...p, settings: { ...d.settings, ...(p.settings ?? {}) } };
+  } catch {
+    return d;
+  }
+}
+
 export const useStore = create<AppState>()((set, get) => ({
   ...loadPrefs(),
   model: init.model,
@@ -171,6 +201,8 @@ export const useStore = create<AppState>()((set, get) => ({
   inputTab: 'beam',
   mainTab: 'results',
   toast: init.fromLink ? { key: 'toast.loadedFromLink' } : null,
+  wizard: { open: firstRun, firstRun },
+  userDefaults: loadUserDefaults(),
 
   setPrefs: (p) => {
     set(p);
@@ -241,12 +273,35 @@ export const useStore = create<AppState>()((set, get) => ({
   setInputTab: (t) => set({ inputTab: t }),
   setMainTab: (t) => set({ mainTab: t }),
   showToast: (key, params) => set({ toast: { key, params } }),
+  openWizard: () => set({ wizard: { open: true, firstRun: false } }),
+  closeWizard: () => {
+    storage.set(ONBOARDED_KEY, '1');
+    set({ wizard: { open: false, firstRun: false } });
+  },
+  setUserDefaults: (d) => {
+    storage.set(DEFAULTS_KEY, JSON.stringify(d));
+    set({ userDefaults: d });
+  },
 }));
 
-// autosave (debounced)
+// autosave (debounced, flushed when the page is hidden or closed so no edit gets lost)
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let dirty = false;
+function flushSave() {
+  clearTimeout(saveTimer);
+  if (!dirty) return;
+  dirty = false;
+  storage.set(MODEL_KEY, JSON.stringify(useStore.getState().model));
+}
 useStore.subscribe((s, prev) => {
   if (s.model === prev.model) return;
+  dirty = true;
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => storage.set(MODEL_KEY, JSON.stringify(useStore.getState().model)), 300);
+  saveTimer = setTimeout(flushSave, 300);
 });
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushSave);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushSave();
+  });
+}

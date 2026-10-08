@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Dialog, DropdownMenu } from 'radix-ui';
 import { useStore } from '../state/store';
-import { TEMPLATE_IDS, defaultModel } from '../core/defaults';
+import { TEMPLATE_IDS } from '../core/defaults';
 import { parseProject, serializeProject, shareUrl } from '../state/persist';
 import { LANGS } from '../i18n';
 import type { Lang } from '../units/format';
@@ -14,6 +14,7 @@ import {
   IconFile,
   IconLink,
   IconMoon,
+  IconPlus,
   IconPrint,
   IconRedo,
   IconSun,
@@ -114,9 +115,15 @@ export function Header() {
         <IconBeamLogo />
         <div className="leading-tight">
           <h1 className="text-base font-bold text-slate-900 dark:text-slate-100">{fmt.t('app.title')}</h1>
-          <p className="hidden text-[11px] text-slate-500 sm:block dark:text-slate-400">{fmt.t('app.subtitle')}</p>
+          <p className="hidden max-w-[22rem] truncate text-[11px] text-slate-500 sm:block dark:text-slate-400" data-testid="header-project">
+            {st.model.name ? `${fmt.t('header.project')}: ${st.model.name}` : fmt.t('app.subtitle')}
+          </p>
         </div>
       </div>
+
+      <Button variant="primary" data-testid="new-project" onClick={st.openWizard} className="hidden md:inline-flex">
+        <IconPlus /> {fmt.t('header.newProject')}
+      </Button>
 
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
@@ -152,7 +159,7 @@ export function Header() {
         </DropdownMenu.Trigger>
         <DropdownMenu.Portal>
           <DropdownMenu.Content className={menuContent} align="start" sideOffset={4}>
-            <DropdownMenu.Item className={menuItem} onSelect={() => st.loadModel(defaultModel())}>
+            <DropdownMenu.Item className={menuItem} data-testid="menu-new" onSelect={st.openWizard}>
               <IconFile /> {fmt.t('header.new')}
             </DropdownMenu.Item>
             <DropdownMenu.Item className={menuItem} data-testid="menu-open" onSelect={() => fileRef.current?.click()}>

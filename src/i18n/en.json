@@ -7,14 +7,24 @@
     "mobileViewOnly": "On narrow screens (< 768 px) results can only be viewed. Please use a larger window for editing.",
     "footer": "Linear static analysis, first-order theory. All calculations run locally in your browser. Express checks do not replace a code check."
   },
-  "lang": { "de": "Deutsch", "en": "English", "ru": "Русский" },
-  "common": { "add": "Add", "delete": "Delete", "close": "Close", "yes": "yes", "no": "no" },
+  "lang": {
+    "de": "Deutsch",
+    "en": "English",
+    "ru": "Русский"
+  },
+  "common": {
+    "add": "Add",
+    "delete": "Delete",
+    "close": "Close",
+    "yes": "yes",
+    "no": "no"
+  },
   "header": {
     "templates": "Templates",
     "undo": "Undo",
     "redo": "Redo",
     "file": "File",
-    "new": "New project",
+    "new": "New project…",
     "open": "Open project (JSON)…",
     "save": "Save project (JSON)",
     "share": "Link to this calculation",
@@ -25,7 +35,9 @@
     "metric": "Metric",
     "imperial": "Imperial",
     "language": "Language",
-    "theme": "Toggle light/dark"
+    "theme": "Toggle light/dark",
+    "newProject": "New project",
+    "project": "Project"
   },
   "templates": {
     "simple": "Simply supported beam",
@@ -52,7 +64,9 @@
     "addSegment": "Split segment",
     "segment": "Segment",
     "from": "from x",
-    "to": "to x"
+    "to": "to x",
+    "author": "Engineer",
+    "description": "Description"
   },
   "section": {
     "label": "Cross-section",
@@ -143,7 +157,13 @@
     "custom": "Load case",
     "customName": "Load case",
     "category": "Category",
-    "cat": { "G": "permanent G", "Q": "variable Q", "S": "snow S", "W": "wind W", "custom": "custom" },
+    "cat": {
+      "G": "permanent G",
+      "Q": "variable Q",
+      "S": "snow S",
+      "W": "wind W",
+      "custom": "custom"
+    },
     "inUse": "Load case is used by loads",
     "selfWeightHint": "The self weight is assigned automatically to the first load case of category G."
   },
@@ -151,7 +171,10 @@
     "title": "Combinations",
     "single": "Combination",
     "type": "Type",
-    "types": { "ULS": "ULS", "SLS": "SLS" },
+    "types": {
+      "ULS": "ULS",
+      "SLS": "SLS"
+    },
     "presets": "EN 1990 presets",
     "inEnvelope": "include in envelope",
     "hint": "Presets according to EN 1990: ULS 1.35·G + 1.5·Q and 1.0·G + 1.5·Q, SLS 1.0·G + 1.0·Q. The strength check uses the ULS, the deflection check the SLS combinations."
@@ -183,7 +206,10 @@
     "envelopeOption": "Envelope (max/min) of the selected combinations",
     "envelopeInfo": "envelope of {n} variants",
     "momentSide": "Draw positive M",
-    "side": { "bottom": "tension fibre bottom", "top": "tension fibre top" },
+    "side": {
+      "bottom": "tension fibre bottom",
+      "top": "tension fibre top"
+    },
     "deformed": "Deflected shape",
     "deformScale": "Magnification of the deflected shape",
     "time": "computed in {ms} ms · {n} elements",
@@ -205,8 +231,21 @@
     "sigma": "Stress",
     "tau": "Shear stress"
   },
-  "sym": { "N": "N", "V": "V", "M": "M", "w": "w", "u": "u", "theta": "θ", "sigma": "σ", "tau": "τ" },
-  "dof": { "u": "axial displacement u", "w": "deflection w", "t": "rotation θ" },
+  "sym": {
+    "N": "N",
+    "V": "V",
+    "M": "M",
+    "w": "w",
+    "u": "u",
+    "theta": "θ",
+    "sigma": "σ",
+    "tau": "τ"
+  },
+  "dof": {
+    "u": "axial displacement u",
+    "w": "deflection w",
+    "t": "rotation θ"
+  },
   "kpi": {
     "reactions": "Support reactions",
     "springForce": "spring force",
@@ -225,7 +264,9 @@
     "basisSLS": "Basis: envelope of the SLS combinations",
     "basisView": "Basis: displayed result"
   },
-  "issues": { "failed": "Analysis not possible" },
+  "issues": {
+    "failed": "Analysis not possible"
+  },
   "err": {
     "positive": "The value must be greater than 0.",
     "nonNegative": "The value must not be negative.",
@@ -265,9 +306,12 @@
   "toast": {
     "loaded": "Project loaded.",
     "loadedFromLink": "Calculation loaded from the link.",
-    "linkCopied": "Link copied to the clipboard."
+    "linkCopied": "Link copied to the clipboard.",
+    "projectCreated": "Project “{name}” created."
   },
-  "share": { "description": "The complete model is compressed into the link. Copy and share it:" },
+  "share": {
+    "description": "The complete model is compressed into the link. Copy and share it:"
+  },
   "csv": {
     "title": "CSV export",
     "step": "Step Δx",
@@ -373,5 +417,42 @@
       "sections": "Method of sections: M(x) from the left part at the characteristic points, left (⁻) and right (⁺) of the position.",
       "sectionTable": "Bending moments: hand calculation and FEM"
     }
+  },
+  "wizard": {
+    "titleFirst": "Welcome – create your first project",
+    "title": "New project",
+    "stepOf": "Step {n} of {total}",
+    "progress": "Progress",
+    "steps": {
+      "prefs": "Basic settings",
+      "project": "Project",
+      "system": "Structural system",
+      "section": "Section and material",
+      "analysis": "Analysis options",
+      "summary": "Summary"
+    },
+    "welcome": "This assistant guides you once through the basic settings and creates your first project. On the next start the last edited project opens automatically.",
+    "theme": "Appearance",
+    "light": "Light",
+    "dark": "Dark",
+    "prefsHint": "All settings can be changed later in the header and under “Options”.",
+    "namePlaceholder": "e.g. Hall 3 – purlin axis B",
+    "nameRequired": "Please enter a project name.",
+    "systemIntro": "Choose the structural system as a starting point. Supports, hinges and loads can be edited freely afterwards.",
+    "withLoads": "Use the example loads of the template",
+    "withLoadsShort": "with example loads",
+    "systemHint": "The geometry of the template is scaled to the entered length.",
+    "combosHint": "Load cases G, Q, S, W and the EN 1990 combinations are created and can be adjusted under “Load cases”.",
+    "system": "System",
+    "saveDefaults": "Save as default for new projects",
+    "saveDefaultsHint": "Engineer, system, section, material and analysis options are prefilled for the next new project.",
+    "replaceWarning": "The current project “{name}” will be replaced. The browser only keeps the last edited project – save it as a file first if needed.",
+    "unnamed": "unnamed",
+    "saveCurrent": "Save current project (JSON)",
+    "skip": "Skip",
+    "cancel": "Cancel",
+    "back": "Back",
+    "next": "Next",
+    "create": "Create project"
   }
 }

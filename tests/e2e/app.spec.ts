@@ -1,6 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
+// the first-start wizard is covered in wizard.spec.ts; here the app counts as already set up
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('balken.onboarded', '1'));
+});
+
 async function template(page: Page, id: string) {
   await page.getByTestId('templates-menu').click();
   await page.getByTestId(`template-${id}`).click();
@@ -8,6 +13,7 @@ async function template(page: Page, id: string) {
 
 test('opens in German by default, independent of the browser language', async ({ browser }) => {
   const ctx = await browser.newContext({ locale: 'en-US' });
+  await ctx.addInitScript(() => localStorage.setItem('balken.onboarded', '1'));
   const page = await ctx.newPage();
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');

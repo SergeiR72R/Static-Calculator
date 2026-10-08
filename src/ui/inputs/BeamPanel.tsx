@@ -53,7 +53,7 @@ export function BeamPanel() {
     <div className="space-y-3">
       <Card>
         <div className="grid grid-cols-2 gap-2">
-          <TextField label={fmt.t('beam.name')} value={model.name} onChange={(v) => update((m) => void (m.name = v), 'name')} />
+          <TextField label={fmt.t('beam.name')} value={model.name} onChange={(v) => update((m) => void (m.name = v), 'name')} testId="project-name" />
           <NumberField
             label={fmt.t('beam.length')}
             value={model.L}
@@ -62,6 +62,21 @@ export function BeamPanel() {
             testId="beam-length"
             onChange={(v) => update((m) => setBeamLength(m, v), 'L')}
           />
+          <TextField
+            className="col-span-2"
+            label={fmt.t('beam.author')}
+            value={model.author ?? ''}
+            onChange={(v) => update((m) => void (m.author = v), 'author')}
+          />
+          <label className="col-span-2 block">
+            <span className="mb-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">{fmt.t('beam.description')}</span>
+            <textarea
+              value={model.description ?? ''}
+              rows={2}
+              onChange={(e) => update((m) => void (m.description = e.target.value), 'description')}
+              className="w-full rounded border border-slate-300 bg-white px-1.5 py-1 text-sm outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 dark:border-slate-600 dark:bg-slate-900"
+            />
+          </label>
         </div>
       </Card>
       <Card

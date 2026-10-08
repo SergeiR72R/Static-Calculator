@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Switch as RSwitch, Tooltip as RTooltip } from 'radix-ui';
 import { parseNumber } from '../units/format';
 import type { Quantity } from '../units/units';
@@ -78,16 +78,11 @@ interface NumberFieldProps {
 export function NumberField({ value, q = 'factor', onChange, path, label, showUnit, className, disabled, testId, ariaLabel }: NumberFieldProps) {
   const fmt = useFmt();
   const id = useId();
-  const [text, setText] = useState(() => fmt.input(value, q));
-  const [focused, setFocused] = useState(false);
+  // text being edited; null while the field is not focused (then the model value is shown)
+  const [edit, setEdit] = useState<string | null>(null);
   const [bad, setBad] = useState(false);
   const issues = useFieldIssues(path);
-  useEffect(() => {
-    if (!focused) {
-      setText(fmt.input(value, q));
-      setBad(false);
-    }
-  }, [value, q, fmt, focused]);
+  const text = edit ?? fmt.input(value, q);
   const err = issues.find((i) => i.severity === 'error');
   const warn = issues.find((i) => i.severity === 'warning');
   const msg = bad ? fmt.t('err.number') : err ? fmt.issue(err) : warn ? fmt.issue(warn) : '';
@@ -120,13 +115,16 @@ export function NumberField({ value, q = 'factor', onChange, path, label, showUn
                 ? 'border-amber-500'
                 : 'border-slate-300 dark:border-slate-600',
           )}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
+          onFocus={() => setEdit(fmt.input(value, q))}
+          onBlur={() => {
+            setEdit(null);
+            setBad(false);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
           onChange={(e) => {
-            setText(e.target.value);
+            setEdit(e.target.value);
             const v = parseNumber(e.target.value);
             if (Number.isFinite(v)) {
               setBad(false);
@@ -137,7 +135,7 @@ export function NumberField({ value, q = 'factor', onChange, path, label, showUn
         />
         {showUnit && unit && <span className="shrink-0 text-xs text-slate-500">{unit}</span>}
       </div>
-      {msg && (bad ? !focused : true) && (
+      {msg && (
         <p role="alert" className={cx('mt-0.5 text-[11px] leading-tight', bad || err ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400')}>
           {msg}
         </p>
@@ -152,12 +150,14 @@ export function TextField({
   label,
   className,
   placeholder,
+  testId,
 }: {
   value: string;
   onChange: (v: string) => void;
   label?: string;
   className?: string;
   placeholder?: string;
+  testId?: string;
 }) {
   const id = useId();
   return (
@@ -173,6 +173,7 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         aria-label={label ?? placeholder}
+        data-testid={testId}
         onChange={(e) => onChange(e.target.value)}
         className={cx(inputBase, 'border-slate-300 dark:border-slate-600')}
       />

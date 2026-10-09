@@ -6,7 +6,7 @@ import { parseProject, serializeProject, shareUrl } from '../state/persist';
 import { LANGS } from '../i18n';
 import type { Lang } from '../units/format';
 import { Button, NumberField, cx, downloadBlob } from './common';
-import { useFmt, useResults } from './hooks';
+import { makeFmt, useFmt, useResults } from './hooks';
 import { Wordmark } from './Brand';
 import {
   IconChevronDown,
@@ -23,7 +23,7 @@ import {
   IconUpload,
   IconX,
 } from './icons';
-import { buildDxf } from '../export/dxf';
+import { buildDxf, dxfLang } from '../export/dxf';
 import { buildCsv } from '../export/csv';
 import { viewLabel } from './viewLabel';
 
@@ -96,8 +96,8 @@ export function Header() {
       decimals: st.decimals,
       scales: st.dxfScale,
       momentSide: st.momentSide,
-      title: st.model.name || fmt.t('app.title'),
-      viewLabel: viewLabel(fmt, st.model, st.view),
+      title: st.model.name || makeFmt(dxfLang(st.lang), st.units, st.decimals).t('app.title'),
+      viewLabel: viewLabel(dxfLang(st.lang) === st.lang ? fmt : makeFmt(dxfLang(st.lang), st.units, st.decimals), st.model, st.view),
     });
     downloadBlob(dw.bytes() as BlobPart, `${fileBase(st.model.name)}.dxf`, 'application/dxf');
     setDxfOpen(false);
@@ -111,7 +111,7 @@ export function Header() {
 
   return (
     <header className="no-print sticky top-0 z-30 flex flex-wrap items-center gap-2 border-b-[3px] border-lime-400 bg-white/95 px-3 py-2 backdrop-blur dark:bg-slate-900/95">
-      <div className="flex items-center gap-3 pr-2">
+      <div className="flex items-center gap-3 pe-2">
         <Wordmark />
         <span className="hidden h-8 w-px bg-slate-200 sm:block dark:bg-slate-700" aria-hidden />
         <div className="leading-tight">
@@ -198,7 +198,7 @@ export function Header() {
         }}
       />
 
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ms-auto flex items-center gap-2">
         <div className="flex overflow-hidden rounded-md border border-slate-300 text-xs dark:border-slate-600" role="group" aria-label={fmt.t('header.units')}>
           {(['metric', 'imperial'] as const).map((u) => (
             <button

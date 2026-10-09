@@ -242,12 +242,19 @@ export interface DxfOptions {
   viewLabel: string;
 }
 
+/** Language of the generated DXF labels */
+export function dxfLang(lang: Lang): Lang {
+  return lang === 'he' ? 'en' : lang;
+}
+
 export function dxfCodepageFor(lang: Lang): DxfCodepage {
   return lang === 'ru' ? 'ANSI_1251' : 'ANSI_1252';
 }
 
 /** Build the complete drawing of the beam, loads and diagrams of the given result view. */
-export function buildDxf(an: Analysis, vr: ViewResult, opt: DxfOptions): DxfWriter {
+export function buildDxf(an: Analysis, vr: ViewResult, options: DxfOptions): DxfWriter {
+  // Hebrew (RTL) is not supported by R12 text entities: drawing labels in English
+  const opt = { ...options, lang: dxfLang(options.lang) };
   const t = (k: string, p?: Record<string, string | number>) => translate(opt.lang, k, p);
   // ASCII minus: the unicode minus sign (U+2212) is missing in the standard CAD fonts
   const fmtv = (v: number, q: Quantity, d = opt.decimals) => formatNumber(fromSI(v, q, opt.units), opt.lang, d, false).replace('\u2212', '-');

@@ -212,7 +212,7 @@ export function SelectField<T extends string>({
         data-testid={testId}
         aria-label={ariaLabel ?? label}
         onChange={(e) => onChange(e.target.value as T)}
-        className={cx(inputBase, 'border-slate-300 pr-5 dark:border-slate-600')}
+        className={cx(inputBase, 'border-slate-300 pe-5 dark:border-slate-600')}
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -247,7 +247,7 @@ export function SwitchField({
         data-testid={testId}
         className="relative mt-0.5 h-5 w-9 shrink-0 rounded-full bg-slate-300 transition-colors data-[state=checked]:bg-accent-600 dark:bg-slate-600"
       >
-        <RSwitch.Thumb className="block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow transition-transform data-[state=checked]:translate-x-[18px]" />
+        <RSwitch.Thumb className="block h-4 w-4 translate-x-0.5 rounded-full bg-white shadow transition-transform data-[state=checked]:translate-x-[18px] rtl:-translate-x-0.5 rtl:data-[state=checked]:-translate-x-[18px]" />
       </RSwitch.Root>
       <label htmlFor={id} className="text-sm leading-tight">
         {label}

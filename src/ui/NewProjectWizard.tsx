@@ -135,7 +135,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                 <p className="text-sm">{fmt.t('wizard.welcome')}</p>
                 <div>
                   <p className="mb-1 text-xs font-medium text-slate-500">{fmt.t('header.language')}</p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {LANGS.map((l) => (
                       <button
                         key={l}
@@ -291,7 +291,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                       ] as [string, string][]
                     ).map(([k, v]) => (
                       <tr key={k} className="border-b border-slate-100 dark:border-slate-800">
-                        <td className="py-1 pr-3 text-slate-500 dark:text-slate-400">{k}</td>
+                        <td className="py-1 pe-3 text-slate-500 dark:text-slate-400">{k}</td>
                         <td className="py-1">{v}</td>
                       </tr>
                     ))}
@@ -325,7 +325,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                 {fmt.t('wizard.cancel')}
               </Button>
             )}
-            <div className="ml-auto flex gap-2">
+            <div className="ms-auto flex gap-2">
               {stepIdx > 0 && (
                 <Button onClick={() => setStepIdx(stepIdx - 1)} data-testid="wizard-back">
                   {fmt.t('wizard.back')}

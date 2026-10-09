@@ -113,7 +113,7 @@ function loadPrefs(): Prefs {
   }
   // language: German on first start, regardless of the browser language
   const lang = storage.get(LANG_KEY);
-  p.lang = lang === 'ru' || lang === 'en' || lang === 'de' ? lang : 'de';
+  p.lang = lang === 'ru' || lang === 'en' || lang === 'de' || lang === 'he' ? lang : 'de';
   const theme = storage.get(THEME_KEY);
   if (theme === 'dark' || theme === 'light') p.theme = theme;
   else if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) p.theme = 'dark';

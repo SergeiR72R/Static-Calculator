@@ -226,6 +226,7 @@ export default function Beam3D({ field, sectionScale, deformed, resetKey, onRang
       ref={host}
       className="relative h-[380px] w-full cursor-grab overflow-hidden active:cursor-grabbing"
       data-testid="beam-3d"
+      dir="ltr"
       onPointerMove={onMove}
       onPointerLeave={() => {
         setTip(null);

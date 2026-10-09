@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../state/store';
 import { translate, type TParams } from '../i18n';
-import { formatInput, formatNumber, type Lang } from '../units/format';
+import { formatInput, formatNumber, isRtl, type Lang } from '../units/format';
 import { fromSI, toSI, unitSymbol, type Quantity, type UnitSystem } from '../units/units';
 import type { Analysis } from '../core/analysis';
 import type { ViewResult } from '../core/results';
@@ -29,15 +29,18 @@ export interface Fmt {
 
 export function makeFmt(lang: Lang, units: UnitSystem, decimals: number): Fmt {
   const t = (key: string, params?: TParams) => translate(lang, key, params);
+  // right-to-left UI: numbers (with sign and unit) between left-to-right marks, so that the sign
+  // stays in front and "L = 10.00 m" or "0.00–5.00 m" read as one left-to-right run
+  const iso = isRtl(lang) ? (s: string) => `\u200e${s}\u200e` : (s: string) => s;
   const fmt: Fmt = {
     lang,
     units,
     decimals,
     t,
-    num: (v, d) => formatNumber(v, lang, d ?? decimals),
+    num: (v, d) => iso(formatNumber(v, lang, d ?? decimals)),
     q: (v, q, d) => {
       const u = unitSymbol(q, units);
-      return `${formatNumber(fromSI(v, q, units), lang, d ?? decimals)}${u ? ' ' + u : ''}`;
+      return iso(`${formatNumber(fromSI(v, q, units), lang, d ?? decimals)}${u ? ' ' + u : ''}`);
     },
     val: (v, q) => fromSI(v, q, units),
     si: (v, q) => toSI(v, q, units),
@@ -49,7 +52,7 @@ export function makeFmt(lang: Lang, units: UnitSystem, decimals: number): Fmt {
         if (typeof v === 'number' && (k === 'x' || k === 'x1' || k === 'x2' || k === 'min' || k === 'max'))
           p[k] = fmt.q(v, 'length');
         else if (k === 'dof' && typeof v === 'string') p[k] = t(`dof.${v}`);
-        else if (typeof v === 'number') p[k] = formatNumber(v, lang, decimals);
+        else if (typeof v === 'number') p[k] = iso(formatNumber(v, lang, decimals));
         else p[k] = v;
       }
       return t(i.key, p);

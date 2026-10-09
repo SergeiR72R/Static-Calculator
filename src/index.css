@@ -151,3 +151,28 @@ body {
 .brand-plate {
   @apply inline-flex items-center rounded-md bg-white px-2 py-1;
 }
+
+/* Right-to-left (Hebrew): the engineering graphics, formulas and numbers keep the left-to-right
+   orientation of the beam axis; only the surrounding UI is mirrored. */
+svg,
+.katex,
+.katex-display,
+.matrix-table {
+  direction: ltr;
+}
+/* localized labels inside the drawings: base direction from the text itself */
+svg text {
+  unicode-bidi: plaintext;
+}
+/* formula-like result lines ("|w| = … ≤ L/250 = …") read left to right, aligned to the start side */
+/* table cells with numbers such as "3.8916·10⁻⁵" or "1 – 2": bidi direction from the content */
+[dir='rtl'] .report-table td {
+  unicode-bidi: plaintext;
+}
+[dir='rtl'] div.num,
+[dir='rtl'] p.num,
+[dir='rtl'] input[inputmode='decimal'],
+[dir='rtl'] .ltr-num {
+  direction: ltr;
+  text-align: right;
+}

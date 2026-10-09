@@ -207,3 +207,23 @@ test('PERI component: product, catalogue length, material and PERI check', async
   await expect(page.getByTestId('peri-length')).toHaveValue('custom');
   await expect(page.getByTestId('check-peri-RCS')).toContainText('M_Rd');
 });
+
+test('Hebrew: right-to-left UI, drawings stay left-to-right, numbers keep their sign in front', async ({ page }) => {
+  await page.goto('/');
+  await template(page, 'twoSpan');
+  await page.getByTestId('lang-select').selectOption('he');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+  await expect(page.getByTestId('tab-supports')).toHaveText('סמכים');
+  // Radix tabs follow the document direction (no forced dir="ltr")
+  const dir = (testId: string) =>
+    page.getByTestId(testId).evaluate((e) => (e.ownerDocument.defaultView as { getComputedStyle: (el: unknown) => { direction: string } }).getComputedStyle(e).direction);
+  expect(await dir('tab-supports')).toBe('rtl');
+  // engineering drawings keep x to the right
+  expect(await dir('diagram-path-M')).toBe('ltr');
+  // he-IL: decimal point, real minus sign first (no stray bidi marks inside the number)
+  const vmin = (await page.getByTestId('kpi-V-min').textContent())!.replace(/‎/g, '');
+  expect(vmin).toMatch(/^−\d+\.\d\d$/);
+  // back to German
+  await page.getByTestId('lang-select').selectOption('de');
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+});

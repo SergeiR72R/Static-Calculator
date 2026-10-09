@@ -17,7 +17,7 @@ import { sectionProps } from '../sections/properties';
 import { findCatalogEntry } from '../sections/catalog';
 import { designStrength } from '../sections/materials';
 import { translate, type TParams } from '../i18n';
-import { formatNumber, type Lang } from '../units/format';
+import { formatNumber, isRtl, usesDecimalPoint, type Lang } from '../units/format';
 
 export type Block =
   | { type: 'h'; level: 2 | 3; text: string; id?: string }
@@ -67,7 +67,7 @@ export function texNum(v: number, lang: Lang, sig = 5): string {
 
 function trimNum(s: string, lang: Lang): string {
   if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
-  return lang === 'en' ? s : s.replace('.', '{,}');
+  return usesDecimalPoint(lang) ? s : s.replace('.', '{,}');
 }
 
 /** Plain text number (tables) */
@@ -83,7 +83,7 @@ export function txtNum(v: number, lang: Lang, sig = 5): string {
   }
   const dec = Math.max(0, Math.min(10, sig - 1 - e));
   const s = formatNumber(v, lang, dec, false);
-  const sep = lang === 'en' ? '.' : ',';
+  const sep = usesDecimalPoint(lang) ? '.' : ',';
   return s.includes(sep) ? s.replace(/0+$/, '').replace(new RegExp(`\\${sep}$`), '') : s;
 }
 
@@ -184,7 +184,7 @@ function sectionDerivation(def: SectionDef, lang: Lang, t: (k: string, p?: TPara
   return out;
 }
 
-const KE_TEX = `\\mathbf{K}_e = \\begin{bmatrix}
+const KE_TEX = `\\def\\arraystretch{1.9}\\mathbf{K}_e = \\begin{bmatrix}
 \\frac{EA}{L} & 0 & 0 & -\\frac{EA}{L} & 0 & 0 \\\\
 0 & \\frac{12EI}{L^3} & \\frac{6EI}{L^2} & 0 & -\\frac{12EI}{L^3} & \\frac{6EI}{L^2} \\\\
 0 & \\frac{6EI}{L^2} & \\frac{4EI}{L} & 0 & -\\frac{6EI}{L^2} & \\frac{2EI}{L} \\\\
@@ -215,6 +215,8 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
   if (!an.ok || !an.prep || !an.mesh) return null;
   const lang = opt.lang;
   const t = (k: string, p?: TParams) => translate(lang, k, p);
+  // text inside formulas: KaTeX has no right-to-left text → English for Hebrew
+  const tt = (k: string, p?: TParams) => translate(isRtl(lang) ? 'en' : lang, k, p);
   const N = (v: number, sig = 5) => texNum(v, lang, sig);
   const T = (v: number, sig = 5) => txtNum(v, lang, sig);
   const prep = an.prep;
@@ -226,6 +228,11 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
   const caseName = (id: Id) => {
     const c = model.loadCases.find((k) => k.id === id);
     return c ? c.name || t(`lc.${c.category}`) : id;
+  };
+  /** load case name for a formula subscript (category code if the name is right-to-left) */
+  const texCaseName = (id: Id) => {
+    const n = caseName(id);
+    return /[\u0590-\u05FF]/.test(n) ? (model.loadCases.find((k) => k.id === id)?.category ?? id) : n;
   };
   const factorsText = Object.entries(ls.factors)
     .filter(([, f]) => f)
@@ -301,7 +308,7 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
     tex: `E_d = \\sum_i \\gamma_i\\,E_i = ${
       Object.entries(ls.factors)
         .filter(([, f]) => f)
-        .map(([id, f]) => `${N(f, 3)} \\cdot E_{\\text{${caseName(id).replace(/[{}\\$&#%_^~]/g, '')}}}`)
+        .map(([id, f]) => `${N(f, 3)} \\cdot E_{\\text{${texCaseName(id).replace(/[{}\\$&#%_^~]/g, '')}}}`)
         .join(' + ') || '0'
     }`,
   });
@@ -660,7 +667,7 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
     });
     blocks.push({
       type: 'tex',
-      tex: `f_d = \\frac{k_{mod}\\,f_k}{\\gamma_M} = \\frac{${N(m.kmod, 3)} \\cdot ${N(m.fk)}}{${N(m.gammaM, 3)}} = ${N(designStrength(m))}\\,\\mathrm{Pa},\\qquad \\eta = \\frac{\\sigma}{f_d} = ${N(s.eta * 100, 4)}\\,\\% \\;\\Rightarrow\\; \\text{${t(s.ok ? 'kpi.ok' : 'kpi.fail')}}`,
+      tex: `f_d = \\frac{k_{mod}\\,f_k}{\\gamma_M} = \\frac{${N(m.kmod, 3)} \\cdot ${N(m.fk)}}{${N(m.gammaM, 3)}} = ${N(designStrength(m))}\\,\\mathrm{Pa},\\qquad \\eta = \\frac{\\sigma}{f_d} = ${N(s.eta * 100, 4)}\\,\\% \\;\\Rightarrow\\; \\text{${tt(s.ok ? 'kpi.ok' : 'kpi.fail')}}`,
     });
   }
   if (ch?.shear) {
@@ -678,7 +685,7 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
     const perm = c.method === 'perm';
     for (const it of c.items) {
       const reg = it.region ? `\\;(${it.region})` : '';
-      const ok = `\\;\\Rightarrow\\; \\text{${t(it.eta <= 1 ? 'kpi.ok' : 'kpi.fail')}}`;
+      const ok = `\\;\\Rightarrow\\; \\text{${tt(it.eta <= 1 ? 'kpi.ok' : 'kpi.fail')}}`;
       if (it.key === 'int' && it.parts) {
         const q = it.parts;
         blocks.push({
@@ -705,7 +712,7 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
       const Ls = d.span.x2 - d.span.x1;
       blocks.push({
         type: 'tex',
-        tex: `\\text{${t(d.span.kind === 'cantilever' ? 'kpi.cantilever' : 'kpi.span')} } ${N(d.span.x1)}\\ldots${N(d.span.x2)}\\,\\mathrm{m}:\\quad |w| = ${N(Math.abs(d.w))}\\,\\mathrm{m} \\le \\frac{L}{${N(d.denominator, 4)}} = \\frac{${N(Ls)}}{${N(d.denominator, 4)}} = ${N(d.limit)}\\,\\mathrm{m},\\quad \\eta = ${N(d.eta * 100, 4)}\\,\\%`,
+        tex: `\\text{${tt(d.span.kind === 'cantilever' ? 'kpi.cantilever' : 'kpi.span')} } ${N(d.span.x1)}\\ldots${N(d.span.x2)}\\,\\mathrm{m}:\\quad |w| = ${N(Math.abs(d.w))}\\,\\mathrm{m} \\le \\frac{L}{${N(d.denominator, 4)}} = \\frac{${N(Ls)}}{${N(d.denominator, 4)}} = ${N(d.limit)}\\,\\mathrm{m},\\quad \\eta = ${N(d.eta * 100, 4)}\\,\\%`,
       });
     }
   }

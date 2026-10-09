@@ -26,7 +26,7 @@ export function ReportTab() {
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900" data-testid="report">
       <div className="no-print mb-3 flex flex-wrap items-center gap-2">
-        <div className="mr-auto">
+        <div className="me-auto">
           <h2 className="text-lg font-semibold">{fmt.t('report.title')}</h2>
           <p className="text-xs text-slate-500">
             {fmt.t('report.loadSet')}: {report.loadSetLabel}

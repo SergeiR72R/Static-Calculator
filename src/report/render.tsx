@@ -42,9 +42,9 @@ function MatrixTable({ b, lang }: { b: Extract<Block, { type: 'matrix' }>; lang:
         <tbody>
           {b.data.map((row, i) => (
             <tr key={i}>
-              <th className="pr-1 text-right text-[10px] font-normal text-slate-500">{b.rowLabels[i]}</th>
+              <th className="pe-1 text-end text-[10px] font-normal text-slate-500">{b.rowLabels[i]}</th>
               {row.map((v, j) => (
-                <td key={j} className={v === null || v === 0 ? 'text-slate-300 dark:text-slate-600' : 'text-right'}>
+                <td key={j} className={v === null || v === 0 ? 'text-slate-300 dark:text-slate-600' : 'text-end'}>
                   {v === null ? '·' : Number.isNaN(v) ? '■' : v === 0 ? '0' : txtNum(v, lang, 4)}
                 </td>
               ))}
@@ -123,7 +123,7 @@ export function Blocks({ blocks, lang, printMode }: { blocks: Block[]; lang: Lan
           case 'table':
             return (
               <div key={i} className="my-2 max-w-full overflow-x-auto">
-                <table className="text-xs">
+                <table className="report-table text-xs">
                   <thead>
                     <tr>
                       {b.head.map((h, j) => (
@@ -135,7 +135,7 @@ export function Blocks({ blocks, lang, printMode }: { blocks: Block[]; lang: Lan
                     {b.rows.map((r, j) => (
                       <tr key={j}>
                         {r.map((c, k) => (
-                          <td key={k} style={b.align?.[k] === 'l' || (k === 0 && !b.align) ? { textAlign: 'left' } : undefined}>
+                          <td key={k} style={b.align?.[k] === 'l' || (k === 0 && !b.align) ? { textAlign: 'start' } : undefined}>
                             {c}
                           </td>
                         ))}

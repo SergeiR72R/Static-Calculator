@@ -105,7 +105,7 @@ export function BeamPanel() {
                 <div className="flex items-center gap-2 px-2 py-1">
                   <button
                     type="button"
-                    className="flex min-w-0 flex-1 items-center gap-1 text-left text-sm"
+                    className="flex min-w-0 flex-1 items-center gap-1 text-start text-sm"
                     aria-expanded={isOpen}
                     onClick={() => setOpen(isOpen ? null : s.id)}
                   >

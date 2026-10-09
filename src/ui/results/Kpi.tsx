@@ -1,6 +1,7 @@
 import type { Field } from '../../core/postprocess';
 import type { PeriCheck } from '../../core/checks';
 import { findPeriProduct } from '../../sections/peri';
+import { isRtl } from '../../units/format';
 import { useStore } from '../../state/store';
 import { Badge, Card, cx } from '../common';
 import { useFmt, useResults } from '../hooks';
@@ -25,24 +26,24 @@ export function ReactionsCard() {
         <table className="w-full text-xs">
           <thead className="text-slate-500 dark:text-slate-400">
             <tr>
-              <th className="py-1 text-left font-medium">{fmt.t('support.single')}</th>
-              <th className="text-right font-medium">x [{fmt.unit('length')}]</th>
-              <th className="text-right font-medium">R_x [{fmt.unit('force')}]</th>
-              <th className="text-right font-medium">R_z [{fmt.unit('force')}]</th>
-              <th className="text-right font-medium">M_R [{fmt.unit('moment')}]</th>
+              <th className="py-1 text-start font-medium">{fmt.t('support.single')}</th>
+              <th className="text-end font-medium">x [{fmt.unit('length')}]</th>
+              <th className="text-end font-medium">R_x [{fmt.unit('force')}]</th>
+              <th className="text-end font-medium">R_z [{fmt.unit('force')}]</th>
+              <th className="text-end font-medium">M_R [{fmt.unit('moment')}]</th>
             </tr>
           </thead>
           <tbody className="num">
             {sups.map(({ s, i }) => (
               <tr key={s.id} className="border-t border-slate-100 dark:border-slate-800" data-testid={`reaction-${s.id}`}>
-                <td className="py-1 text-left">
+                <td className="py-1 text-start">
                   {fmt.t(`support.types.${s.type}`)}
-                  {s.type === 'spring' && <span className="ml-1 text-[10px] text-slate-500">({fmt.t('kpi.springForce')})</span>}
+                  {s.type === 'spring' && <span className="ms-1 text-[10px] text-slate-500">({fmt.t('kpi.springForce')})</span>}
                 </td>
-                <td className="text-right">{fmt.num(fmt.val(s.x, 'length'))}</td>
-                <td className="text-right">{cell(i, 0, 'force')}</td>
-                <td className="text-right" data-testid="reaction-Rz">{cell(i, 1, 'force')}</td>
-                <td className="text-right">{cell(i, 2, 'moment')}</td>
+                <td className="text-end">{fmt.num(fmt.val(s.x, 'length'))}</td>
+                <td className="text-end">{cell(i, 0, 'force')}</td>
+                <td className="text-end" data-testid="reaction-Rz">{cell(i, 1, 'force')}</td>
+                <td className="text-end">{cell(i, 2, 'moment')}</td>
               </tr>
             ))}
           </tbody>
@@ -69,37 +70,37 @@ export function ExtremesCard() {
       <table className="w-full text-xs">
         <thead className="text-slate-500 dark:text-slate-400">
           <tr>
-            <th className="py-1 text-left font-medium" />
-            <th className="text-right font-medium">max</th>
-            <th className="text-right font-medium">x</th>
-            <th className="text-right font-medium">min</th>
-            <th className="text-right font-medium">x</th>
+            <th className="py-1 text-start font-medium" />
+            <th className="text-end font-medium">max</th>
+            <th className="text-end font-medium">x</th>
+            <th className="text-end font-medium">min</th>
+            <th className="text-end font-medium">x</th>
           </tr>
         </thead>
         <tbody className="num">
           {rows.map(({ f, q }) => (
             <tr key={f} className="border-t border-slate-100 dark:border-slate-800" data-testid={`extreme-row-${f}`}>
-              <td className="py-1 text-left font-semibold">
+              <td className="py-1 text-start font-semibold">
                 {fmt.t(`sym.${f}`)} <span className="font-normal text-slate-500">[{fmt.unit(q)}]</span>
               </td>
-              <td className="text-right" data-testid={`kpi-${f}-max`}>
+              <td className="text-end" data-testid={`kpi-${f}-max`}>
                 {fmt.num(fmt.val(ex[f].max.value, q))}
               </td>
-              <td className="text-right text-slate-500">{fmt.num(fmt.val(ex[f].max.x, 'length'))}</td>
-              <td className="text-right" data-testid={`kpi-${f}-min`}>
+              <td className="text-end text-slate-500">{fmt.num(fmt.val(ex[f].max.x, 'length'))}</td>
+              <td className="text-end" data-testid={`kpi-${f}-min`}>
                 {fmt.num(fmt.val(ex[f].min.value, q))}
               </td>
-              <td className="text-right text-slate-500">{fmt.num(fmt.val(ex[f].min.x, 'length'))}</td>
+              <td className="text-end text-slate-500">{fmt.num(fmt.val(ex[f].min.x, 'length'))}</td>
             </tr>
           ))}
           <tr className="border-t border-slate-100 dark:border-slate-800">
-            <td className="py-1 text-left font-semibold">
+            <td className="py-1 text-start font-semibold">
               σ<sub>max</sub> <span className="font-normal text-slate-500">[{fmt.unit('stress')}]</span>
             </td>
-            <td className="text-right" data-testid="kpi-sigma-max">
+            <td className="text-end" data-testid="kpi-sigma-max">
               {fmt.num(fmt.val(ex.sigma.max.value, 'stress'))}
             </td>
-            <td className="text-right text-slate-500">{fmt.num(fmt.val(ex.sigma.max.x, 'length'))}</td>
+            <td className="text-end text-slate-500">{fmt.num(fmt.val(ex.sigma.max.x, 'length'))}</td>
             <td />
             <td />
           </tr>
@@ -161,8 +162,10 @@ export function ChecksCard() {
           <div key={d.span.index} data-testid={`check-deflection-${d.span.index}`}>
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">
-                {fmt.t(d.span.kind === 'cantilever' ? 'kpi.cantilever' : 'kpi.span')} {fmt.num(fmt.val(d.span.x1, 'length'))}–
-                {fmt.q(d.span.x2, 'length')}
+                {fmt.t(d.span.kind === 'cantilever' ? 'kpi.cantilever' : 'kpi.span')}{' '}
+                <bdi dir="ltr">
+                  {fmt.num(fmt.val(d.span.x1, 'length'))}–{fmt.q(d.span.x2, 'length')}
+                </bdi>
               </span>
               <Badge ok={d.ok}>{d.ok ? fmt.t('kpi.ok') : fmt.t('kpi.fail')}</Badge>
             </div>
@@ -192,19 +195,27 @@ function PeriCheckView({ c }: { c: PeriCheck }) {
         </span>
         <Badge ok={c.ok}>{c.ok ? fmt.t('kpi.ok') : fmt.t('kpi.fail')}</Badge>
       </div>
-      <div className="num space-y-0.5 text-slate-600 dark:text-slate-300">
+      <div className="space-y-0.5 tabular-nums text-slate-600 dark:text-slate-300">
         {c.items.map((it, i) => {
-          const reg = it.region ? ` (${fmt.t('kpi.periRegion', { r: it.region })})` : '';
+          // inside a left-to-right formula only the region letter for right-to-left languages
+          const reg = it.region ? ` (${isRtl(fmt.lang) ? it.region : fmt.t('kpi.periRegion', { r: it.region })})` : '';
+          // label (localized text) + formula (left to right)
+          let label = '';
           let txt: string;
-          if (it.key === 'int') txt = `${fmt.t('kpi.periInteraction')}${reg}: η = ${pct(it.eta)} · x = ${fmt.q(it.x, 'length')}`;
-          else if (it.key === 'M') txt = `|M| = ${fmt.q(it.Ed, 'moment')} ≤ ${sym('M')} = ${fmt.q(it.Rd, 'moment')}${reg} · η = ${pct(it.eta)}`;
+          if (it.key === 'int') {
+            label = `${fmt.t('kpi.periInteraction')}:`;
+            txt = `η = ${pct(it.eta)}${reg} · x = ${fmt.q(it.x, 'length')}`;
+          } else if (it.key === 'M') txt = `|M| = ${fmt.q(it.Ed, 'moment')} ≤ ${sym('M')} = ${fmt.q(it.Rd, 'moment')}${reg} · η = ${pct(it.eta)}`;
           else if (it.key === 'V') txt = `|V| = ${fmt.q(it.Ed, 'force')} ≤ ${perm ? 'perm Q' : 'V_Rd'} = ${fmt.q(it.Rd, 'force')}${reg} · η = ${pct(it.eta)}`;
           else if (it.key === 'N') txt = `|N| = ${fmt.q(it.Ed, 'force')} ≤ N_Rd = ${fmt.q(it.Rd, 'force')}${reg} · η = ${pct(it.eta)}`;
-          else
-            txt = `${fmt.t(it.key === 'Rend' ? 'kpi.periRend' : 'kpi.periRint')} x = ${fmt.q(it.x, 'length')}: R = ${fmt.q(it.Ed, 'force')} ≤ perm R = ${fmt.q(it.Rd, 'force')} · η = ${pct(it.eta)}`;
+          else {
+            label = `${fmt.t(it.key === 'Rend' ? 'kpi.periRend' : 'kpi.periRint')}`;
+            txt = `x = ${fmt.q(it.x, 'length')}: R = ${fmt.q(it.Ed, 'force')} ≤ perm R = ${fmt.q(it.Rd, 'force')} · η = ${pct(it.eta)}`;
+          }
           return (
             <div key={i} className={cx(it.eta > 1 && 'text-red-600 dark:text-red-400')}>
-              {txt}
+              {label && <span className="font-sans">{label} </span>}
+              <bdi dir="ltr">{txt}</bdi>
             </div>
           );
         })}
@@ -227,7 +238,7 @@ export function IssuesBox() {
           <div className="mb-1 flex items-center gap-2 font-semibold">
             <IconAlert /> {fmt.t('issues.failed')}
           </div>
-          <ul className="list-disc space-y-0.5 pl-5">
+          <ul className="list-disc space-y-0.5 ps-5">
             {an.errors.map((e, i) => (
               <li key={i}>
                 {e.path ? <span className="font-mono text-xs opacity-70">{pathLabel(fmt.t, e.path)}: </span> : null}

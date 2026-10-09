@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { flushSync } from 'react-dom';
-import { Tabs, Tooltip } from 'radix-ui';
+import { Direction, Tabs, Tooltip } from 'radix-ui';
 import { analyze } from './core/analysis';
 import { computeView } from './core/results';
 import { runChecks } from './core/checks';
@@ -15,6 +15,7 @@ import { PrintReport } from './ui/PrintReport';
 import { NewProjectWizard } from './ui/NewProjectWizard';
 import { BRAND } from './ui/Brand';
 import { cx } from './ui/common';
+import { isRtl } from './units/format';
 
 const INPUT_TABS: InputTab[] = ['beam', 'supports', 'loads', 'cases', 'settings'];
 
@@ -55,6 +56,7 @@ export function App() {
   }, [theme]);
   useEffect(() => {
     document.documentElement.lang = lang;
+    document.documentElement.dir = isRtl(lang) ? 'rtl' : 'ltr';
     document.title = `${fmt.t('app.title')} – ${BRAND.name}`;
   }, [lang, fmt]);
 
@@ -94,6 +96,7 @@ export function App() {
 
   return (
     <ResultsContext.Provider value={ctx}>
+      <Direction.Provider dir={isRtl(lang) ? 'rtl' : 'ltr'}>
       <Tooltip.Provider>
         <div className="flex min-h-full flex-col">
           <Header />
@@ -101,7 +104,7 @@ export function App() {
             {fmt.t('app.mobileViewOnly')}
           </div>
           <main className="no-print grid flex-1 grid-cols-1 md:grid-cols-[minmax(320px,400px)_1fr] lg:grid-cols-[minmax(360px,440px)_1fr]">
-            <aside className="hidden border-r border-slate-200 bg-slate-100/60 md:block dark:border-slate-800 dark:bg-slate-900/40" aria-label={fmt.t('app.input')}>
+            <aside className="hidden border-e border-slate-200 bg-slate-100/60 md:block dark:border-slate-800 dark:bg-slate-900/40" aria-label={fmt.t('app.input')}>
               <Tabs.Root value={inputTab} onValueChange={(v) => useStore.getState().setInputTab(v as InputTab)} className="flex h-full flex-col">
                 <Tabs.List className="sticky top-[53px] z-20 flex border-b border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900" aria-label={fmt.t('app.input')}>
                   {INPUT_TABS.map((tb) => (
@@ -179,6 +182,7 @@ export function App() {
           <Toast />
         </div>
       </Tooltip.Provider>
+      </Direction.Provider>
     </ResultsContext.Provider>
   );
 }

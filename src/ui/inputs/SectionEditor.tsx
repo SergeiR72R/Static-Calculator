@@ -274,8 +274,8 @@ export function SectionSketch({ def, rho }: { def: SectionDef; rho: number }) {
         <tbody>
           {rows.map(([k, v]) => (
             <tr key={k}>
-              <td className="pr-3 text-slate-500 dark:text-slate-400">{k}</td>
-              <td className="num text-right">{v}</td>
+              <td className="pe-3 text-slate-500 dark:text-slate-400">{k}</td>
+              <td className="num text-end">{v}</td>
             </tr>
           ))}
         </tbody>

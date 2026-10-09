@@ -1,7 +1,7 @@
 import katex from 'katex';
 import type { Block, Report } from './build';
 import { txtNum } from './build';
-import type { Lang } from '../units/format';
+import { isRtl, type Lang } from '../units/format';
 import logoDataUri from '../assets/promaintain-logo.png?inline';
 
 const KATEX_CSS = 'https://cdn.jsdelivr.net/npm/katex@0.16.47/dist/katex.min.css';
@@ -57,7 +57,7 @@ function blocksHtml(blocks: Block[], lang: Lang): string {
 
 export function reportToHtml(report: Report, lang: Lang, heading: string): string {
   return `<!doctype html>
-<html lang="${lang}">
+<html lang="${lang}" dir="${isRtl(lang) ? 'rtl' : 'ltr'}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -72,7 +72,7 @@ table{border-collapse:collapse;margin:.5rem 0;font-size:.8rem;font-variant-numer
 th,td{border:1px solid #cbd5e1;padding:2px 6px;text-align:right}th{background:#f1f5f9}
 table.m td,table.m th{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.7rem;border:none;padding:0 4px}
 details{border:1px solid #e2e8f0;border-radius:4px;padding:.3rem .6rem;margin:.4rem 0}summary{cursor:pointer;font-weight:600}
-.tex{overflow-x:auto}
+.tex{overflow-x:auto;direction:ltr}[dir=rtl] td{unicode-bidi:plaintext}table.m{direction:ltr}
 </style>
 </head>
 <body>

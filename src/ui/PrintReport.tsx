@@ -11,6 +11,7 @@ import { useReport } from './ReportTab';
 import { ReportBody } from '../report/render';
 import { viewLabel } from './viewLabel';
 import { BRAND, FullLogo } from './Brand';
+import { LANG_LOCALE } from '../units/format';
 
 const W = 700;
 
@@ -24,8 +25,8 @@ export function PrintReport() {
   const { an, vr } = useResults();
   const report = useReport();
   const sx = makeXScale(W, model.L);
-  const th = 'border border-slate-400 px-1.5 py-0.5 text-left font-semibold';
-  const td = 'border border-slate-400 px-1.5 py-0.5 text-right num';
+  const th = 'border border-slate-400 px-1.5 py-0.5 text-start font-semibold';
+  const td = 'border border-slate-400 px-1.5 py-0.5 text-end num';
   return (
     <div className="print-only text-[11px] text-black" data-testid="print-report">
       <header className="mb-3 border-b-2 pb-1" style={{ borderColor: BRAND.green }}>
@@ -36,7 +37,7 @@ export function PrintReport() {
           <FullLogo className="h-10" />
         </div>
         <p>
-          {fmt.t('print.date')}: {new Date().toLocaleDateString(fmt.lang === 'en' ? 'en-US' : fmt.lang === 'ru' ? 'ru-RU' : 'de-DE')} · {viewLabel(fmt, model, view)} ·{' '}
+          {fmt.t('print.date')}: {new Date().toLocaleDateString(LANG_LOCALE[fmt.lang])} · {viewLabel(fmt, model, view)} ·{' '}
           {fmt.t('print.software')}
         </p>
         {(model.author || model.description) && (
@@ -74,7 +75,9 @@ export function PrintReport() {
               <tr key={s.id}>
                 <td className={td}>{i + 1}</td>
                 <td className={td}>
-                  {fmt.num(fmt.val(s.x1, 'length'))} – {fmt.num(fmt.val(s.x2, 'length'))}
+                  <bdi dir="ltr">
+                    {fmt.num(fmt.val(s.x1, 'length'))} – {fmt.num(fmt.val(s.x2, 'length'))}
+                  </bdi>
                 </td>
                 <td className={td}>{fmt.t(`material.preset.${s.material.preset}`)}</td>
                 <td className={td}>{fmt.num(fmt.val(s.material.E, 'modulus'), 0)}</td>
@@ -139,7 +142,9 @@ export function PrintReport() {
                 <td className={th}>{caseLabel(fmt, model, l.caseId)}</td>
                 <td className={th}>{l.kind === 'dist' ? fmt.t(l.dir === 'x' ? 'load.kinds.axial' : 'load.kinds.dist') : fmt.t(`load.kinds.${l.kind}`)}</td>
                 <td className={td}>
-                  {l.kind === 'dist' ? `${fmt.num(fmt.val(l.x1, 'length'))} – ${fmt.num(fmt.val(l.x2, 'length'))}` : fmt.num(fmt.val(l.x, 'length'))}
+                  <bdi dir="ltr">
+                    {l.kind === 'dist' ? `${fmt.num(fmt.val(l.x1, 'length'))} – ${fmt.num(fmt.val(l.x2, 'length'))}` : fmt.num(fmt.val(l.x, 'length'))}
+                  </bdi>
                 </td>
                 <td className={td}>
                   {l.kind === 'point'

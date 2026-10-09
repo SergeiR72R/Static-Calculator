@@ -1,6 +1,12 @@
-export type Lang = 'de' | 'ru' | 'en';
+export type Lang = 'de' | 'ru' | 'en' | 'he';
 
-export const LANG_LOCALE: Record<Lang, string> = { de: 'de-DE', ru: 'ru-RU', en: 'en-US' };
+/** right-to-left languages */
+export const isRtl = (lang: Lang) => lang === 'he';
+
+/** languages with a decimal point (others use a decimal comma) */
+export const usesDecimalPoint = (lang: Lang) => lang === 'en' || lang === 'he';
+
+export const LANG_LOCALE: Record<Lang, string> = { de: 'de-DE', ru: 'ru-RU', en: 'en-US', he: 'he-IL' };
 
 const cache = new Map<string, Intl.NumberFormat>();
 
@@ -28,7 +34,8 @@ export function formatNumber(v: number, lang: Lang, decimals = 2, grouping = tru
   let d = decimals;
   const a = Math.abs(v);
   if (a > 0 && a < 10 ** -decimals) d = Math.min(12, Math.ceil(-Math.log10(a)) + 1);
-  let s = nf(lang, d, grouping).format(v);
+  // he-IL prefixes negative numbers with a left-to-right mark (U+200E): remove bidi marks
+  let s = nf(lang, d, grouping).format(v).replace(/[\u200e\u200f\u061c]/g, '');
   // normalise negative zero and use a proper minus sign
   if (/^-0([.,]0*)?$/.test(s)) s = s.slice(1);
   return s.replace(/^-/, '−');
@@ -38,8 +45,8 @@ export function formatNumber(v: number, lang: Lang, decimals = 2, grouping = tru
 export function formatInput(v: number, lang: Lang, maxDecimals = 6): string {
   if (!Number.isFinite(v)) return '';
   const r = Number(v.toPrecision(12));
-  let s = nf(lang, maxDecimals, false).format(r);
-  const sep = lang === 'en' ? '.' : ',';
+  let s = nf(lang, maxDecimals, false).format(r).replace(/[\u200e\u200f\u061c]/g, '');
+  const sep = usesDecimalPoint(lang) ? '.' : ',';
   if (s.includes(sep)) s = s.replace(/0+$/, '').replace(new RegExp(`\\${sep}$`), '');
   if (s === '-0') s = '0';
   return s;

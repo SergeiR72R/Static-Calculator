@@ -1,13 +1,14 @@
 import de from './de.json';
 import en from './en.json';
 import ru from './ru.json';
+import he from './he.json';
 import type { Lang } from '../units/format';
 
 type Dict = { [k: string]: string | Dict };
 
-export const DICTIONARIES: Record<Lang, Dict> = { de, en, ru };
+export const DICTIONARIES: Record<Lang, Dict> = { de, en, ru, he };
 
-export const LANGS: Lang[] = ['de', 'en', 'ru'];
+export const LANGS: Lang[] = ['de', 'en', 'ru', 'he'];
 
 function lookup(dict: Dict, key: string): string | undefined {
   let cur: string | Dict | undefined = dict;

@@ -20,13 +20,15 @@ describe('step-by-step report', () => {
       m.settings.selfWeight = true;
       const an = analyze(m);
       const vr = computeView(an, { type: 'combo', id: 'ULS1' })!;
-      for (const lang of ['de', 'en', 'ru'] as const) {
+      for (const lang of ['de', 'en', 'ru', 'he'] as const) {
         const r = buildReport(an, { lang, view: { type: 'combo', id: 'ULS1' }, checks: runChecks(an, vr) })!;
         const heads = r.blocks.filter((b) => b.type === 'h' && b.level === 2);
         expect(heads).toHaveLength(9);
         for (const b of flat(r.blocks)) {
           if (b.type !== 'tex') continue;
           expect(() => katex.renderToString(b.tex, { throwOnError: true, displayMode: true }), b.tex).not.toThrow();
+          // no right-to-left text inside formulas
+          expect(b.tex, b.tex).not.toMatch(/[\u0590-\u05FF]/);
         }
         expect(reportToHtml(r, lang, 'T')).toContain('<h2>');
         expect(reportToHtml(r, lang, 'T')).toContain('src="data:image/png;base64,');

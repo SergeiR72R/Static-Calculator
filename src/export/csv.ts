@@ -2,7 +2,7 @@ import type { Analysis } from '../core/analysis';
 import { valuesAt, type ViewResult } from '../core/results';
 import type { Field } from '../core/postprocess';
 import { translate } from '../i18n';
-import { formatInput, type Lang } from '../units/format';
+import { formatInput, usesDecimalPoint, type Lang } from '../units/format';
 import { fromSI, unitSymbol, type Quantity, type UnitSystem } from '../units/units';
 
 export interface CsvOptions {
@@ -29,7 +29,7 @@ const COLS: { f: Field; q: Quantity }[] = [
  */
 export function buildCsv(an: Analysis, vr: ViewResult, opt: CsvOptions): string {
   const t = (k: string) => translate(opt.lang, k);
-  const sep = opt.lang === 'en' ? ',' : ';';
+  const sep = usesDecimalPoint(opt.lang) ? ',' : ';';
   const num = (v: number, q: Quantity) => (Number.isFinite(v) ? formatInput(fromSI(v, q, opt.units), opt.lang, 6) : '');
   const esc = (s: string) => (s.includes(sep) || /["\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
   const row = (cells: string[]) => cells.map(esc).join(sep);

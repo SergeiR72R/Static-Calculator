@@ -69,3 +69,14 @@ describe('number formatting', () => {
     expect(parseNumber('1,2,3')).toBeNaN();
   });
 });
+
+describe('Hebrew (he-IL)', () => {
+  it('decimal point, proper minus sign, no bidi control marks', () => {
+    expect(formatNumber(-41.11, 'he')).toBe('−41.11');
+    expect(formatNumber(1234.5, 'he')).toBe('1,234.50');
+    expect(formatNumber(-1e-14, 'he')).not.toMatch(/[‎‏]/);
+    expect(formatNumber(-1e-15, 'he')).toBe('0.000000000000');
+    expect(formatInput(-2.5, 'he')).toBe('-2.5');
+    expect(parseNumber(formatInput(-2.5, 'he'))).toBe(-2.5);
+  });
+});

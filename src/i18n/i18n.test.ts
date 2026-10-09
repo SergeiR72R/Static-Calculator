@@ -7,8 +7,11 @@ describe('localization', () => {
   const de = allKeys(DICTIONARIES.de).sort();
   const en = allKeys(DICTIONARIES.en).sort();
   const ru = allKeys(DICTIONARIES.ru).sort();
+  const he = allKeys(DICTIONARIES.he).sort();
 
-  it('all three languages have identical key sets', () => {
+  it('all languages have identical key sets', () => {
+    expect(he.filter((k) => !de.includes(k))).toEqual([]);
+    expect(de.filter((k) => !he.includes(k))).toEqual([]);
     expect(en.filter((k) => !de.includes(k))).toEqual([]);
     expect(ru.filter((k) => !de.includes(k))).toEqual([]);
     expect(de.filter((k) => !en.includes(k))).toEqual([]);
@@ -22,6 +25,7 @@ describe('localization', () => {
       expect(d.length, k).toBeGreaterThan(0);
       expect(ph(translate('en', k)), k).toBe(ph(d));
       expect(ph(translate('ru', k)), k).toBe(ph(d));
+      expect(ph(translate('he', k)), k).toBe(ph(d));
     }
   });
 

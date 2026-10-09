@@ -99,7 +99,7 @@ export function ResultsToolbar() {
         />
       </label>
       {vr && (
-        <span className="ml-auto text-[11px] text-slate-500 dark:text-slate-400" data-testid="calc-info">
+        <span className="ms-auto text-[11px] text-slate-500 dark:text-slate-400" data-testid="calc-info">
           {vr.kind === 'envelope' ? fmt.t('results.envelopeInfo', { n: vr.variants }) + ' · ' : ''}
           {fmt.t('results.time', { ms: fmt.num(an.time, 1), n: an.mesh?.elements.length ?? 0 })}
         </span>

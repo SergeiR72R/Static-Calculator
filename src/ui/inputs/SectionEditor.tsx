@@ -1,16 +1,19 @@
-import type { CatalogFamily, Material, MaterialPreset, SectionDef, SectionKind } from '../../core/types';
+import type { CatalogFamily, Material, MaterialPreset, PeriProductId, SectionDef, SectionKind } from '../../core/types';
 import { CATALOG, CATALOG_FAMILIES } from '../../sections/catalog';
 import { sectionOutline, sectionProps, type SectionProps } from '../../sections/properties';
 import { MATERIAL_ORDER, designStrength, materialPreset } from '../../sections/materials';
+import { PERI_PRODUCTS, findPeriProduct, periMaterial } from '../../sections/peri';
 import { NumberField, SelectField } from '../common';
 import { useFmt } from '../hooks';
 
-const KINDS: SectionKind[] = ['catalog', 'rect', 'circle', 'tube', 'box', 'weldedI', 'tee', 'channel', 'manual'];
+const KINDS: SectionKind[] = ['catalog', 'peri', 'rect', 'circle', 'tube', 'box', 'weldedI', 'tee', 'channel', 'manual'];
 
 export function defaultSectionOfKind(kind: SectionKind): SectionDef {
   switch (kind) {
     case 'catalog':
       return { kind, family: 'IPE', name: 'IPE 240' };
+    case 'peri':
+      return { kind, product: 'GT24' };
     case 'rect':
       return { kind, b: 0.1, h: 0.2 };
     case 'circle':
@@ -30,8 +33,28 @@ export function defaultSectionOfKind(kind: SectionKind): SectionDef {
   }
 }
 
-export function SectionEditor({ def, onChange, base }: { def: SectionDef; onChange: (d: SectionDef) => void; base: string }) {
+export function SectionEditor({
+  def,
+  onChange,
+  base,
+  onMaterial,
+  L,
+  onLength,
+}: {
+  def: SectionDef;
+  onChange: (d: SectionDef) => void;
+  base: string;
+  /** called with the matching material when a PERI component is chosen */
+  onMaterial?: (m: Material) => void;
+  /** current beam length and setter for the standard lengths of PERI components */
+  L?: number;
+  onLength?: (L: number) => void;
+}) {
   const fmt = useFmt();
+  const setDef = (d: SectionDef) => {
+    onChange(d);
+    if (d.kind === 'peri' && (def.kind !== 'peri' || def.product !== d.product)) onMaterial?.(periMaterial(d.product));
+  };
   const dim = (key: string, value: number, label: string) => (
     <NumberField
       key={key}
@@ -49,8 +72,9 @@ export function SectionEditor({ def, onChange, base }: { def: SectionDef; onChan
         value={def.kind}
         testId="section-kind"
         options={KINDS.map((k) => ({ value: k, label: fmt.t(`section.kind.${k}`) }))}
-        onChange={(k) => onChange(defaultSectionOfKind(k))}
+        onChange={(k) => setDef(defaultSectionOfKind(k))}
       />
+      {def.kind === 'peri' && <PeriFields def={def} setDef={setDef} L={L} onLength={onLength} />}
       {def.kind === 'catalog' && (
         <div className="grid grid-cols-2 gap-2">
           <SelectField
@@ -125,6 +149,55 @@ export function MaterialEditor({ m, onChange, base }: { m: Material; onChange: (
   );
 }
 
+const CUSTOM_LENGTH = 'custom';
+
+function PeriFields({
+  def,
+  setDef,
+  L,
+  onLength,
+}: {
+  def: { kind: 'peri'; product: PeriProductId };
+  setDef: (d: SectionDef) => void;
+  L?: number;
+  onLength?: (L: number) => void;
+}) {
+  const fmt = useFmt();
+  const pr = findPeriProduct(def.product);
+  const lengths = pr?.lengths ?? [];
+  const cur = L !== undefined ? lengths.find((l) => Math.abs(l - L) < 1e-6) : undefined;
+  return (
+    <div className="space-y-1">
+      <div className="grid grid-cols-2 gap-2">
+        <SelectField
+          label={fmt.t('section.periProduct')}
+          value={def.product}
+          testId="peri-product"
+          options={PERI_PRODUCTS.map((p) => ({ value: p.id, label: p.name }))}
+          onChange={(p: PeriProductId) => setDef({ kind: 'peri', product: p })}
+        />
+        {onLength && (
+          <SelectField
+            label={fmt.t('section.periLength')}
+            value={cur !== undefined ? String(cur) : CUSTOM_LENGTH}
+            testId="peri-length"
+            options={[
+              ...(cur === undefined ? [{ value: CUSTOM_LENGTH, label: `${fmt.t('section.periLengthCustom')} (${fmt.q(L ?? 0, 'length')})` }] : []),
+              ...lengths.map((l) => ({ value: String(l), label: fmt.q(l, 'length') })),
+            ]}
+            onChange={(v) => v !== CUSTOM_LENGTH && onLength(Number(v))}
+          />
+        )}
+      </div>
+      {pr && (
+        <p className="text-[11px] text-slate-500 dark:text-slate-400" data-testid="peri-info">
+          {fmt.t(pr.check.method === 'perm' ? 'section.periPermNote' : 'section.periDesignNote')} {fmt.t('section.periSource')}: {pr.source}.
+        </p>
+      )}
+    </div>
+  );
+}
+
 /** Section sketch with dimensions and computed properties */
 export function SectionSketch({ def, rho }: { def: SectionDef; rho: number }) {
   const fmt = useFmt();
@@ -143,7 +216,7 @@ export function SectionSketch({ def, rho }: { def: SectionDef; rho: number }) {
   const oy = pad;
   if (o.type === 'poly' && sc > 0) {
     const path = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${ox + x * sc},${oy + y * sc}`).join('') + 'Z';
-    body = <path d={path(o.outer) + (o.inner ? path(o.inner) : '')} fillRule="evenodd" className="fill-slate-300 stroke-slate-700 dark:fill-slate-600 dark:stroke-slate-300" />;
+    body = <path d={path(o.outer) + (o.inner ? path(o.inner) : '') + (o.parts ?? []).map(path).join('')} fillRule="evenodd" className="fill-slate-300 stroke-slate-700 dark:fill-slate-600 dark:stroke-slate-300" />;
   } else if (o.type === 'circle' && sc > 0) {
     const r = (o.D / 2) * sc;
     const ri = (o.d / 2) * sc;
@@ -166,7 +239,7 @@ export function SectionSketch({ def, rho }: { def: SectionDef; rho: number }) {
     ['W_o', fmt.q(p.Wtop, 'sectionModulus')],
     ['W_u', fmt.q(p.Wbot, 'sectionModulus')],
     ['A_s', fmt.q(p.As, 'area')],
-    [fmt.t('section.mass'), fmt.q(p.tableMass ?? p.A * rho, 'massPerLength')],
+    [fmt.t('section.mass'), fmt.q(p.fixedMass ?? p.tableMass ?? p.A * rho, 'massPerLength')],
   ];
   return (
     <div className="flex flex-wrap items-start gap-3" data-testid="section-sketch">

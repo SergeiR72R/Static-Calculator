@@ -9,6 +9,7 @@ import { equilibrium, evalElement, reactionVector } from '../core/postprocess';
 import { combinationResult } from '../core/results';
 import type { ResultView } from '../core/results';
 import type { Checks } from '../core/checks';
+import { findPeriProduct } from '../sections/peri';
 import { handCalculation, handMoment } from '../core/handcalc';
 import type { BeamModel, Id, SectionDef } from '../core/types';
 import { G_ACC } from '../core/types';
@@ -163,6 +164,15 @@ function sectionDerivation(def: SectionDef, lang: Lang, t: (k: string, p?: TPara
           type: 'tex',
           tex: `A = ${N(p.A)}\\,\\mathrm{m^2},\\; I_y = ${N(p.I)}\\,\\mathrm{m^4},\\; W_{el,y} = ${N(p.Wtop)}\\,\\mathrm{m^3},\\; h = ${N(p.h)}\\,\\mathrm{m}`,
         });
+      return out;
+    }
+    case 'peri': {
+      const pr = findPeriProduct(def.product);
+      out.push({ type: 'p', text: t('report.periValues', { name: pr?.name ?? def.product, src: pr?.source ?? '' }) });
+      out.push({
+        type: 'tex',
+        tex: `A = ${N(p.A)}\\,\\mathrm{m^2},\\; I_y = ${N(p.I)}\\,\\mathrm{m^4},\\; h = ${N(p.h)}\\,\\mathrm{m},\\; g = ${N(pr?.mass ?? 0)}\\,\\mathrm{kg/m}`,
+      });
       return out;
     }
     case 'manual':
@@ -660,6 +670,34 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
       type: 'tex',
       tex: `\\tau = \\frac{V\\,S}{I\\,b} = \\frac{${N(Math.abs(s.V))} \\cdot ${N(e.section.S)}}{${N(e.section.I)} \\cdot ${N(e.section.bNA)}} = ${N(s.value)}\\,\\mathrm{Pa},\\quad \\eta = ${N(s.eta * 100, 4)}\\,\\%`,
     });
+  }
+  for (const c of ch?.peri ?? []) {
+    const pr = findPeriProduct(c.product);
+    blocks.push({ type: 'p', text: `${pr?.name ?? c.product}: ${t(c.method === 'perm' ? 'report.periPerm' : 'report.periDesign')}` });
+    blocks.push({ type: 'p', text: t(c.basis === 'ULS' ? 'kpi.basisULS' : c.basis === 'SLS' ? 'kpi.periBasisSLS' : 'kpi.basisView') });
+    const perm = c.method === 'perm';
+    for (const it of c.items) {
+      const reg = it.region ? `\\;(${it.region})` : '';
+      const ok = `\\;\\Rightarrow\\; \\text{${t(it.eta <= 1 ? 'kpi.ok' : 'kpi.fail')}}`;
+      if (it.key === 'int' && it.parts) {
+        const q = it.parts;
+        blocks.push({
+          type: 'tex',
+          tex: `x = ${N(it.x)}\\,\\mathrm{m}${reg}:\\; m_y = ${N(q.my, 4)},\\; n = ${N(q.n, 4)},\\; v = ${N(q.v, 4)},\\; \\rho = ${N(q.rho, 4)}`,
+        });
+        blocks.push({
+          type: 'tex',
+          tex: `\\frac{m_y (1 - \\tfrac{a_w}{2})}{1 - n} = ${N(q.nm, 4)}${q.v > 0.5 ? `,\\; \\frac{m_y}{1-\\rho w_w} = ${N(q.vm, 4)},\\; \\frac{n}{1-\\rho a_w} = ${N(q.nv, 4)},\\; (n\\text{–}v\\text{–}m_y) = ${N(q.nvm, 4)}` : ''}\\;\\Rightarrow\\; \\eta = ${N(it.eta * 100, 4)}\\,\\%${ok}`,
+        });
+        continue;
+      }
+      const sym =
+        it.key === 'M' ? (perm ? 'M \\le \\mathrm{perm}\\,M' : 'M_{Ed} \\le M_{Rd}') :
+        it.key === 'V' ? (perm ? 'Q \\le \\mathrm{perm}\\,Q' : 'V_{Ed} \\le V_{Rd}') :
+        it.key === 'N' ? 'N_{Ed} \\le N_{Rd}' :
+        `R(x = ${N(it.x)}\\,\\mathrm{m}) \\le \\mathrm{perm}\\,${it.key === 'Rend' ? 'A' : 'B'}`;
+      blocks.push({ type: 'tex', tex: `${sym}:\\; ${N(it.Ed)} \\le ${N(it.Rd)}${reg},\\; \\eta = ${N(it.eta * 100, 4)}\\,\\%${ok}` });
+    }
   }
   if (ch) {
     blocks.push({ type: 'p', text: t(ch.deflectionBasis === 'SLS' ? 'kpi.basisSLS' : 'kpi.basisView') });

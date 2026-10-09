@@ -1,5 +1,6 @@
 import type { SectionDef } from '../core/types';
 import { findCatalogEntry } from './catalog';
+import { findPeriProduct, periDims, periOutline, periSI } from './peri';
 
 /** Cross-section properties in SI (m, m², m⁴, m³). z measured downwards from the top edge. */
 export interface SectionProps {
@@ -25,6 +26,13 @@ export interface SectionProps {
   b: number;
   /** nominal mass per length from a catalog table, kg/m (undefined for parametric) */
   tableMass?: number;
+  /** fixed self weight mass per length, kg/m (system components; overrides ρ·A) */
+  fixedMass?: number;
+}
+
+/** Mass per length used for the self weight, kg/m */
+export function lineMass(p: SectionProps, rho: number): number {
+  return p.fixedMass ?? rho * p.A;
 }
 
 const cm2 = 1e-4;
@@ -120,6 +128,19 @@ export function sectionProps(def: SectionDef): SectionProps {
         b: 0,
       };
     }
+    case 'peri': {
+      const pr = findPeriProduct(def.product);
+      if (!pr) return { A: 0, I: 0, zc: 0, zTop: 0, zBot: 0, Wtop: 0, Wbot: 0, As: 0, S: 0, bNA: 0, h: 0, b: 0 };
+      const { A, I } = periSI(pr);
+      const { h, b } = periDims(pr);
+      const s = pr.shape;
+      // shear area: web(s); S / b unknown (no τ check, the PERI check governs)
+      const As = s.type === 'girder' ? s.tw * mm * h : 2 * s.tw * mm * h;
+      const p = symmetric(A, I, h, b, As, 0, 0);
+      p.fixedMass = pr.mass;
+      p.tableMass = pr.mass;
+      return p;
+    }
     case 'catalog': {
       const e = findCatalogEntry(def.family, def.name);
       if (!e) {
@@ -146,7 +167,7 @@ export function sectionProps(def: SectionDef): SectionProps {
 
 /** Geometric outline for the section sketch, in m, origin at top-left of the bounding box */
 export type Outline =
-  | { type: 'poly'; outer: [number, number][]; inner?: [number, number][] }
+  | { type: 'poly'; outer: [number, number][]; inner?: [number, number][]; /** further solid parts */ parts?: [number, number][][] }
   | { type: 'circle'; D: number; d: number }
   | { type: 'none' };
 
@@ -207,6 +228,12 @@ export function sectionOutline(def: SectionDef): Outline {
         inner: [[t, t], [b - t, t], [b - t, h - t], [t, h - t]],
       };
     }
+    case 'peri': {
+      const pr = findPeriProduct(def.product);
+      if (!pr) return { type: 'none' };
+      const [outer, ...parts] = periOutline(pr);
+      return parts.length ? { type: 'poly', outer, parts } : { type: 'poly', outer };
+    }
     case 'manual':
       return { type: 'none' };
   }
@@ -218,6 +245,8 @@ export function sectionLabel(def: SectionDef): string {
   switch (def.kind) {
     case 'catalog':
       return def.name;
+    case 'peri':
+      return findPeriProduct(def.product)?.name ?? def.product;
     case 'rect':
       return `□ ${f(def.b)}×${f(def.h)}`;
     case 'circle':

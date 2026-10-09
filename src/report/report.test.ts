@@ -7,6 +7,7 @@ import { TEMPLATE_IDS, udl } from '../core/defaults';
 import { exampleModel } from '../core/examples';
 import { buildReport, texNum, type Block } from './build';
 import { reportToHtml, reportToMarkdown } from './exporters';
+import { periMaterial } from '../sections/peri';
 
 function flat(blocks: Block[]): Block[] {
   return blocks.flatMap((b) => (b.type === 'collapse' ? [b, ...flat(b.blocks)] : b.type === 'pages' ? [b, ...b.pages.flatMap((p) => flat(p.blocks))] : [b]));
@@ -30,6 +31,29 @@ describe('step-by-step report', () => {
         expect(reportToHtml(r, lang, 'T')).toContain('<h2>');
         expect(reportToHtml(r, lang, 'T')).toContain('src="data:image/png;base64,');
         expect(reportToMarkdown(r, lang, 'T')).toContain('$$');
+      }
+    });
+  }
+
+  for (const product of ['GT24', 'VT20K', 'SRU120', 'RCS'] as const) {
+    it(`PERI ${product}: checks in the report, valid KaTeX`, () => {
+      const m = exampleModel('twoSpan');
+      m.settings.selfWeight = true;
+      for (const s of m.segments) {
+        s.section = { kind: 'peri', product };
+        s.material = periMaterial(product);
+      }
+      // large shear to trigger the v > 0.5 branch of the interaction for the steel members
+      if (product === 'SRU120') m.loads.push(udl('Q', 0, m.L, 60));
+      const an = analyze(m);
+      const vr = computeView(an, { type: 'envelope' })!;
+      const checks = runChecks(an, vr)!;
+      expect(checks.peri).toHaveLength(1);
+      for (const lang of ['de', 'en', 'ru'] as const) {
+        const r = buildReport(an, { lang, view: { type: 'envelope' }, checks })!;
+        const tex = flat(r.blocks).filter((b) => b.type === 'tex');
+        for (const b of tex) expect(() => katex.renderToString(b.tex, { throwOnError: true, displayMode: true }), b.tex).not.toThrow();
+        expect(JSON.stringify(r.blocks)).toContain('PERI');
       }
     });
   }

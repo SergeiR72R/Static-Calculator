@@ -80,7 +80,8 @@
       "weldedI": "Geschweißter I-Träger",
       "tee": "T-Querschnitt",
       "channel": "U-Querschnitt",
-      "manual": "Manuelle Eingabe (A, I, W)"
+      "manual": "Manuelle Eingabe (A, I, W)",
+      "peri": "PERI-Systembauteil"
     },
     "family": "Reihe",
     "profile": "Profil",
@@ -89,7 +90,13 @@
     "As": "Schubfläche A_s (0 = A)",
     "mass": "Masse",
     "sketch": "Querschnittsskizze",
-    "noSketch": "keine Skizze"
+    "noSketch": "keine Skizze",
+    "periProduct": "Bauteil",
+    "periLength": "Katalog-Länge",
+    "periLengthCustom": "frei",
+    "periPermNote": "Nachweis mit zulässigen Werten (perm M, perm Q, perm R) unter Gebrauchslasten 1,0·G + 1,0·Q; I aus den Gurten, E = 11 000 N/mm².",
+    "periDesignNote": "Nachweis mit Bemessungswiderständen M_Rd, N_Rd, V_Rd und PERI-Interaktion M–N–V (GZT); Nettoquerschnittswerte. Ohne Stabilitätsnachweis.",
+    "periSource": "Quelle"
   },
   "material": {
     "label": "Material",
@@ -263,7 +270,14 @@
     "fail": "nicht erfüllt",
     "basisULS": "Grundlage: Umhüllende der GZT-Kombinationen",
     "basisSLS": "Grundlage: Umhüllende der GZG-Kombinationen",
-    "basisView": "Grundlage: angezeigtes Ergebnis"
+    "basisView": "Grundlage: angezeigtes Ergebnis",
+    "periPerm": "zulässige Werte",
+    "periDesign": "Bemessungswiderstände",
+    "periRegion": "Bereich {r}",
+    "periInteraction": "Interaktion M–N–V",
+    "periRend": "Endauflager",
+    "periRint": "Zwischenauflager",
+    "periBasisSLS": "Grundlage: Gebrauchslasten (charakteristische Kombinationen, GZG), perm F = R_d/1,5"
   },
   "issues": {
     "failed": "Berechnung nicht möglich"
@@ -417,7 +431,10 @@
       "hand": "Handrechnung",
       "sections": "Schnittverfahren: M(x) aus dem linken Teilsystem an den charakteristischen Punkten, links (⁻) und rechts (⁺) der Stelle.",
       "sectionTable": "Biegemomente: Handrechnung und FEM"
-    }
+    },
+    "periValues": "Querschnittswerte des PERI-Bauteils {name} (Quelle: {src}):",
+    "periPerm": "Nachweis mit zulässigen Schnittgrößen (perm F = R_d / γ_F, γ_F = 1,5) unter den tatsächlichen Lasten.",
+    "periDesign": "Querschnittsnachweis nach PERI Bemessungsinformationen mit Interaktion (m_y, n, v, ρ = (2v − 1)² für v > 0,5)."
   },
   "wizard": {
     "titleFirst": "Willkommen – erstes Projekt anlegen",

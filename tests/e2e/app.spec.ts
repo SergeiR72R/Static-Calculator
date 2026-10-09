@@ -185,3 +185,25 @@ test('3D view renders the beam with a stress heat map and legend', async ({ page
   }
   await expect(page.getByTestId('beam-3d-tip')).toContainText('η =');
 });
+
+test('PERI component: product, catalogue length, material and PERI check', async ({ page }) => {
+  await page.goto('/');
+  await template(page, 'simple');
+  await page.getByTestId('tab-beam').click();
+  await page.getByTestId('section-kind').selectOption('peri');
+  await expect(page.getByTestId('peri-product')).toHaveValue('GT24');
+  await expect(page.getByTestId('material-preset')).toHaveValue('C24');
+  await expect(page.getByTestId('peri-info')).toContainText('perm M = 7,0 kNm');
+  // 6,00 m is a GT 24 catalogue length; choose 2,40 m
+  await page.getByTestId('peri-length').selectOption('2.4');
+  await expect(page.getByTestId('beam-length')).toHaveValue('2,4');
+  // service load 1,0·5 + 1,0·3 = 8 kN/m → M = 8·2,4²/8 = 5,76 kNm ≤ perm M = 7,0 kNm (82,3 %)
+  const chk = page.getByTestId('check-peri-GT24');
+  await expect(chk).toContainText('82,3 %');
+  await expect(page.getByTestId('check-strength')).toHaveCount(0);
+  await page.getByTestId('peri-product').selectOption('RCS');
+  await expect(page.getByTestId('material-preset')).toHaveValue('S355');
+  // 2,40 m is no RCS catalogue length → "free"
+  await expect(page.getByTestId('peri-length')).toHaveValue('custom');
+  await expect(page.getByTestId('check-peri-RCS')).toContainText('M_Rd');
+});

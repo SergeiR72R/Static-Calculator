@@ -94,8 +94,12 @@ export interface Material {
 
 export type CatalogFamily = 'IPE' | 'HEA' | 'HEB' | 'HEM' | 'UPE' | 'UPN' | 'SHS' | 'RHS' | 'CHS';
 
+/** PERI system components (see sections/peri.ts) */
+export type PeriProductId = 'GT24' | 'VT20K' | 'SRU120' | 'RCS';
+
 export type SectionDef =
   | { kind: 'catalog'; family: CatalogFamily; name: string }
+  | { kind: 'peri'; product: PeriProductId }
   | { kind: 'rect'; b: number; h: number }
   | { kind: 'circle'; D: number }
   | { kind: 'tube'; D: number; t: number }

@@ -2,6 +2,7 @@ import type { BeamModel, Issue, SectionDef } from './types';
 import { X_TOL } from './types';
 import { sectionProps } from '../sections/properties';
 import { findCatalogEntry } from '../sections/catalog';
+import { findPeriProduct } from '../sections/peri';
 
 const err = (path: string, key: string, params?: Issue['params']): Issue => ({ path, key, params, severity: 'error' });
 
@@ -56,6 +57,9 @@ function sectionGeometryIssues(def: SectionDef, base: string): Issue[] {
       if (!finite(def.Wtop) || def.Wtop < 0) out.push(err(`${base}.Wtop`, 'err.nonNegative'));
       if (!finite(def.Wbot) || def.Wbot < 0) out.push(err(`${base}.Wbot`, 'err.nonNegative'));
       if (!finite(def.As) || def.As < 0) out.push(err(`${base}.As`, 'err.nonNegative'));
+      break;
+    case 'peri':
+      if (!findPeriProduct(def.product)) out.push(err(`${base}.product`, 'err.unknownSection'));
       break;
     case 'catalog':
       if (!findCatalogEntry(def.family, def.name)) out.push(err(`${base}.name`, 'err.unknownSection'));

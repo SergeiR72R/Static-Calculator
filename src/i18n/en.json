@@ -80,7 +80,8 @@
       "weldedI": "Welded I-section",
       "tee": "T-section",
       "channel": "Channel",
-      "manual": "Manual input (A, I, W)"
+      "manual": "Manual input (A, I, W)",
+      "peri": "PERI system component"
     },
     "family": "Series",
     "profile": "Profile",
@@ -89,7 +90,13 @@
     "As": "Shear area A_s (0 = A)",
     "mass": "Mass",
     "sketch": "Section sketch",
-    "noSketch": "no sketch"
+    "noSketch": "no sketch",
+    "periProduct": "Component",
+    "periLength": "Catalogue length",
+    "periLengthCustom": "custom",
+    "periPermNote": "Checked with permissible values (perm M, perm Q, perm R) under service loads 1.0·G + 1.0·Q; I from the chords, E = 11,000 N/mm².",
+    "periDesignNote": "Checked with design resistances M_Rd, N_Rd, V_Rd and the PERI M–N–V interaction (ULS); net section values. No stability check.",
+    "periSource": "Source"
   },
   "material": {
     "label": "Material",
@@ -263,7 +270,14 @@
     "fail": "not satisfied",
     "basisULS": "Basis: envelope of the ULS combinations",
     "basisSLS": "Basis: envelope of the SLS combinations",
-    "basisView": "Basis: displayed result"
+    "basisView": "Basis: displayed result",
+    "periPerm": "permissible values",
+    "periDesign": "design resistances",
+    "periRegion": "region {r}",
+    "periInteraction": "M–N–V interaction",
+    "periRend": "End support",
+    "periRint": "Intermediate support",
+    "periBasisSLS": "Basis: service loads (characteristic combinations, SLS), perm F = R_d/1.5"
   },
   "issues": {
     "failed": "Analysis not possible"
@@ -417,7 +431,10 @@
       "hand": "Hand calculation",
       "sections": "Method of sections: M(x) from the left part at the characteristic points, left (⁻) and right (⁺) of the position.",
       "sectionTable": "Bending moments: hand calculation and FEM"
-    }
+    },
+    "periValues": "Section values of the PERI component {name} (source: {src}):",
+    "periPerm": "Check with permissible internal forces (perm F = R_d / γ_F, γ_F = 1.5) under the actual loads.",
+    "periDesign": "Cross-section check per PERI Structural Design Information with interaction (m_y, n, v, ρ = (2v − 1)² for v > 0.5)."
   },
   "wizard": {
     "titleFirst": "Welcome – create your first project",

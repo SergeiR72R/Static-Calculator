@@ -5,6 +5,7 @@ import { dirCos, equivalentNodalLoads, globalStiffness, matVec, type ElementLoad
 import { choleskyBand, choleskySolve, conditionEstimate, SymBandMatrix } from './linalg';
 import { kinematicCheck } from './stability';
 import { validateModel } from './validate';
+import { lineMass } from '../sections/properties';
 
 export type DofKind = 'u' | 'w' | 't';
 
@@ -254,7 +255,7 @@ export interface LoadVector {
 /** Self weight line load of an element, N/m */
 export function selfWeightOf(prep: Prepared, ei: number): number {
   const e = prep.mesh.elements[ei];
-  return e.material.rho * e.section.A * G_ACC;
+  return lineMass(e.section, e.material.rho) * G_ACC;
 }
 
 /** Assemble the load vector of a load case (or part of it). */

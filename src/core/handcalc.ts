@@ -9,6 +9,7 @@ import { G_ACC, X_TOL } from './types';
 import { gaussSolve } from './linalg';
 import { supportRestraint } from './mesh';
 import { dirCos } from './element';
+import { lineMass } from '../sections/properties';
 
 export interface HandUnknown {
   supportId: Id;
@@ -72,8 +73,7 @@ export function loadItems(an: Analysis, factors: Record<Id, number>): { points: 
   if (m.settings.selfWeight && sw && factors[sw]) {
     for (const s of m.segments) {
       const e = an.mesh?.elements.find((el) => el.segIndex === m.segments.indexOf(s));
-      const A = e?.section.A ?? 0;
-      const q = factors[sw] * s.material.rho * A * G_ACC;
+      const q = e ? factors[sw] * lineMass(e.section, s.material.rho) * G_ACC : 0;
       if (q) pieces.push({ x1: s.x1, x2: s.x2, q1: q, q2: q, dir: 'z' });
     }
   }

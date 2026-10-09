@@ -1,4 +1,6 @@
 import type { Field } from '../../core/postprocess';
+import type { PeriCheck } from '../../core/checks';
+import { findPeriProduct } from '../../sections/peri';
 import { useStore } from '../../state/store';
 import { Badge, Card, cx } from '../common';
 import { useFmt, useResults } from '../hooks';
@@ -152,6 +154,9 @@ export function ChecksCard() {
             <Eta eta={checks.shear.eta} />
           </div>
         )}
+        {checks.peri.map((c) => (
+          <PeriCheckView key={c.product} c={c} />
+        ))}
         {checks.deflection.map((d) => (
           <div key={d.span.index} data-testid={`check-deflection-${d.span.index}`}>
             <div className="flex items-center justify-between gap-2">
@@ -170,6 +175,43 @@ export function ChecksCard() {
         <div className="text-[10px] text-slate-500">{fmt.t(checks.deflectionBasis === 'SLS' ? 'kpi.basisSLS' : 'kpi.basisView')}</div>
       </div>
     </Card>
+  );
+}
+
+function PeriCheckView({ c }: { c: PeriCheck }) {
+  const fmt = useFmt();
+  const pct = (e: number) => `${fmt.num(e * 100, 1)} %`;
+  const name = findPeriProduct(c.product)?.name ?? c.product;
+  const perm = c.method === 'perm';
+  const sym = (k: string) => (perm ? `perm ${k}` : `${k}_Rd`);
+  return (
+    <div data-testid={`check-peri-${c.product}`}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium">
+          {name} — {fmt.t(perm ? 'kpi.periPerm' : 'kpi.periDesign')}
+        </span>
+        <Badge ok={c.ok}>{c.ok ? fmt.t('kpi.ok') : fmt.t('kpi.fail')}</Badge>
+      </div>
+      <div className="num space-y-0.5 text-slate-600 dark:text-slate-300">
+        {c.items.map((it, i) => {
+          const reg = it.region ? ` (${fmt.t('kpi.periRegion', { r: it.region })})` : '';
+          let txt: string;
+          if (it.key === 'int') txt = `${fmt.t('kpi.periInteraction')}${reg}: η = ${pct(it.eta)} · x = ${fmt.q(it.x, 'length')}`;
+          else if (it.key === 'M') txt = `|M| = ${fmt.q(it.Ed, 'moment')} ≤ ${sym('M')} = ${fmt.q(it.Rd, 'moment')}${reg} · η = ${pct(it.eta)}`;
+          else if (it.key === 'V') txt = `|V| = ${fmt.q(it.Ed, 'force')} ≤ ${perm ? 'perm Q' : 'V_Rd'} = ${fmt.q(it.Rd, 'force')}${reg} · η = ${pct(it.eta)}`;
+          else if (it.key === 'N') txt = `|N| = ${fmt.q(it.Ed, 'force')} ≤ N_Rd = ${fmt.q(it.Rd, 'force')}${reg} · η = ${pct(it.eta)}`;
+          else
+            txt = `${fmt.t(it.key === 'Rend' ? 'kpi.periRend' : 'kpi.periRint')} x = ${fmt.q(it.x, 'length')}: R = ${fmt.q(it.Ed, 'force')} ≤ perm R = ${fmt.q(it.Rd, 'force')} · η = ${pct(it.eta)}`;
+          return (
+            <div key={i} className={cx(it.eta > 1 && 'text-red-600 dark:text-red-400')}>
+              {txt}
+            </div>
+          );
+        })}
+      </div>
+      <Eta eta={c.eta} />
+      <div className="text-[10px] text-slate-500">{fmt.t(c.basis === 'ULS' ? 'kpi.basisULS' : c.basis === 'SLS' ? 'kpi.periBasisSLS' : 'kpi.basisView')}</div>
+    </div>
   );
 }
 

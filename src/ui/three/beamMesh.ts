@@ -19,6 +19,8 @@ export { autoSectionScale, heatColor, HEAT_FIELDS, isDiverging, legendGradient, 
 export interface SectionLoops {
   outer: [number, number][];
   holes: [number, number][][];
+  /** further solid parts without holes (e.g. double channel) */
+  parts: [number, number][][];
   props: SectionProps;
 }
 
@@ -44,15 +46,17 @@ export function sectionLoops(def: SectionDef): SectionLoops {
   const o = sectionOutline(def);
   let outer: [number, number][];
   let holes: [number, number][][] = [];
+  let parts: [number, number][][] = [];
   if (o.type === 'circle') {
     outer = circle(o.D / 2);
     if (o.d > 0) holes = [circle(o.d / 2)];
   } else if (o.type === 'poly') {
-    const xs = o.outer.map((p) => p[0]);
+    const xs = [o.outer, ...(o.parts ?? [])].flat().map((p) => p[0]);
     const cy = (Math.min(...xs) + Math.max(...xs)) / 2;
     const tr = (pts: [number, number][]) => pts.map(([y, z]) => [y - cy, z - props.zc] as [number, number]);
     outer = tr(o.outer);
     if (o.inner) holes = [tr(o.inner)];
+    parts = (o.parts ?? []).map(tr);
   } else {
     // manual input: equivalent rectangle with the same A and I
     const h = props.A > 0 ? Math.sqrt((12 * props.I) / props.A) : 0.1;
@@ -67,7 +71,8 @@ export function sectionLoops(def: SectionDef): SectionLoops {
   // consistent orientation: outer counter-clockwise, holes clockwise (in the y/z plane)
   if (signedArea(outer) < 0) outer = [...outer].reverse();
   holes = holes.map((h) => (signedArea(h) > 0 ? [...h].reverse() : h));
-  return { outer, holes, props };
+  parts = parts.map((p) => (signedArea(p) < 0 ? [...p].reverse() : p));
+  return { outer, holes, parts, props };
 }
 
 export interface BeamMesh {
@@ -145,7 +150,7 @@ export function buildBeamMesh(an: Analysis, vr: ViewResult, o: BuildOptions): Be
   };
   for (let k = 0; k < n; k++) {
     const loops = segLoops[els[g.elem[k]].segIndex];
-    const zs = loops.outer.map((p) => p[1]);
+    const zs = [loops.outer, ...loops.parts].flat().map((p) => p[1]);
     for (const z of [Math.min(...zs), Math.max(...zs)]) {
       const v = valueAt(k, z);
       if (Number.isFinite(v)) {
@@ -181,12 +186,12 @@ export function buildBeamMesh(an: Analysis, vr: ViewResult, o: BuildOptions): Be
     let end = start;
     while (end + 1 < n && els[g.elem[end + 1]].segIndex === seg) end++;
     const loops = segLoops[seg];
-    const zs = loops.outer.map((p) => p[1]);
-    const ys = loops.outer.map((p) => p[0]);
+    const zs = [loops.outer, ...loops.parts].flat().map((p) => p[1]);
+    const ys = [loops.outer, ...loops.parts].flat().map((p) => p[0]);
     maxH = Math.max(maxH, (Math.max(...zs) - Math.min(...zs)) * S);
     maxB = Math.max(maxB, (Math.max(...ys) - Math.min(...ys)) * S);
     // side walls: every polygon edge gets its own vertices (flat shading across the profile)
-    for (const loop of [loops.outer, ...loops.holes]) {
+    for (const loop of [loops.outer, ...loops.holes, ...loops.parts]) {
       for (let i = 0; i < loop.length; i++) {
         const a = loop[i];
         const b = loop[(i + 1) % loop.length];
@@ -202,18 +207,20 @@ export function buildBeamMesh(an: Analysis, vr: ViewResult, o: BuildOptions): Be
       }
     }
     // end caps
-    const contour = loops.outer.map(([y, z]) => new Vector2(y, z));
-    const holes = loops.holes.map((h) => h.map(([y, z]) => new Vector2(y, z)));
-    const tris = ShapeUtils.triangulateShape(contour, holes);
-    const all = [...loops.outer, ...loops.holes.flat()];
-    for (const [k, flip] of [
-      [start, true],
-      [end, false],
-    ] as [number, boolean][]) {
-      const base = all.map(([y, z]) => vertex(k, y, z));
-      for (const t of tris) {
-        if (flip) idx.push(base[t[0]], base[t[1]], base[t[2]]);
-        else idx.push(base[t[0]], base[t[2]], base[t[1]]);
+    for (const [outerLoop, holeLoops] of [[loops.outer, loops.holes], ...loops.parts.map((p) => [p, []])] as [[number, number][], [number, number][][]][]) {
+      const contour = outerLoop.map(([y, z]) => new Vector2(y, z));
+      const holes = holeLoops.map((h) => h.map(([y, z]) => new Vector2(y, z)));
+      const tris = ShapeUtils.triangulateShape(contour, holes);
+      const all = [...outerLoop, ...holeLoops.flat()];
+      for (const [k, flip] of [
+        [start, true],
+        [end, false],
+      ] as [number, boolean][]) {
+        const base = all.map(([y, z]) => vertex(k, y, z));
+        for (const t of tris) {
+          if (flip) idx.push(base[t[0]], base[t[1]], base[t[2]]);
+          else idx.push(base[t[0]], base[t[2]], base[t[1]]);
+        }
       }
     }
     start = end + 1;

@@ -37,6 +37,8 @@ export function BeamPanel() {
   const selection = useStore((s) => s.selection);
   const [open, setOpen] = useState<string | null>(model.segments[0]?.id ?? null);
   const segs = [...model.segments].sort((a, b) => a.x1 - b.x1);
+  // after loading another project the remembered id is stale → open the first segment
+  const openId = open !== null && !segs.some((s) => s.id === open) ? (segs[0]?.id ?? null) : open;
 
   const split = () => {
     update((m) => {
@@ -90,7 +92,7 @@ export function BeamPanel() {
         <p className="mb-2 text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('beam.segmentsHint')}</p>
         <div className="space-y-2">
           {segs.map((s, i) => {
-            const isOpen = open === s.id;
+            const isOpen = openId === s.id;
             const base = `segments.${s.id}`;
             return (
               <div
@@ -176,6 +178,14 @@ export function BeamPanel() {
                           if (t) t.section = d;
                         }, `${base}.section`)
                       }
+                      onMaterial={(mat) =>
+                        update((m) => {
+                          const t = m.segments.find((x) => x.id === s.id);
+                          if (t) t.material = mat;
+                        }, `${base}.material`)
+                      }
+                      L={model.L}
+                      onLength={(v) => update((m) => setBeamLength(m, v), 'L')}
                     />
                     <SectionSketch def={s.section} rho={s.material.rho} />
                     <MaterialEditor

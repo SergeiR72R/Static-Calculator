@@ -238,7 +238,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
             {step === 'section' && (
               <div className="grid gap-4 md:grid-cols-2" data-testid="wizard-step-section">
                 <div className="space-y-3">
-                  <SectionEditor def={section} onChange={setSection} base="wizard.section" />
+                  <SectionEditor def={section} onChange={setSection} base="wizard.section" onMaterial={setMaterial} L={L} onLength={setL} />
                   <SectionSketch def={section} rho={material.rho} />
                 </div>
                 <MaterialEditor m={material} onChange={setMaterial} base="wizard.material" />

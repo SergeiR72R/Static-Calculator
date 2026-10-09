@@ -453,5 +453,31 @@
     "back": "Back",
     "next": "Next",
     "create": "Create project"
+  },
+  "view3d": {
+    "title": "3D view with heat map",
+    "reset": "Reset view",
+    "field": "Colouring",
+    "auto": "automatic",
+    "sectionScale": "Section exaggeration",
+    "deformed": "show deformed",
+    "loading": "Loading 3D view …",
+    "noWebgl": "3D view not available: the browser does not support WebGL.",
+    "fields": {
+      "sigma": "Stress σ (tension/compression in the section)",
+      "eta": "Utilisation η = |σ|/f_d",
+      "M": "Bending moment M",
+      "V": "Shear force V",
+      "w": "Deflection |w|"
+    },
+    "hints": {
+      "sigma": "σ(x, z) = N/A + M·z/I: red = tension, blue = compression, varying over the section height.",
+      "eta": "|σ|/f_d per fibre: red = 100 % utilisation and more.",
+      "M": "Bending moment along the axis: red = positive (tension at the bottom), blue = negative.",
+      "V": "Shear force along the axis: red = positive, blue = negative.",
+      "w": "Magnitude of the deflection along the axis."
+    },
+    "scaleNote": "Section exaggerated ×{s} for display.",
+    "controls": "Drag = rotate, wheel = zoom, right mouse button = pan."
   }
 }

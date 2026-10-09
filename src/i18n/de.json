@@ -453,5 +453,31 @@
     "back": "Zurück",
     "next": "Weiter",
     "create": "Projekt anlegen"
+  },
+  "view3d": {
+    "title": "3D-Ansicht mit Heatmap",
+    "reset": "Ansicht zurücksetzen",
+    "field": "Farbdarstellung",
+    "auto": "automatisch",
+    "sectionScale": "Querschnitt überhöht",
+    "deformed": "verformt darstellen",
+    "loading": "3D-Ansicht wird geladen …",
+    "noWebgl": "3D-Ansicht nicht verfügbar: der Browser unterstützt kein WebGL.",
+    "fields": {
+      "sigma": "Spannung σ (Zug/Druck im Querschnitt)",
+      "eta": "Ausnutzung η = |σ|/f_d",
+      "M": "Biegemoment M",
+      "V": "Querkraft V",
+      "w": "Durchbiegung |w|"
+    },
+    "hints": {
+      "sigma": "σ(x, z) = N/A + M·z/I: rot = Zug, blau = Druck, über die Querschnittshöhe veränderlich.",
+      "eta": "|σ|/f_d je Faser: rot = 100 % Ausnutzung und mehr.",
+      "M": "Biegemoment entlang der Achse: rot = positiv (Zug unten), blau = negativ.",
+      "V": "Querkraft entlang der Achse: rot = positiv, blau = negativ.",
+      "w": "Betrag der Durchbiegung entlang der Achse."
+    },
+    "scaleNote": "Querschnitt zur Darstellung ×{s} überhöht.",
+    "controls": "Ziehen = drehen, Rad = zoomen, rechte Maustaste = verschieben."
   }
 }

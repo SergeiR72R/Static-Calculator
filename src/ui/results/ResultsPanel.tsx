@@ -7,6 +7,7 @@ import { comboLabel } from '../inputs/Panels';
 import { CursorReadout, DiagramStack } from './Diagrams';
 import { ChecksCard, ExtremesCard, IssuesBox, ReactionsCard } from './Kpi';
 import { Schematic } from './Schematic';
+import { View3DCard } from './View3DCard';
 
 function viewKey(v: ResultView): string {
   return v.type === 'envelope' ? 'envelope' : `${v.type}:${v.id}`;
@@ -131,6 +132,11 @@ export function ResultsPanel() {
           </>
         )}
       </div>
+      {vr && (
+        <div className="no-print">
+          <View3DCard />
+        </div>
+      )}
       {vr && (
         <div className="grid gap-3 xl:grid-cols-2">
           <ReactionsCard />

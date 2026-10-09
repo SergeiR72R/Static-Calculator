@@ -165,3 +165,23 @@ test('dragging a support in the schematic moves it with snapping', async ({ page
   const xs = await page.getByTestId('support-x').evaluateAll((els) => els.map((e) => (e as unknown as { value: string }).value));
   expect(xs).toContain('4,5');
 });
+
+test('3D view renders the beam with a stress heat map and legend', async ({ page }) => {
+  await page.goto('/');
+  await template(page, 'simple');
+  const card = page.getByTestId('view-3d');
+  await card.scrollIntoViewIfNeeded();
+  await expect(card.locator('canvas')).toBeVisible();
+  // ULS1: M = 50.63 kNm, IPE 240 W = 324.3 cm³ → σ = 156.1 MPa at the outer fibres
+  await expect(page.getByTestId('view3d-legend')).toContainText('156,11');
+  await expect(page.getByTestId('view3d-legend')).toContainText('−156,11');
+  await page.getByTestId('view3d-field').selectOption('eta');
+  await expect(page.getByTestId('view3d-legend')).toContainText('100 %');
+  // hovering the beam shows the value and moves the common cursor
+  const box = (await page.getByTestId('beam-3d').boundingBox())!;
+  for (const fx of [0.5, 0.45, 0.55, 0.4]) {
+    await page.mouse.move(box.x + box.width * fx, box.y + box.height * 0.5);
+    if (await page.getByTestId('beam-3d-tip').isVisible()) break;
+  }
+  await expect(page.getByTestId('beam-3d-tip')).toContainText('η =');
+});

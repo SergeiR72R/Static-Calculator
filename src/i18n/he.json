@@ -228,7 +228,8 @@
   },
   "schematic": {
     "label": "מערכת סטטית",
-    "deformed": "צורה מעוותת, מוגדלת ×{f}"
+    "deformed": "צורה מעוותת, מוגדלת ×{f}",
+    "uplift": "⚠ התרוממות – הסמך כושל"
   },
   "diag": {
     "N": "כוח צירי",
@@ -278,7 +279,10 @@
     "periInteraction": "אינטראקציית M–N–V",
     "periRend": "סמך קצה",
     "periRint": "סמך ביניים",
-    "periBasisSLS": "בסיס: עומסי שירות (צירופים אופייניים, SLS), perm F = R_d/1.5"
+    "periBasisSLS": "בסיס: עומסי שירות (צירופים אופייניים, SLS), perm F = R_d/1.5",
+    "uplift": "סמכים: ללא התרוממות (לחיצה בלבד)",
+    "upliftFail": "הסמך מתרומם (מתיחה) – כשל",
+    "upliftBasis": "בסיס: כל הצירופים (ULS ו-SLS)"
   },
   "issues": {
     "failed": "הניתוח אינו אפשרי"
@@ -435,7 +439,8 @@
     },
     "periValues": "ערכי חתך של רכיב PERI {name} (מקור: {src}):",
     "periPerm": "בדיקה עם כוחות פנימיים מותרים (perm F = R_d / γ_F, γ_F = 1.5) תחת העומסים בפועל.",
-    "periDesign": "בדיקת חתך לפי PERI Structural Design Information עם אינטראקציה (m_y, n, v, ρ = (2v − 1)² עבור v > 0.5)."
+    "periDesign": "בדיקת חתך לפי PERI Structural Design Information עם אינטראקציה (m_y, n, v, ρ = (2v − 1)² עבור v > 0.5).",
+    "upliftNote": "סמך נייח וסמך נייד מעבירים לחיצה בלבד; R_z < 0 (התרוממות) פירושו כשל הסמך."
   },
   "wizard": {
     "titleFirst": "ברוכים הבאים – צרו את הפרויקט הראשון",

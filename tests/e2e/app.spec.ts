@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { exampleModel } from '../../src/core/examples';
 import type { TemplateId } from '../../src/core/defaults';
 import { serializeProject } from '../../src/state/persist';
+import { pointLoad } from '../../src/core/defaults';
 
 // the first-start wizard is covered in wizard.spec.ts; here the app counts as already set up
 test.beforeEach(async ({ page }) => {
@@ -226,4 +227,22 @@ test('Hebrew: right-to-left UI, drawings stay left-to-right, numbers keep their 
   // back to German
   await page.getByTestId('lang-select').selectOption('de');
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+});
+
+test('support reactions on the diagram; a lifting pinned/roller support fails', async ({ page }) => {
+  await page.goto('/');
+  const m = exampleModel('twoSpan');
+  // overhang 10 → 12 m with 200 kN at the tip: the middle roller (x = 5 m) lifts off
+  m.L = 12;
+  for (const s of m.segments) s.x2 = 12;
+  m.supports[2].x = 10;
+  m.loads.push(pointLoad('Q', 12, 200));
+  await page.getByTestId('file-input').setInputFiles({ name: 'o.json', mimeType: 'application/json', buffer: Buffer.from(serializeProject(m)) });
+  await expect(page.getByTestId('toast')).toBeVisible();
+  for (const s of m.supports) await expect(page.getByTestId(`reaction-label-${s.id}`)).toContainText('R_z =');
+  await expect(page.getByTestId(`reaction-label-${m.supports[1].id}`)).toContainText('hebt ab');
+  await expect(page.getByTestId(`reaction-label-${m.supports[0].id}`)).not.toContainText('hebt ab');
+  const up = page.getByTestId('check-uplift');
+  await expect(up).toContainText('nicht erfüllt');
+  await expect(page.getByTestId(`uplift-${m.supports[1].id}`)).toContainText('< 0');
 });

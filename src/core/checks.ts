@@ -58,8 +58,23 @@ export interface PeriCheck {
   ok: boolean;
 }
 
+/**
+ * Uplift of a compression-only support (pinned, roller): the support can only push the beam up.
+ * R_z (↑ +, force on the beam) < 0 means the beam lifts off – the support fails.
+ */
+export interface UpliftCheck {
+  supportId: string;
+  x: number;
+  /** smallest R_z over the combinations (↑ +), N */
+  Rmin: number;
+  ok: boolean;
+}
+
 export interface Checks {
   strength: StressCheck | null;
+  /** uplift of compression-only supports over all combinations */
+  uplift: UpliftCheck[];
+  upliftBasis: 'combos' | 'view';
   shear: StressCheck | null;
   deflection: DeflectionCheck[];
   /** checks of PERI components (per product used) */
@@ -137,6 +152,29 @@ export function deflectionChecks(prep: Prepared, b: Basis): DeflectionCheck[] {
     const eta = Math.abs(w) / limit;
     return { span, w, x, denominator, limit, eta, ok: eta <= 1 };
   });
+}
+
+/** Supports that can transfer compression only (no anchoring against uplift) */
+export function isCompressionOnly(type: string): boolean {
+  return type === 'pinned' || type === 'roller';
+}
+
+/** Numerical tolerance for "R_z < 0": relative to the largest reaction */
+export function upliftTolerance(...vecs: Float64Array[]): number {
+  let m = 0;
+  for (const v of vecs) for (const r of v) m = Math.max(m, Math.abs(r));
+  return Math.max(1e-6, 1e-9 * m);
+}
+
+export function upliftChecks(prep: Prepared, rmin: Float64Array, rmax: Float64Array): UpliftCheck[] {
+  const tol = upliftTolerance(rmin, rmax);
+  const out: UpliftCheck[] = [];
+  prep.model.supports.forEach((sp, i) => {
+    if (!isCompressionOnly(sp.type)) return;
+    const Rmin = rmin[3 * i + 1];
+    out.push({ supportId: sp.id, x: sp.x, Rmin, ok: Rmin >= -tol });
+  });
+  return out.sort((a, b) => a.x - b.x);
 }
 
 /**
@@ -220,8 +258,18 @@ export function runChecks(an: Analysis, view: ViewResult): Checks | null {
   const slsEnv = sls.length ? combinationsEnvelope(an, sls, view.grid) : null;
   const sb: Basis = ulsEnv ? { grid: view.grid, max: ulsEnv.max, min: ulsEnv.min, reactions: { max: ulsEnv.rmax, min: ulsEnv.rmin } } : view;
   const db: Basis = slsEnv ? { grid: view.grid, max: slsEnv.max, min: slsEnv.min, reactions: { max: slsEnv.rmax, min: slsEnv.rmin } } : view;
+  // uplift: all ULS and SLS combinations (with pattern loading), else the displayed result
+  let rmin = view.reactions.min;
+  let rmax = view.reactions.max;
+  if (ulsEnv || slsEnv) {
+    const envs = [ulsEnv, slsEnv].filter((e) => e !== null);
+    rmin = envs[0].rmin.map((_, i) => Math.min(...envs.map((e) => e.rmin[i])));
+    rmax = envs[0].rmax.map((_, i) => Math.max(...envs.map((e) => e.rmax[i])));
+  }
   return {
     strength: strengthCheck(prep, sb),
+    uplift: upliftChecks(prep, rmin, rmax),
+    upliftBasis: ulsEnv || slsEnv ? 'combos' : 'view',
     shear: an.model.settings.shearCheck ? shearCheck(prep, sb) : null,
     deflection: deflectionChecks(prep, db),
     peri: periChecks(prep, sb, ulsEnv ? 'ULS' : 'view', db, slsEnv ? 'SLS' : 'view'),

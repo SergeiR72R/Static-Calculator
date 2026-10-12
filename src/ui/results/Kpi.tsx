@@ -1,5 +1,5 @@
 import type { Field } from '../../core/postprocess';
-import type { PeriCheck } from '../../core/checks';
+import { isCompressionOnly, upliftTolerance, type PeriCheck } from '../../core/checks';
 import { findPeriProduct } from '../../sections/peri';
 import { isRtl } from '../../units/format';
 import { useStore } from '../../state/store';
@@ -42,7 +42,12 @@ export function ReactionsCard() {
                 </td>
                 <td className="text-end">{fmt.num(fmt.val(s.x, 'length'))}</td>
                 <td className="text-end">{cell(i, 0, 'force')}</td>
-                <td className="text-end" data-testid="reaction-Rz">{cell(i, 1, 'force')}</td>
+                <td
+                  className={cx('text-end', isCompressionOnly(s.type) && vr.reactions.min[3 * i + 1] < -upliftTolerance(vr.reactions.max, vr.reactions.min) && 'font-semibold text-red-600 dark:text-red-400')}
+                  data-testid="reaction-Rz"
+                >
+                  {cell(i, 1, 'force')}
+                </td>
                 <td className="text-end">{cell(i, 2, 'moment')}</td>
               </tr>
             ))}
@@ -155,6 +160,7 @@ export function ChecksCard() {
             <Eta eta={checks.shear.eta} />
           </div>
         )}
+        {checks.uplift.length > 0 && <UpliftView />}
         {checks.peri.map((c) => (
           <PeriCheckView key={c.product} c={c} />
         ))}
@@ -178,6 +184,36 @@ export function ChecksCard() {
         <div className="text-[10px] text-slate-500">{fmt.t(checks.deflectionBasis === 'SLS' ? 'kpi.basisSLS' : 'kpi.basisView')}</div>
       </div>
     </Card>
+  );
+}
+
+function UpliftView() {
+  const fmt = useFmt();
+  const { an, checks } = useResults();
+  if (!checks) return null;
+  const ok = checks.uplift.every((u) => u.ok);
+  return (
+    <div data-testid="check-uplift">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium">{fmt.t('kpi.uplift')}</span>
+        <Badge ok={ok}>{ok ? fmt.t('kpi.ok') : fmt.t('kpi.fail')}</Badge>
+      </div>
+      <div className="space-y-0.5 tabular-nums text-slate-600 dark:text-slate-300">
+        {checks.uplift.map((u) => {
+          const sp = an.model.supports.find((s) => s.id === u.supportId);
+          return (
+            <div key={u.supportId} className={cx(!u.ok && 'text-red-600 dark:text-red-400')} data-testid={`uplift-${u.supportId}`}>
+              {sp && fmt.t(`support.types.${sp.type}`)}{' '}
+              <bdi dir="ltr">
+                x = {fmt.q(u.x, 'length')}: R_z,min = {fmt.q(u.Rmin, 'force')} {u.ok ? '≥ 0' : '< 0'}
+              </bdi>
+              {!u.ok && <> — {fmt.t('kpi.upliftFail')}</>}
+            </div>
+          );
+        })}
+      </div>
+      <div className="text-[10px] text-slate-500">{fmt.t(checks.upliftBasis === 'combos' ? 'kpi.upliftBasis' : 'kpi.basisView')}</div>
+    </div>
   );
 }
 

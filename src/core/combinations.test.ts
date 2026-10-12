@@ -154,3 +154,30 @@ describe('hand calculation (statically determinate)', () => {
     expect(hc.degree).toBe(1);
   });
 });
+
+describe('uplift of compression-only supports', () => {
+  // overhanging beam: pinned at 0, roller at 4 m, 10 kN at the tip (6 m) → R_A = −10·2/4 = −5 kN (lifts off)
+  const m = testModel(6, [['pinned', 0], ['roller', 4]], [pointLoad('G', 6, 10)]);
+  const an = analyze(m);
+
+  it('pinned support with R_z < 0 fails, the other one is fine', () => {
+    const c = runChecks(an, computeView(an, { type: 'envelope' })!)!;
+    expect(c.upliftBasis).toBe('combos');
+    expect(c.uplift).toHaveLength(2);
+    const [a, b] = c.uplift;
+    // smallest R_z over all combinations: 1.35·G → −6.75 kN
+    close(a.Rmin, -1.35 * 5 * kN, 1e-9);
+    expect(a.ok).toBe(false);
+    expect(b.ok).toBe(true);
+    close(b.Rmin, 15 * kN, 1e-9);
+  });
+
+  it('fixed and spring supports are not checked; downward load on a simple beam is fine', () => {
+    const f = testModel(6, [['fixed', 0]], [pointLoad('G', 6, 10)]);
+    const af = analyze(f);
+    expect(runChecks(af, computeView(af, { type: 'envelope' })!)!.uplift).toEqual([]);
+    const s = testModel(6, [['pinned', 0], ['roller', 6]], [udl('G', 0, 6, 5)]);
+    const as = analyze(s);
+    expect(runChecks(as, computeView(as, { type: 'envelope' })!)!.uplift.every((u) => u.ok)).toBe(true);
+  });
+});

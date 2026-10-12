@@ -678,6 +678,17 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
       tex: `\\tau = \\frac{V\\,S}{I\\,b} = \\frac{${N(Math.abs(s.V))} \\cdot ${N(e.section.S)}}{${N(e.section.I)} \\cdot ${N(e.section.bNA)}} = ${N(s.value)}\\,\\mathrm{Pa},\\quad \\eta = ${N(s.eta * 100, 4)}\\,\\%`,
     });
   }
+  if (ch?.uplift.length) {
+    blocks.push({ type: 'p', text: `${t('kpi.uplift')}: ${t('report.upliftNote')} ${t(ch.upliftBasis === 'combos' ? 'kpi.upliftBasis' : 'kpi.basisView')}` });
+    for (const u of ch.uplift) {
+      const si = model.supports.findIndex((sp) => sp.id === u.supportId);
+      const letter = String.fromCharCode(65 + Math.max(0, si));
+      blocks.push({
+        type: 'tex',
+        tex: `R_{z,${letter},\\min}(x = ${N(u.x)}\\,\\mathrm{m}) = ${N(u.Rmin)}\\,\\mathrm{N} ${u.ok ? '\\ge' : '<'} 0 \\;\\Rightarrow\\; \\text{${tt(u.ok ? 'kpi.ok' : 'kpi.fail')}}`,
+      });
+    }
+  }
   for (const c of ch?.peri ?? []) {
     const pr = findPeriProduct(c.product);
     blocks.push({ type: 'p', text: `${pr?.name ?? c.product}: ${t(c.method === 'perm' ? 'report.periPerm' : 'report.periDesign')}` });

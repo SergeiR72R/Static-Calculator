@@ -228,7 +228,8 @@
   },
   "schematic": {
     "label": "Statisches System",
-    "deformed": "Biegelinie, überhöht ×{f}"
+    "deformed": "Biegelinie, überhöht ×{f}",
+    "uplift": "⚠ hebt ab – Lager versagt"
   },
   "diag": {
     "N": "Normalkraft",
@@ -278,7 +279,10 @@
     "periInteraction": "Interaktion M–N–V",
     "periRend": "Endauflager",
     "periRint": "Zwischenauflager",
-    "periBasisSLS": "Grundlage: Gebrauchslasten (charakteristische Kombinationen, GZG), perm F = R_d/1,5"
+    "periBasisSLS": "Grundlage: Gebrauchslasten (charakteristische Kombinationen, GZG), perm F = R_d/1,5",
+    "uplift": "Auflager: kein Abheben (nur Druck)",
+    "upliftFail": "Lager hebt ab (Zug) – versagt",
+    "upliftBasis": "Grundlage: alle Kombinationen (GZT und GZG)"
   },
   "issues": {
     "failed": "Berechnung nicht möglich"
@@ -435,7 +439,8 @@
     },
     "periValues": "Querschnittswerte des PERI-Bauteils {name} (Quelle: {src}):",
     "periPerm": "Nachweis mit zulässigen Schnittgrößen (perm F = R_d / γ_F, γ_F = 1,5) unter den tatsächlichen Lasten.",
-    "periDesign": "Querschnittsnachweis nach PERI Bemessungsinformationen mit Interaktion (m_y, n, v, ρ = (2v − 1)² für v > 0,5)."
+    "periDesign": "Querschnittsnachweis nach PERI Bemessungsinformationen mit Interaktion (m_y, n, v, ρ = (2v − 1)² für v > 0,5).",
+    "upliftNote": "Fest- und Loslager übertragen nur Druck; R_z < 0 (Abheben) bedeutet Versagen des Lagers."
   },
   "wizard": {
     "titleFirst": "Willkommen – erstes Projekt anlegen",

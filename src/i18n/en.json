@@ -228,7 +228,8 @@
   },
   "schematic": {
     "label": "Structural system",
-    "deformed": "deflected shape, magnified ×{f}"
+    "deformed": "deflected shape, magnified ×{f}",
+    "uplift": "⚠ lifts off – support fails"
   },
   "diag": {
     "N": "Axial force",
@@ -278,7 +279,10 @@
     "periInteraction": "M–N–V interaction",
     "periRend": "End support",
     "periRint": "Intermediate support",
-    "periBasisSLS": "Basis: service loads (characteristic combinations, SLS), perm F = R_d/1.5"
+    "periBasisSLS": "Basis: service loads (characteristic combinations, SLS), perm F = R_d/1.5",
+    "uplift": "Supports: no uplift (compression only)",
+    "upliftFail": "support lifts off (tension) – fails",
+    "upliftBasis": "Basis: all combinations (ULS and SLS)"
   },
   "issues": {
     "failed": "Analysis not possible"
@@ -435,7 +439,8 @@
     },
     "periValues": "Section values of the PERI component {name} (source: {src}):",
     "periPerm": "Check with permissible internal forces (perm F = R_d / γ_F, γ_F = 1.5) under the actual loads.",
-    "periDesign": "Cross-section check per PERI Structural Design Information with interaction (m_y, n, v, ρ = (2v − 1)² for v > 0.5)."
+    "periDesign": "Cross-section check per PERI Structural Design Information with interaction (m_y, n, v, ρ = (2v − 1)² for v > 0.5).",
+    "upliftNote": "Pinned and roller supports transfer compression only; R_z < 0 (uplift) means the support fails."
   },
   "wizard": {
     "titleFirst": "Welcome – create your first project",

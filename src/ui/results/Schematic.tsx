@@ -6,6 +6,9 @@ import { useFmt, useResults, type Fmt, type XScale } from '../hooks';
 import { HingeEditor, LoadEditor, SupportEditor, loadKindLabel } from '../inputs/Editors';
 import { IconX } from '../icons';
 import { cx } from '../common';
+import { isCompressionOnly, upliftTolerance, type Checks } from '../../core/checks';
+import type { ViewResult } from '../../core/results';
+import type { Quantity } from '../../units/units';
 
 const LEVEL_H = 30;
 
@@ -30,6 +33,53 @@ function activeFactor(model: BeamModel, view: ReturnType<typeof useStore.getStat
   if (view.type === 'case') return view.id === caseId;
   if (view.type === 'combo') return !!model.combinations.find((c) => c.id === view.id)?.factors[caseId];
   return model.combinations.some((c) => c.inEnvelope && c.factors[caseId]);
+}
+
+interface ReactionLabel {
+  id: Id;
+  x: number;
+  row: number;
+  lines: { text: string; fail?: boolean }[];
+}
+
+/**
+ * Reaction labels below the supports: R_z (↑ +) always, R_x and M where non-zero; range min … max
+ * for envelopes. Compression-only supports (pinned, roller) with R_z < 0 lift off → marked as failing.
+ */
+function reactionLabels(model: BeamModel, vr: ViewResult, sx: XScale, fmt: Fmt, checks: Checks | null): ReactionLabel[] {
+  const { max, min } = vr.reactions;
+  const tol = upliftTolerance(max, min);
+  const val = (i: number, c: number, q: Quantity) => {
+    const a = min[3 * i + c];
+    const b = max[3 * i + c];
+    if (vr.kind === 'envelope' && Math.abs(b - a) > tol) return `${fmt.num(fmt.val(a, q))} … ${fmt.q(b, q)}`;
+    return fmt.q(b, q);
+  };
+  const nonZero = (i: number, c: number) => Math.abs(max[3 * i + c]) > tol || Math.abs(min[3 * i + c]) > tol;
+  const labels = model.supports
+    .map((s, i) => {
+      const lines: ReactionLabel['lines'] = [];
+      const compOnly = isCompressionOnly(s.type);
+      const liftsHere = compOnly && min[3 * i + 1] < -tol;
+      const liftsInCombos = compOnly && checks?.uplift.some((u) => u.supportId === s.id && !u.ok);
+      if (s.type !== 'slider') lines.push({ text: `${liftsHere ? '⚠ ' : ''}R_z = ${val(i, 1, 'force')}`, fail: liftsHere });
+      if (nonZero(i, 0)) lines.push({ text: `R_x = ${val(i, 0, 'force')}` });
+      if (nonZero(i, 2)) lines.push({ text: `M_R = ${val(i, 2, 'moment')}` });
+      if (liftsHere || liftsInCombos) lines.push({ text: fmt.t('schematic.uplift'), fail: true });
+      return { id: s.id, x: sx.px(s.x), row: 0, lines };
+    })
+    .filter((l) => l.lines.length)
+    .sort((a, b) => a.x - b.x);
+  // labels closer than ~110 px go to the next row
+  const lastX: number[] = [];
+  for (const l of labels) {
+    let row = 0;
+    while (lastX[row] !== undefined && l.x - lastX[row] < 110) row += 4;
+    l.x = Math.min(Math.max(l.x, 55), sx.width - 55);
+    l.row = row;
+    lastX[row] = l.x;
+  }
+  return labels;
 }
 
 export function SupportSymbol({ s, x, y, L }: { s: Support; x: number; y: number; L: number }) {
@@ -257,7 +307,7 @@ export function Schematic({ sx }: { sx: XScale }) {
   const beginDrag = useStore((s) => s.beginDrag);
   const dragUpdate = useStore((s) => s.dragUpdate);
   const endDrag = useStore((s) => s.endDrag);
-  const { vr } = useResults();
+  const { vr, checks } = useResults();
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<DragState | null>(null);
   const [popover, setPopover] = useState<{ x: number; y: number } | null>(null);
@@ -267,7 +317,10 @@ export function Schematic({ sx }: { sx: XScale }) {
   const hasPoint = model.loads.some((l) => l.kind === 'point' || l.kind === 'moment');
   const topArea = Math.max(hasPoint ? 64 : 30, nLevels * LEVEL_H + 26);
   const beamY = topArea + 8;
-  const H = beamY + 86;
+  const reactionRows = vr ? reactionLabels(model, vr, sx, fmt, checks) : [];
+  const nRows = Math.max(0, ...reactionRows.map((r) => r.row + r.lines.length));
+  const reactY = beamY + 84;
+  const H = beamY + 86 + (nRows ? nRows * 12 + 8 : 0);
   const qmax = Math.max(1e-9, ...model.loads.map((l) => (l.kind === 'dist' ? Math.max(Math.abs(l.q1), Math.abs(l.q2)) : 0)));
 
   const pts = useMemo(() => {
@@ -502,6 +555,22 @@ export function Schematic({ sx }: { sx: XScale }) {
         <text x={(sx.px(0) + sx.px(model.L)) / 2} y={beamY + 64} fontSize="11" textAnchor="middle" className="svg-text num">
           L = {fmt.q(model.L, 'length')}
         </text>
+        {/* support reactions (force on the beam; R_z ↑ +) */}
+        {reactionRows.map((r) => (
+          <g key={r.id} data-testid={`reaction-label-${r.id}`} className="num" fontSize="10" textAnchor="middle" pointerEvents="none">
+            {r.lines.map((ln, k) => (
+              <text
+                key={k}
+                x={r.x}
+                y={reactY + (r.row + k) * 12}
+                className="svg-text"
+                style={{ ...(ln.fail ? { fill: '#dc2626' } : k > 0 ? { fill: 'var(--muted)' } : {}), fontWeight: k === 0 || ln.fail ? 600 : 400 }}
+              >
+                {ln.text}
+              </text>
+            ))}
+          </g>
+        ))}
         {/* axes legend */}
         <g transform={`translate(${8},${beamY - 22})`} fontSize="9" className="svg-text" style={{ fill: 'var(--muted)' }}>
           <path d="M0,0h18M18,0l-4,-3v6z" stroke="var(--muted)" fill="var(--muted)" />

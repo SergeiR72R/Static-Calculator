@@ -9,6 +9,7 @@ import type { Load, Support } from '../core/types';
 import { translate } from '../i18n';
 import { formatNumber, type Lang } from '../units/format';
 import { fromSI, unitSymbol, type Quantity, type UnitSystem } from '../units/units';
+import { isCompressionOnly, upliftTolerance } from '../core/checks';
 import { encodeCodepage, escapeForCodepage, type DxfCodepage } from './codepage';
 
 export const DXF_LAYERS: { name: string; color: number }[] = [
@@ -305,6 +306,24 @@ export function buildDxf(an: Analysis, vr: ViewResult, options: DxfOptions): Dxf
     dw.text('BEAM_AXIS', [(X(a) + X(b)) / 2, yd + S * 0.15], th * 0.8, formatNumber(fromSI(b - a, 'length', opt.units), opt.lang, 3, false), 'center');
   }
 
+  // support reactions below the dimension chain (force on the beam, R_z ↑ +)
+  const { max: rmax, min: rmin } = vr.reactions;
+  const rtol = upliftTolerance(rmax, rmin);
+  const rval = (i: number, c: number, q: Quantity) => {
+    const a = rmin[3 * i + c];
+    const b = rmax[3 * i + c];
+    const u = unit(q);
+    return vr.kind === 'envelope' && Math.abs(b - a) > rtol ? `${fmtv(a, q)} ... ${fmtv(b, q)} ${u}` : `${fmtv(b, q)} ${u}`;
+  };
+  model.supports.forEach((s, i) => {
+    const lines: string[] = [];
+    if (s.type !== 'slider') lines.push(`R_z = ${rval(i, 1, 'force')}`);
+    if (Math.abs(rmax[3 * i]) > rtol || Math.abs(rmin[3 * i]) > rtol) lines.push(`R_x = ${rval(i, 0, 'force')}`);
+    if (Math.abs(rmax[3 * i + 2]) > rtol || Math.abs(rmin[3 * i + 2]) > rtol) lines.push(`M_R = ${rval(i, 2, 'moment')}`);
+    if (isCompressionOnly(s.type) && rmin[3 * i + 1] < -rtol) lines.push(t('schematic.uplift'));
+    lines.forEach((ln, k) => dw.text('SUPPORTS', [X(s.x), yd - S * 0.7 - k * th * 1.15], th * 0.8, ln, 'center'));
+  });
+
   // deformed axis
   const g = vr.grid;
   const wArr = Array.from(g.x, (_, i) => (Math.abs(vr.max.w[i]) >= Math.abs(vr.min.w[i]) ? vr.max.w[i] : vr.min.w[i]));
@@ -316,7 +335,7 @@ export function buildDxf(an: Analysis, vr: ViewResult, options: DxfOptions): Dxf
   }
 
   // diagrams
-  let cursor = -4 * S;
+  let cursor = -4.8 * S;
   const diagrams: { field: 'M' | 'V' | 'N'; layer: Layer; q: Quantity; sign: number; scale: number }[] = [
     { field: 'M', layer: 'DIAG_M', q: 'moment', sign: opt.momentSide === 'bottom' ? -1 : 1, scale: opt.scales.M },
     { field: 'V', layer: 'DIAG_V', q: 'force', sign: 1, scale: opt.scales.V },

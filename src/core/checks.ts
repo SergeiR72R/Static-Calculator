@@ -268,7 +268,7 @@ export function runChecks(an: Analysis, view: ViewResult): Checks | null {
   }
   return {
     strength: strengthCheck(prep, sb),
-    uplift: upliftChecks(prep, rmin, rmax),
+    uplift: an.model.settings.upliftCheck ? upliftChecks(prep, rmin, rmax) : [],
     upliftBasis: ulsEnv || slsEnv ? 'combos' : 'view',
     shear: an.model.settings.shearCheck ? shearCheck(prep, sb) : null,
     deflection: deflectionChecks(prep, db),

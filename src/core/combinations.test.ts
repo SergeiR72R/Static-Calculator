@@ -157,8 +157,16 @@ describe('hand calculation (statically determinate)', () => {
 
 describe('uplift of compression-only supports', () => {
   // overhanging beam: pinned at 0, roller at 4 m, 10 kN at the tip (6 m) → R_A = −10·2/4 = −5 kN (lifts off)
-  const m = testModel(6, [['pinned', 0], ['roller', 4]], [pointLoad('G', 6, 10)]);
+  const m = testModel(6, [['pinned', 0], ['roller', 4]], [pointLoad('G', 6, 10)], { edit: (mm) => (mm.settings.upliftCheck = true) });
   const an = analyze(m);
+
+  it('is an option, off by default (also for projects without the setting)', () => {
+    const off = testModel(6, [['pinned', 0], ['roller', 4]], [pointLoad('G', 6, 10)]);
+    expect(off.settings.upliftCheck).toBe(false);
+    delete off.settings.upliftCheck;
+    const ao = analyze(off);
+    expect(runChecks(ao, computeView(ao, { type: 'envelope' })!)!.uplift).toEqual([]);
+  });
 
   it('pinned support with R_z < 0 fails, the other one is fine', () => {
     const c = runChecks(an, computeView(an, { type: 'envelope' })!)!;
@@ -173,10 +181,10 @@ describe('uplift of compression-only supports', () => {
   });
 
   it('fixed and spring supports are not checked; downward load on a simple beam is fine', () => {
-    const f = testModel(6, [['fixed', 0]], [pointLoad('G', 6, 10)]);
+    const f = testModel(6, [['fixed', 0]], [pointLoad('G', 6, 10)], { edit: (mm) => (mm.settings.upliftCheck = true) });
     const af = analyze(f);
     expect(runChecks(af, computeView(af, { type: 'envelope' })!)!.uplift).toEqual([]);
-    const s = testModel(6, [['pinned', 0], ['roller', 6]], [udl('G', 0, 6, 5)]);
+    const s = testModel(6, [['pinned', 0], ['roller', 6]], [udl('G', 0, 6, 5)], { edit: (mm) => (mm.settings.upliftCheck = true) });
     const as = analyze(s);
     expect(runChecks(as, computeView(as, { type: 'envelope' })!)!.uplift.every((u) => u.ok)).toBe(true);
   });

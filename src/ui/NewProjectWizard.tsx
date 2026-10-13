@@ -264,6 +264,12 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                   hint={fmt.t('settings.patternLoadingHint')}
                 />
                 <SwitchField checked={settings.shearCheck} onChange={(v) => setS({ shearCheck: v })} label={fmt.t('settings.shearCheck')} />
+                <SwitchField
+                  checked={!!settings.upliftCheck}
+                  onChange={(v) => setS({ upliftCheck: v })}
+                  label={fmt.t('settings.upliftCheck')}
+                  hint={fmt.t('settings.upliftCheckHint')}
+                />
                 <h4 className="pt-1 text-sm font-medium">{fmt.t('settings.limits')}</h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">{fmt.t('settings.limitsHint')}</p>
                 <div className="grid grid-cols-2 gap-3">

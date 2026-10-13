@@ -240,6 +240,12 @@ test('support reactions on the diagram; a lifting pinned/roller support fails', 
   await page.getByTestId('file-input').setInputFiles({ name: 'o.json', mimeType: 'application/json', buffer: Buffer.from(serializeProject(m)) });
   await expect(page.getByTestId('toast')).toBeVisible();
   for (const s of m.supports) await expect(page.getByTestId(`reaction-label-${s.id}`)).toContainText('R_z =');
+  // option off (default): values only, no failure
+  await expect(page.getByTestId(`reaction-label-${m.supports[1].id}`)).toContainText('−');
+  await expect(page.getByTestId(`reaction-label-${m.supports[1].id}`)).not.toContainText('hebt ab');
+  await expect(page.getByTestId('check-uplift')).toHaveCount(0);
+  await page.getByTestId('tab-settings').click();
+  await page.getByTestId('uplift-check').click();
   await expect(page.getByTestId(`reaction-label-${m.supports[1].id}`)).toContainText('hebt ab');
   await expect(page.getByTestId(`reaction-label-${m.supports[0].id}`)).not.toContainText('hebt ab');
   const up = page.getByTestId('check-uplift');

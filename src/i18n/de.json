@@ -203,7 +203,9 @@
     "display": "Darstellung",
     "decimals": "Nachkommastellen",
     "snap": "Fangraster beim Ziehen",
-    "limitsHint": "Grenzwerte für den Durchbiegungsnachweis mit den GZG-Kombinationen: L = Stützweite des Feldes, L_k = Kraglänge. Üblich: L/250 und L_k/125."
+    "limitsHint": "Grenzwerte für den Durchbiegungsnachweis mit den GZG-Kombinationen: L = Stützweite des Feldes, L_k = Kraglänge. Üblich: L/250 und L_k/125.",
+    "upliftCheck": "Abheben = Versagen (Fest-/Loslager nur Druck)",
+    "upliftCheckHint": "Fest- und Loslager übertragen nur Druck: hebt der Träger ab (R_z < 0 in einer Kombination), gilt das Lager als versagt."
   },
   "results": {
     "view": "Ergebnis",

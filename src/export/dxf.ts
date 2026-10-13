@@ -320,7 +320,7 @@ export function buildDxf(an: Analysis, vr: ViewResult, options: DxfOptions): Dxf
     if (s.type !== 'slider') lines.push(`R_z = ${rval(i, 1, 'force')}`);
     if (Math.abs(rmax[3 * i]) > rtol || Math.abs(rmin[3 * i]) > rtol) lines.push(`R_x = ${rval(i, 0, 'force')}`);
     if (Math.abs(rmax[3 * i + 2]) > rtol || Math.abs(rmin[3 * i + 2]) > rtol) lines.push(`M_R = ${rval(i, 2, 'moment')}`);
-    if (isCompressionOnly(s.type) && rmin[3 * i + 1] < -rtol) lines.push(t('schematic.uplift'));
+    if (model.settings.upliftCheck && isCompressionOnly(s.type) && rmin[3 * i + 1] < -rtol) lines.push(t('schematic.uplift'));
     lines.forEach((ln, k) => dw.text('SUPPORTS', [X(s.x), yd - S * 0.7 - k * th * 1.15], th * 0.8, ln, 'center'));
   });
 

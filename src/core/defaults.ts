@@ -29,6 +29,7 @@ export const DEFAULT_SETTINGS: AnalysisSettings = {
   deflLimitSpan: 250,
   deflLimitCantilever: 125,
   shearCheck: false,
+  upliftCheck: false,
 };
 
 export function defaultLoadCases(): LoadCase[] {

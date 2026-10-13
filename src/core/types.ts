@@ -156,6 +156,8 @@ export interface AnalysisSettings {
   /** deflection limit L/x for cantilevers */
   deflLimitCantilever: number;
   shearCheck: boolean;
+  /** pinned and roller supports take compression only: uplift (R_z < 0) = failure (optional, default off) */
+  upliftCheck?: boolean;
 }
 
 export interface BeamModel {

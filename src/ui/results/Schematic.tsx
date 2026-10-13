@@ -59,7 +59,7 @@ function reactionLabels(model: BeamModel, vr: ViewResult, sx: XScale, fmt: Fmt, 
   const labels = model.supports
     .map((s, i) => {
       const lines: ReactionLabel['lines'] = [];
-      const compOnly = isCompressionOnly(s.type);
+      const compOnly = !!model.settings.upliftCheck && isCompressionOnly(s.type);
       const liftsHere = compOnly && min[3 * i + 1] < -tol;
       const liftsInCombos = compOnly && checks?.uplift.some((u) => u.supportId === s.id && !u.ok);
       if (s.type !== 'slider') lines.push({ text: `${liftsHere ? '⚠ ' : ''}R_z = ${val(i, 1, 'force')}`, fail: liftsHere });

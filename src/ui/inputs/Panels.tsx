@@ -332,6 +332,13 @@ export function SettingsPanel() {
             hint={fmt.t('settings.patternLoadingHint')}
           />
           <SwitchField checked={s.shearCheck} onChange={(shearCheck) => set({ shearCheck })} label={fmt.t('settings.shearCheck')} />
+          <SwitchField
+            checked={!!s.upliftCheck}
+            onChange={(upliftCheck) => set({ upliftCheck })}
+            label={fmt.t('settings.upliftCheck')}
+            hint={fmt.t('settings.upliftCheckHint')}
+            testId="uplift-check"
+          />
         </div>
       </Card>
       <Card title={fmt.t('settings.limits')}>

@@ -43,7 +43,7 @@ export function ReactionsCard() {
                 <td className="text-end">{fmt.num(fmt.val(s.x, 'length'))}</td>
                 <td className="text-end">{cell(i, 0, 'force')}</td>
                 <td
-                  className={cx('text-end', isCompressionOnly(s.type) && vr.reactions.min[3 * i + 1] < -upliftTolerance(vr.reactions.max, vr.reactions.min) && 'font-semibold text-red-600 dark:text-red-400')}
+                  className={cx('text-end', an.model.settings.upliftCheck && isCompressionOnly(s.type) && vr.reactions.min[3 * i + 1] < -upliftTolerance(vr.reactions.max, vr.reactions.min) && 'font-semibold text-red-600 dark:text-red-400')}
                   data-testid="reaction-Rz"
                 >
                   {cell(i, 1, 'force')}

@@ -7,3 +7,4 @@ dxf-samples
 *.tsbuildinfo
 .DS_Store
 .vite
+dist-standalone

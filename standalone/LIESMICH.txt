@@ -1,0 +1,31 @@
+﻿BALKENRECHNER (promaintain) - portable Version
+==============================================
+
+DE
+--
+Keine Installation, keine Administratorrechte, kein Internet erforderlich.
+
+  * Windows: "Balkenrechner starten.cmd" doppelklicken - die Anwendung oeffnet sich
+    in einem eigenen Fenster (Edge/Chrome im App-Modus).
+  * Oder direkt "Balkenrechner.html" doppelklicken (jeder aktuelle Browser:
+    Edge, Chrome, Firefox, Safari).
+
+Der Ordner kann auf dem Desktop, einem USB-Stick oder einem Netzlaufwerk liegen.
+Das zuletzt bearbeitete Projekt wird im Browser gespeichert. Projekte dauerhaft
+sichern/weitergeben: Datei -> Projekt speichern (JSON).
+Hinweis: Der gespeicherte Stand gehoert zum Browser und zum Ordner der Datei.
+Wird die HTML-Datei verschoben, Projekte vorher als JSON speichern.
+
+RU
+--
+Не требует установки, прав администратора и интернета.
+
+  * Windows: двойной щелчок по "Balkenrechner starten.cmd" - программа откроется
+    в отдельном окне (Edge/Chrome в режиме приложения).
+  * Или двойной щелчок по "Balkenrechner.html" (любой современный браузер).
+
+Папку можно держать на рабочем столе, флешке или сетевом диске.
+Последний проект сохраняется в браузере автоматически. Для надёжного хранения
+и передачи коллегам: Datei -> Projekt speichern (JSON).
+Сохранённое состояние привязано к браузеру и к расположению файла - перед
+переносом HTML-файла сохраните проекты в JSON.

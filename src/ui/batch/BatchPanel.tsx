@@ -9,7 +9,7 @@ import { beamSummary, type BeamSummary } from './summary';
 type Filter = 'all' | 'open' | 'checked' | 'problems';
 
 /** import notes that are only information (not a problem) */
-const INFO_ONLY = new Set(['ground', 'lengthSnapped']);
+const INFO_ONLY = new Set(['ground', 'lengthSnapped', 'endSupport', 'endSupports']);
 
 const isProblem = (it: BatchItem, s: BeamSummary) => s.state !== 'ok' || it.warnings.some((w) => !INFO_ONLY.has(w.key));
 

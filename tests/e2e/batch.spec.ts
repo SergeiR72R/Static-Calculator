@@ -12,7 +12,7 @@ test('AutoCAD import: beam list, switching, checked status, persistence and proj
   await page.getByTestId('xlsx-input').setInputFiles(xlsx);
   const dlg = page.getByTestId('import-dialog');
   await expect(dlg).toContainText('6 Träger');
-  await expect(page.getByTestId('import-note-oneSupport')).toContainText('1 ×');
+  await expect(page.getByTestId('import-note-endSupport')).toContainText('1 ×');
   await page.getByTestId('import-confirm').click();
 
   const panel = page.getByTestId('batch-panel');
@@ -32,8 +32,8 @@ test('AutoCAD import: beam list, switching, checked status, persistence and proj
   await expect(page.getByTestId('batch-warnings')).toContainText('Untergrund');
   await page.getByTestId('batch-item-B-003').click();
   await expect(page.getByTestId('batch-active')).toContainText('B-003');
-  await expect(page.getByTestId('batch-item-B-003')).toContainText('Fehler');
-  await expect(page.getByTestId('analysis-error')).toBeVisible();
+  await expect(page.getByTestId('batch-item-B-003')).toContainText('%');
+  await expect(page.getByTestId('batch-warnings')).toContainText('1472 mm');
 
   // editing a checked beam → "changed after check"
   await page.getByTestId('batch-item-B-001').click();
@@ -49,7 +49,8 @@ test('AutoCAD import: beam list, switching, checked status, persistence and proj
   await page.getByTestId('batch-filter-checked').click();
   await expect(page.getByTestId('batch-list').getByRole('option')).toHaveCount(1);
   await page.getByTestId('batch-filter-problems').click();
-  await expect(page.getByTestId('batch-item-B-003')).toBeVisible();
+  await expect(page.getByTestId('batch-item-B-004')).toBeVisible();
+  await expect(page.getByTestId('batch-item-B-003')).toHaveCount(0);
   await page.getByTestId('batch-filter-all').click();
 
   // reload: list, status, active beam and drawing restored

@@ -45,8 +45,8 @@ describe('AutoCAD beam import', () => {
     expect(m.settings.selfWeight).toBe(true);
     expect(m.supports.map((s) => [s.type, s.x])).toEqual([
       ['pinned', 0.929],
-      ['roller', 2.428],
-      ['roller', 4.928],
+      ['pinned', 2.428],
+      ['pinned', 4.928],
     ]);
     const loads = m.loads.map((l) => (l.kind === 'point' ? [l.caseId, l.x, Math.round(l.P), l.angle] : null));
     expect(loads).toEqual([
@@ -65,17 +65,22 @@ describe('AutoCAD beam import', () => {
     expect(keys(b)).toEqual(['ground']);
     expect(b.model.supports.map((s) => [s.type, s.x])).toEqual([
       ['pinned', 0],
-      ['roller', 0.3],
-      ['roller', 0.9],
-      ['roller', 1.222],
+      ['pinned', 0.3],
+      ['pinned', 0.9],
+      ['pinned', 1.222],
     ]);
     expect(analyze(b.model).ok).toBe(true);
   });
 
-  it('single support is imported as is and flagged (mechanism)', () => {
+  it('single stand: second pinned bearing at the far beam end (rests on the structure)', () => {
     const b = byKey('B-003');
-    expect(keys(b)).toEqual(['oneSupport']);
-    expect(analyze(b.model).ok).toBe(false);
+    expect(keys(b)).toEqual(['endSupport']);
+    expect(b.warnings[0].params).toEqual({ x: 1472 });
+    expect(b.model.supports.map((s) => [s.type, s.x])).toEqual([
+      ['pinned', 0.298],
+      ['pinned', 1.472],
+    ]);
+    expect(analyze(b.model).ok).toBe(true);
   });
 
   it('unknown profile → nearest PERI profile; non-catalogue length kept; snapping within 25 mm', () => {

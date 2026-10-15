@@ -514,7 +514,7 @@
     "profiles": "Profiles",
     "assumptions": "Import assumptions",
     "rule": {
-      "supports": "Supports (pinned bearings): first support pinned, all others rollers.",
+      "supports": "Supports: all pinned (fixed). Beams with a single stand rest on the structure with the other end – a pinned support is added at that beam end.",
       "loads": "Loads: vertical point loads, Gk as permanent load G, Qk as imposed load Q (characteristic); combinations per EN 1990.",
       "length": "Length: catalogue length of the designation (e.g. RCS 248 → 2480 mm); deviations up to 25 mm are adjusted, larger ones reported.",
       "selfWeight": "Self weight of the PERI profile is included."
@@ -529,7 +529,9 @@
       "lengthFromDesignation": "length in the file does not match the designation – catalogue length used",
       "lengthNotCatalog": "no catalogue length – length from the file used",
       "outside": "load/support outside the beam – moved to the beam end",
-      "noLoads": "beams without loads"
+      "noLoads": "beams without loads",
+      "endSupport": "beams with one stand – pinned support added at the other beam end (resting on the structure)",
+      "endSupports": "beams without supports in the drawing – pinned supports added at both ends"
     },
     "warn": {
       "oneSupport": "Only one support – the system is a mechanism. Please add supports.",
@@ -540,7 +542,9 @@
       "lengthFromDesignation": "Length in the file {from} mm does not match {name} – catalogue length {to} mm used.",
       "lengthNotCatalog": "Length {L} mm is not a catalogue length (nearest: {near} mm) – calculated with the length from the file.",
       "outside": "{name} at x = {x} mm lies outside the beam – moved to the beam end.",
-      "noLoads": "No loads in the file."
+      "noLoads": "No loads in the file.",
+      "endSupport": "Only one stand in the drawing – second (pinned) support added at the beam end x = {x} mm (resting on the structure). Please check.",
+      "endSupports": "No supports in the drawing – pinned supports added at both beam ends. Please check."
     },
     "showDetails": "Show details per beam",
     "hideDetails": "Hide details",

@@ -1,7 +1,7 @@
 /**
  * Import of the beam list exported from AutoCAD (Excel, sheets "Übersicht", "Positionen",
  * "Abbildungen"): one beam model per row of the overview with its PERI profile, length,
- * supports (pinned + rollers) and the point loads Gk / Qk of the positions sheet.
+ * supports (all pinned) and the point loads Gk / Qk of the positions sheet.
  *
  * Columns are found by their header text, so the column order may change.
  */
@@ -125,7 +125,7 @@ export function importAcadWorkbook(sheets: Sheet[]): ImportedBeam[] {
       const key = str(r[p.key]);
       if (!key) continue;
       const kind = norm(r[p.kind]);
-      const x = num(r[p.x]) * fx;
+      const x = Math.round(num(r[p.x]) * fx * 1e6) / 1e6;
       if (!Number.isFinite(x)) continue;
       const item: Pos = {
         kind: kind.startsWith('auflager') ? 'support' : 'load',
@@ -153,7 +153,7 @@ export function importAcadWorkbook(sheets: Sheet[]): ImportedBeam[] {
   const out: ImportedBeam[] = [];
   for (const r of overview.rows.slice(1)) {
     const key = str(r[c.key]);
-    const Lfile = num(r[c.length]) * fL;
+    const Lfile = Math.round(num(r[c.length]) * fL * 1e6) / 1e6;
     if (!key || !(Lfile > 0)) continue;
     const designation = str(r[c.designation]);
     const weight = num(r[c.weight]);
@@ -211,7 +211,7 @@ export function importAcadWorkbook(sheets: Sheet[]): ImportedBeam[] {
     }
     if (!m.loads.length) warnings.push({ key: 'noLoads' });
 
-    // supports: first pinned, the others rollers
+    // supports: all pinned (fixed bearings of the stands)
     const xs: number[] = [];
     const addX = (x: number) => {
       if (!xs.some((v) => Math.abs(v - x) < MERGE)) xs.push(x);
@@ -224,10 +224,20 @@ export function importAcadWorkbook(sheets: Sheet[]): ImportedBeam[] {
       addX(L);
       for (const l of m.loads) if (l.kind === 'point') addX(l.x);
       warnings.push({ key: 'ground' });
-    } else if (!xs.length) warnings.push({ key: 'noSupports' });
-    else if (xs.length === 1) warnings.push({ key: 'oneSupport' });
+    } else if (!xs.length) {
+      // no bearing in the drawing: the beam rests on the structure at both ends
+      addX(0);
+      addX(L);
+      warnings.push({ key: 'endSupports' });
+    } else if (xs.length === 1) {
+      // one stand only: the other end rests on the building / structure (not in the drawing) →
+      // second bearing at the beam end farther away from the stand
+      const end = xs[0] > L / 2 ? 0 : L;
+      addX(end);
+      warnings.push({ key: 'endSupport', params: { x: mm(end) } });
+    }
     xs.sort((a, b) => a - b);
-    m.supports = xs.map((x, i): Support => makeSupport(i === 0 ? 'pinned' : 'roller', x));
+    m.supports = xs.map((x): Support => makeSupport('pinned', x));
 
     out.push({ key, designation, model: m, warnings, image: imageOf.get(key) });
   }

@@ -22,6 +22,11 @@ await page.getByTestId('main-tab-report').click();
 await page.locator('.katex').first().waitFor();
 await page.reload();
 const name = await page.getByTestId('project-name').inputValue();
+// AutoCAD Excel import works offline as well
+await page.getByTestId('xlsx-input').setInputFiles(resolve('src/import/__fixtures__/acad-sample.xlsx'));
+await page.getByTestId('import-confirm').click();
+const active = await page.getByTestId('batch-active').textContent();
+if (!active?.includes('B-001')) errors.push('import failed: ' + active);
 await browser.close();
 const ok = !errors.length && !requests.length && name === 'Standalone';
 console.log(ok ? 'standalone OK' : 'standalone FAILED', JSON.stringify({ errors, requests, name }));

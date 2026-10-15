@@ -6,6 +6,7 @@ import type { Lang } from '../units/format';
 import type { UnitSystem } from '../units/units';
 import { modelFromHash, normalizeModel, storage } from './persist';
 import { builtinUserDefaults, type UserDefaults } from '../core/project';
+import { loadImages, normalizeBatch, saveImages, setChecked as checkItem, type Batch } from './batch';
 
 export type Selection = { kind: 'support' | 'hinge' | 'load' | 'segment'; id: Id } | null;
 export type InputTab = 'beam' | 'supports' | 'loads' | 'cases' | 'settings';
@@ -69,6 +70,10 @@ export interface AppState extends Prefs {
   wizard: { open: boolean; firstRun: boolean };
   /** defaults for new projects chosen by the user */
   userDefaults: UserDefaults;
+  /** beam list of an import (null = single beam project); the active beam is `model` */
+  batch: Batch | null;
+  /** drawings of the beam list by item id (not in localStorage) */
+  batchImages: Record<Id, string>;
 
   setPrefs: (p: Partial<Prefs>) => void;
   /** apply an update to a copy of the model and push it on the undo stack */
@@ -91,9 +96,18 @@ export interface AppState extends Prefs {
   /** close the wizard; marks the first start as done */
   closeWizard: () => void;
   setUserDefaults: (d: UserDefaults) => void;
+  /** start a beam list (import / file); its active beam becomes the model */
+  loadBatch: (b: Batch, images: Record<Id, string>) => void;
+  /** switch the active beam of the list (history is per beam and starts empty) */
+  switchBeam: (id: Id) => void;
+  /** mark a beam as checked / open */
+  setBeamChecked: (id: Id, checked: boolean) => void;
+  /** leave the beam list; the active beam stays as a single project */
+  closeBatch: () => void;
 }
 
 const MODEL_KEY = 'balken.model';
+const BATCH_KEY = 'balken.batch';
 const ONBOARDED_KEY = 'balken.onboarded';
 const DEFAULTS_KEY = 'balken.defaults';
 const PREFS_KEY = 'balken.prefs';
@@ -173,7 +187,20 @@ function fixView(model: BeamModel, view: ResultView): ResultView {
   return view;
 }
 
+function initialBatch(fromLink: boolean): Batch | null {
+  if (fromLink) return null;
+  const raw = storage.get(BATCH_KEY);
+  if (!raw) return null;
+  try {
+    return normalizeBatch(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
 const init = initialModel();
+const initBatch = initialBatch(init.fromLink);
+if (initBatch) init.model = initBatch.items.find((i) => i.id === initBatch.active)!.model;
 
 /** First start on this computer: nothing saved yet and not opened via a share link */
 const firstRun = !init.fromLink && !storage.get(ONBOARDED_KEY) && !storage.get(MODEL_KEY);
@@ -203,6 +230,8 @@ export const useStore = create<AppState>()((set, get) => ({
   toast: init.fromLink ? { key: 'toast.loadedFromLink' } : null,
   wizard: { open: firstRun, firstRun },
   userDefaults: loadUserDefaults(),
+  batch: initBatch,
+  batchImages: {},
 
   setPrefs: (p) => {
     set(p);
@@ -282,7 +311,56 @@ export const useStore = create<AppState>()((set, get) => ({
     storage.set(DEFAULTS_KEY, JSON.stringify(d));
     set({ userDefaults: d });
   },
+  loadBatch: (b, images) => {
+    const m = b.items.find((i) => i.id === b.active)!.model;
+    set({
+      batch: b,
+      batchImages: images,
+      model: m,
+      history: { past: [], future: [], lastKey: null, lastTime: 0 },
+      view: m.combinations.length ? { type: 'combo', id: m.combinations[0].id } : { type: 'case', id: m.loadCases[0]?.id ?? 'G' },
+      selection: null,
+      cursorX: null,
+    });
+    void saveImages(b.id, images);
+  },
+  switchBeam: (id) => {
+    const s = get();
+    if (!s.batch || s.batch.active === id) return;
+    const it = s.batch.items.find((i) => i.id === id);
+    if (!it) return;
+    const m = it.model;
+    set({
+      batch: { ...s.batch, active: id },
+      model: m,
+      history: { past: [], future: [], lastKey: null, lastTime: 0 },
+      view: fixView(m, s.view),
+      selection: null,
+      cursorX: null,
+    });
+  },
+  setBeamChecked: (id, checked) => {
+    const b = get().batch;
+    if (!b) return;
+    set({ batch: { ...b, items: b.items.map((i) => (i.id === id ? checkItem(i, checked) : i)) } });
+  },
+  closeBatch: () => set({ batch: null, batchImages: {} }),
 }));
+
+// the active beam of a beam list follows every edit of the model
+useStore.subscribe((s, prev) => {
+  if (!s.batch || s.model === prev.model) return;
+  const b = s.batch;
+  const it = b.items.find((i) => i.id === b.active);
+  if (!it || it.model === s.model) return;
+  useStore.setState({ batch: { ...b, items: b.items.map((i) => (i.id === b.active ? { ...i, model: s.model } : i)) } });
+});
+// drawings of a restored beam list
+if (initBatch && typeof indexedDB !== 'undefined') {
+  void loadImages(initBatch.id).then((imgs) => {
+    if (useStore.getState().batch?.id === initBatch.id) useStore.setState({ batchImages: imgs });
+  });
+}
 
 // autosave (debounced, flushed when the page is hidden or closed so no edit gets lost)
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
@@ -291,10 +369,13 @@ function flushSave() {
   clearTimeout(saveTimer);
   if (!dirty) return;
   dirty = false;
-  storage.set(MODEL_KEY, JSON.stringify(useStore.getState().model));
+  const s = useStore.getState();
+  storage.set(MODEL_KEY, JSON.stringify(s.model));
+  if (s.batch) storage.set(BATCH_KEY, JSON.stringify(s.batch));
+  else storage.remove(BATCH_KEY);
 }
 useStore.subscribe((s, prev) => {
-  if (s.model === prev.model) return;
+  if (s.model === prev.model && s.batch === prev.batch) return;
   dirty = true;
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 300);

@@ -114,7 +114,8 @@ export const PERI_PRODUCTS: PeriProduct[] = [
         { label: 'B', MRd: 28.82 * kNm, NRd: 663.12 * kN, VRd: 148.46 * kN, aw: 0.388, ww: 0.219 },
       ],
     },
-    lengths: [0.72, 0.97, 1.22, 1.47, 1.72, 1.97, 2.22, 2.47, 2.72, 2.97, 3.47, 3.97, 4.47, 4.97, 5.47, 5.97],
+    // exact lengths L/mm of the PERI table (SRU 72 = 722 mm …)
+    lengths: [0.722, 0.972, 1.222, 1.472, 1.722, 1.972, 2.222, 2.472, 2.722, 2.972, 3.472, 3.972, 4.472, 4.972, 5.472, 5.972],
     source: 'PERI DI RCS/VARIOKIT, 4.10 Steel Waler SRU U120 (S. 19–20)',
   },
   {
@@ -126,7 +127,8 @@ export const PERI_PRODUCTS: PeriProduct[] = [
     mass: 52.6,
     shape: { type: 'doubleU', h: 200, bU: 75, tw: 8.5, tf: 11.5, gap: 82 },
     check: { method: 'design', regions: [{ label: '', MRd: 132.7 * kNm, NRd: 1820 * kN, VRd: 432.91 * kN, aw: 0.412, ww: 0.241 }] },
-    lengths: [1.48, 2.48, 3.48, 4.98, 7.48, 9.98],
+    // DI table: 148, 248, 348, 498, 748, 998; RCS 298 / 398 occur in AutoCAD exports (PERI item nos.)
+    lengths: [1.48, 2.48, 2.98, 3.48, 3.98, 4.98, 7.48, 9.98],
     source: 'PERI DI RCS/VARIOKIT, 4.1 Climbing Rail RCS (S. 9)',
   },
 ];

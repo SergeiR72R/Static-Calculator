@@ -1,13 +1,16 @@
 import { useRef, useState } from 'react';
-import { Dialog, DropdownMenu } from 'radix-ui';
+import { DropdownMenu } from 'radix-ui';
 import { useStore } from '../state/store';
 import { TEMPLATE_IDS } from '../core/defaults';
-import { parseProject, serializeProject, shareUrl } from '../state/persist';
+import { serializeProject, shareUrl } from '../state/persist';
+import { parseAnyProject, serializeBatch } from '../state/batch';
+import { ImportDialog, type PendingImport } from './batch/ImportDialog';
 import { LANGS } from '../i18n';
 import type { Lang } from '../units/format';
 import { Button, NumberField, cx, downloadBlob } from './common';
 import { makeFmt, useFmt, useResults } from './hooks';
 import { Wordmark } from './Brand';
+import { DialogShell } from './DialogShell';
 import {
   IconChevronDown,
   IconDownload,
@@ -21,7 +24,6 @@ import {
   IconTemplate,
   IconUndo,
   IconUpload,
-  IconX,
 } from './icons';
 import { buildDxf, dxfLang } from '../export/dxf';
 import { buildCsv } from '../export/csv';
@@ -36,27 +38,6 @@ function fileBase(name: string) {
   return (name || 'balken').replace(/[^\w\-äöüÄÖÜß]+/g, '_').slice(0, 60);
 }
 
-function DialogShell({ open, onOpenChange, title, children }: { open: boolean; onOpenChange: (o: boolean) => void; title: string; children: React.ReactNode }) {
-  const fmt = useFmt();
-  return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="no-print fixed inset-0 z-40 bg-black/30" />
-        <Dialog.Content className="no-print fixed left-1/2 top-1/2 z-50 w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-slate-200 bg-white p-4 shadow-2xl dark:border-slate-700 dark:bg-slate-900">
-          <div className="mb-3 flex items-center justify-between">
-            <Dialog.Title className="text-base font-semibold">{title}</Dialog.Title>
-            <Dialog.Close className="rounded p-1 hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={fmt.t('common.close')}>
-              <IconX />
-            </Dialog.Close>
-          </div>
-          <Dialog.Description className="sr-only">{title}</Dialog.Description>
-          {children}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
-  );
-}
-
 export function Header() {
   const fmt = useFmt();
   const st = useStore();
@@ -67,14 +48,33 @@ export function Header() {
   const [link, setLink] = useState<string | null>(null);
   const canExport = an.ok && !!vr;
 
-  const saveJson = () => downloadBlob(serializeProject(st.model), `${fileBase(st.model.name)}.json`, 'application/json');
+  const xlsxRef = useRef<HTMLInputElement>(null);
+  const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
+  const saveJson = () =>
+    st.batch
+      ? downloadBlob(serializeBatch(st.batch, st.batchImages), `${fileBase(st.batch.name.replace(/\.\w+$/, ''))}.json`, 'application/json')
+      : downloadBlob(serializeProject(st.model), `${fileBase(st.model.name)}.json`, 'application/json');
   const openJson = async (f: File) => {
     try {
-      const m = parseProject(await f.text());
-      st.loadModel(m);
+      const p = parseAnyProject(await f.text());
+      if (p.kind === 'batch') st.loadBatch(p.batch, p.images);
+      else {
+        st.closeBatch();
+        st.loadModel(p.model);
+      }
       st.showToast('toast.loaded');
     } catch (e) {
       st.showToast(e instanceof Error && e.message.startsWith('file.') ? e.message : 'file.invalid');
+    }
+  };
+  const openXlsx = async (f: File) => {
+    try {
+      const { readXlsx } = await import('../import/xlsx');
+      const { importAcadWorkbook } = await import('../import/acad');
+      const beams = importAcadWorkbook(readXlsx(new Uint8Array(await f.arrayBuffer())));
+      setPendingImport({ name: f.name, beams });
+    } catch (e) {
+      st.showToast(e instanceof Error && e.message.startsWith('import.') ? e.message : 'import.failed');
     }
   };
   const share = async () => {
@@ -166,6 +166,9 @@ export function Header() {
             <DropdownMenu.Item className={menuItem} data-testid="menu-open" onSelect={() => fileRef.current?.click()}>
               <IconUpload /> {fmt.t('header.open')}
             </DropdownMenu.Item>
+            <DropdownMenu.Item className={menuItem} data-testid="menu-import" onSelect={() => xlsxRef.current?.click()}>
+              <IconUpload /> {fmt.t('header.importAcad')}
+            </DropdownMenu.Item>
             <DropdownMenu.Item className={menuItem} data-testid="menu-save" onSelect={saveJson}>
               <IconDownload /> {fmt.t('header.save')}
             </DropdownMenu.Item>
@@ -185,6 +188,19 @@ export function Header() {
           </DropdownMenu.Content>
         </DropdownMenu.Portal>
       </DropdownMenu.Root>
+      <input
+        ref={xlsxRef}
+        type="file"
+        accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        className="hidden"
+        data-testid="xlsx-input"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void openXlsx(f);
+          e.target.value = '';
+        }}
+      />
+      <ImportDialog pending={pendingImport} onClose={() => setPendingImport(null)} />
       <input
         ref={fileRef}
         type="file"

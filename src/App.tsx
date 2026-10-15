@@ -13,6 +13,7 @@ import { ResultsPanel, ResultsToolbar } from './ui/results/ResultsPanel';
 import { ReportTab } from './ui/ReportTab';
 import { PrintReport } from './ui/PrintReport';
 import { NewProjectWizard } from './ui/NewProjectWizard';
+import { BatchPanel } from './ui/batch/BatchPanel';
 import { BRAND } from './ui/Brand';
 import { cx } from './ui/common';
 import { isRtl } from './units/format';
@@ -105,6 +106,7 @@ export function App() {
           </div>
           <main className="no-print grid flex-1 grid-cols-1 md:grid-cols-[minmax(320px,400px)_1fr] lg:grid-cols-[minmax(360px,440px)_1fr]">
             <aside className="hidden border-e border-slate-200 bg-slate-100/60 md:block dark:border-slate-800 dark:bg-slate-900/40" aria-label={fmt.t('app.input')}>
+              <BatchPanel />
               <Tabs.Root value={inputTab} onValueChange={(v) => useStore.getState().setInputTab(v as InputTab)} className="flex h-full flex-col">
                 <Tabs.List className="sticky top-[53px] z-20 flex border-b border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-900" aria-label={fmt.t('app.input')}>
                   {INPUT_TABS.map((tb) => (

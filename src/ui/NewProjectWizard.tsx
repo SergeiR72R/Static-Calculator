@@ -6,6 +6,7 @@ import { createProject } from '../core/project';
 import { sectionLabel } from '../sections/properties';
 import { designStrength } from '../sections/materials';
 import { serializeProject } from '../state/persist';
+import { serializeBatch } from '../state/batch';
 import { useStore } from '../state/store';
 import { LANGS } from '../i18n';
 import { Button, NumberField, SelectField, SwitchField, TextField, cx, downloadBlob } from './common';
@@ -71,6 +72,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
 
   const finish = () => {
     const m = createProject({ name, author, description, template, L, material, section, settings });
+    st.closeBatch();
     st.loadModel(m);
     if (saveDefaults) st.setUserDefaults({ author: author.trim(), template, L, material, section, settings });
     st.closeWizard();
@@ -311,7 +313,11 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                       size="sm"
                       className="mt-1.5"
                       data-testid="wizard-save-current"
-                      onClick={() => downloadBlob(serializeProject(st.model), `${(st.model.name || 'balken').replace(/[^\w\-äöüÄÖÜß]+/g, '_')}.json`, 'application/json')}
+                      onClick={() =>
+                        st.batch
+                          ? downloadBlob(serializeBatch(st.batch, st.batchImages), `${st.batch.name.replace(/\.\w+$/, '').replace(/[^\w\-äöüÄÖÜß]+/g, '_')}.json`, 'application/json')
+                          : downloadBlob(serializeProject(st.model), `${(st.model.name || 'balken').replace(/[^\w\-äöüÄÖÜß]+/g, '_')}.json`, 'application/json')
+                      }
                     >
                       <IconDownload /> {fmt.t('wizard.saveCurrent')}
                     </Button>

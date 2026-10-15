@@ -18,7 +18,8 @@
     "delete": "Löschen",
     "close": "Schließen",
     "yes": "ja",
-    "no": "nein"
+    "no": "nein",
+    "cancel": "Abbrechen"
   },
   "header": {
     "templates": "Vorlagen",
@@ -38,7 +39,8 @@
     "language": "Sprache",
     "theme": "Hell/Dunkel umschalten",
     "newProject": "Neues Projekt",
-    "project": "Projekt"
+    "project": "Projekt",
+    "importAcad": "Import aus AutoCAD (Excel)…"
   },
   "templates": {
     "simple": "Einfeldträger",
@@ -329,7 +331,8 @@
     "loaded": "Projekt geladen.",
     "loadedFromLink": "Berechnung aus dem Link geladen.",
     "linkCopied": "Link in die Zwischenablage kopiert.",
-    "projectCreated": "Projekt „{name}“ angelegt."
+    "projectCreated": "Projekt „{name}“ angelegt.",
+    "imported": "{n} Träger importiert."
   },
   "share": {
     "description": "Das vollständige Modell ist komprimiert im Link enthalten. Link kopieren und weitergeben:"
@@ -504,5 +507,77 @@
     },
     "scaleNote": "Querschnitt zur Darstellung ×{s} überhöht.",
     "controls": "Ziehen = drehen, Rad = zoomen, rechte Maustaste = verschieben."
+  },
+  "import": {
+    "title": "Trägerliste importieren",
+    "summary": "{n} Träger, {loads} Einzellasten, {images} Abbildungen.",
+    "profiles": "Profile",
+    "assumptions": "Annahmen beim Import",
+    "rule": {
+      "supports": "Auflager (Gelenklager): erstes Lager als Festlager, alle weiteren als Loslager.",
+      "loads": "Lasten: Einzellasten senkrecht, Gk als ständige Last G, Qk als Nutzlast Q (charakteristisch); Kombinationen nach EN 1990.",
+      "length": "Länge: Kataloglänge der Bezeichnung (z. B. RCS 248 → 2480 mm); Abweichungen bis 25 mm werden angeglichen, größere gemeldet.",
+      "selfWeight": "Eigengewicht des PERI-Profils wird berücksichtigt."
+    },
+    "notes": "Hinweise",
+    "note": {
+      "oneSupport": "Träger mit nur einem Auflager – kinematisch, Auflager ergänzen",
+      "noSupports": "Träger ohne Auflager – Auflager ergänzen",
+      "ground": "durchgehend auf Untergrund gelagert – vereinfacht mit Lagern an den Enden und unter jeder Last",
+      "profileMapped": "Profil nicht im Katalog – nächstes PERI-Profil verwendet",
+      "lengthSnapped": "Länge an Kataloglänge angeglichen (≤ 25 mm)",
+      "lengthFromDesignation": "Länge in der Datei passt nicht zur Bezeichnung – Kataloglänge verwendet",
+      "lengthNotCatalog": "keine Kataloglänge – Länge aus der Datei verwendet",
+      "outside": "Last/Lager außerhalb des Trägers – an das Trägerende gesetzt",
+      "noLoads": "Träger ohne Lasten"
+    },
+    "warn": {
+      "oneSupport": "Nur ein Auflager – System kinematisch verschieblich. Bitte Auflager ergänzen.",
+      "noSupports": "Keine Auflager in der Datei. Bitte Auflager ergänzen.",
+      "ground": "Durchgehend auf Untergrund gelagert – vereinfacht: Lager an den Enden und unter jeder Last.",
+      "profileMapped": "Profil „{name}“ nicht im Katalog – verwendet: {profile}.",
+      "lengthSnapped": "Länge {from} mm an Kataloglänge {to} mm angeglichen.",
+      "lengthFromDesignation": "Länge in der Datei {from} mm passt nicht zu {name} – Kataloglänge {to} mm verwendet.",
+      "lengthNotCatalog": "Länge {L} mm ist keine Kataloglänge (nächste: {near} mm) – mit Länge aus der Datei gerechnet.",
+      "outside": "{name} bei x = {x} mm liegt außerhalb des Trägers – an das Trägerende gesetzt.",
+      "noLoads": "Keine Lasten in der Datei."
+    },
+    "showDetails": "Details je Träger anzeigen",
+    "hideDetails": "Details ausblenden",
+    "replaceList": "Die aktuelle Trägerliste wird ersetzt (vorher ggf. über Datei → Projekt speichern sichern).",
+    "confirm": "{n} Träger importieren",
+    "notXlsx": "Die Datei ist keine Excel-Datei (.xlsx).",
+    "noOverview": "Keine Trägerliste gefunden (Blatt mit den Spalten „Balken“ und „Länge“).",
+    "empty": "Die Datei enthält keine Träger.",
+    "failed": "Import fehlgeschlagen."
+  },
+  "batch": {
+    "title": "Trägerliste",
+    "close": "Trägerliste schließen",
+    "closeConfirm": "Trägerliste schließen? Der aktive Träger bleibt als einzelnes Projekt geöffnet; die übrigen Träger werden verworfen (vorher ggf. Projekt speichern).",
+    "progress": "{n} von {total} geprüft",
+    "problemsCount": "{n} mit Problemen",
+    "prev": "Vorheriger Träger",
+    "next": "Nächster Träger",
+    "checked": "Geprüft",
+    "markChecked": "Berechnung als geprüft markieren",
+    "changedHint": "Nach der Prüfung geändert – bitte erneut prüfen und bestätigen.",
+    "filter": {
+      "all": "Alle",
+      "open": "Offen",
+      "checked": "Geprüft",
+      "problems": "Probleme"
+    },
+    "search": "Suchen…",
+    "empty": "Keine Träger für diesen Filter.",
+    "error": "Fehler",
+    "status": {
+      "checked": "geprüft",
+      "changed": "nach Prüfung geändert",
+      "open": "offen"
+    },
+    "drawing": "Abbildung aus AutoCAD",
+    "hide": "Ausblenden",
+    "show": "Anzeigen"
   }
 }

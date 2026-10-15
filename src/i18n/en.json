@@ -18,7 +18,8 @@
     "delete": "Delete",
     "close": "Close",
     "yes": "yes",
-    "no": "no"
+    "no": "no",
+    "cancel": "Cancel"
   },
   "header": {
     "templates": "Templates",
@@ -38,7 +39,8 @@
     "language": "Language",
     "theme": "Toggle light/dark",
     "newProject": "New project",
-    "project": "Project"
+    "project": "Project",
+    "importAcad": "Import from AutoCAD (Excel)…"
   },
   "templates": {
     "simple": "Simply supported beam",
@@ -329,7 +331,8 @@
     "loaded": "Project loaded.",
     "loadedFromLink": "Calculation loaded from the link.",
     "linkCopied": "Link copied to the clipboard.",
-    "projectCreated": "Project “{name}” created."
+    "projectCreated": "Project “{name}” created.",
+    "imported": "{n} beams imported."
   },
   "share": {
     "description": "The complete model is compressed into the link. Copy and share it:"
@@ -504,5 +507,77 @@
     },
     "scaleNote": "Section exaggerated ×{s} for display.",
     "controls": "Drag = rotate, wheel = zoom, right mouse button = pan."
+  },
+  "import": {
+    "title": "Import beam list",
+    "summary": "{n} beams, {loads} point loads, {images} drawings.",
+    "profiles": "Profiles",
+    "assumptions": "Import assumptions",
+    "rule": {
+      "supports": "Supports (pinned bearings): first support pinned, all others rollers.",
+      "loads": "Loads: vertical point loads, Gk as permanent load G, Qk as imposed load Q (characteristic); combinations per EN 1990.",
+      "length": "Length: catalogue length of the designation (e.g. RCS 248 → 2480 mm); deviations up to 25 mm are adjusted, larger ones reported.",
+      "selfWeight": "Self weight of the PERI profile is included."
+    },
+    "notes": "Notes",
+    "note": {
+      "oneSupport": "beams with a single support – mechanism, add supports",
+      "noSupports": "beams without supports – add supports",
+      "ground": "continuously bedded on the ground – simplified with supports at the ends and under every load",
+      "profileMapped": "profile not in the catalogue – nearest PERI profile used",
+      "lengthSnapped": "length adjusted to the catalogue length (≤ 25 mm)",
+      "lengthFromDesignation": "length in the file does not match the designation – catalogue length used",
+      "lengthNotCatalog": "no catalogue length – length from the file used",
+      "outside": "load/support outside the beam – moved to the beam end",
+      "noLoads": "beams without loads"
+    },
+    "warn": {
+      "oneSupport": "Only one support – the system is a mechanism. Please add supports.",
+      "noSupports": "No supports in the file. Please add supports.",
+      "ground": "Continuously bedded on the ground – simplified: supports at the ends and under every load.",
+      "profileMapped": "Profile “{name}” not in the catalogue – using {profile}.",
+      "lengthSnapped": "Length {from} mm adjusted to the catalogue length {to} mm.",
+      "lengthFromDesignation": "Length in the file {from} mm does not match {name} – catalogue length {to} mm used.",
+      "lengthNotCatalog": "Length {L} mm is not a catalogue length (nearest: {near} mm) – calculated with the length from the file.",
+      "outside": "{name} at x = {x} mm lies outside the beam – moved to the beam end.",
+      "noLoads": "No loads in the file."
+    },
+    "showDetails": "Show details per beam",
+    "hideDetails": "Hide details",
+    "replaceList": "The current beam list will be replaced (save it first via File → Save project if needed).",
+    "confirm": "Import {n} beams",
+    "notXlsx": "The file is not an Excel file (.xlsx).",
+    "noOverview": "No beam list found (sheet with the columns “Balken” and “Länge”).",
+    "empty": "The file contains no beams.",
+    "failed": "Import failed."
+  },
+  "batch": {
+    "title": "Beam list",
+    "close": "Close beam list",
+    "closeConfirm": "Close the beam list? The active beam stays open as a single project; the other beams are discarded (save the project first if needed).",
+    "progress": "{n} of {total} checked",
+    "problemsCount": "{n} with problems",
+    "prev": "Previous beam",
+    "next": "Next beam",
+    "checked": "Checked",
+    "markChecked": "Mark calculation as checked",
+    "changedHint": "Changed after the check – please check and confirm again.",
+    "filter": {
+      "all": "All",
+      "open": "Open",
+      "checked": "Checked",
+      "problems": "Problems"
+    },
+    "search": "Search…",
+    "empty": "No beams for this filter.",
+    "error": "Error",
+    "status": {
+      "checked": "checked",
+      "changed": "changed after check",
+      "open": "open"
+    },
+    "drawing": "Drawing from AutoCAD",
+    "hide": "Hide",
+    "show": "Show"
   }
 }

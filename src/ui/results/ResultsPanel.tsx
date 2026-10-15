@@ -8,6 +8,7 @@ import { CursorReadout, DiagramStack } from './Diagrams';
 import { ChecksCard, ExtremesCard, IssuesBox, ReactionsCard } from './Kpi';
 import { Schematic } from './Schematic';
 import { View3DCard } from './View3DCard';
+import { DrawingCard } from '../batch/DrawingCard';
 
 function viewKey(v: ResultView): string {
   return v.type === 'envelope' ? 'envelope' : `${v.type}:${v.id}`;
@@ -117,6 +118,7 @@ export function ResultsPanel() {
   return (
     <div className="space-y-3">
       <IssuesBox />
+      <DrawingCard />
       <div className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900" ref={ref}>
         {width > 0 && (
           <>

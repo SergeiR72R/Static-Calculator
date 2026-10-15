@@ -171,7 +171,29 @@ function arrowHead(x: number, y: number, dx: number, dy: number, size = 7) {
   return `M${x},${y}L${bx - uy * size * 0.45},${by + ux * size * 0.45}L${bx + uy * size * 0.45},${by - ux * size * 0.45}Z`;
 }
 
-function LoadGlyph({ l, sx, beamY, lv, qmax, fmt, dim }: { l: Load; sx: XScale; beamY: number; lv: number; qmax: number; fmt: Fmt; dim: boolean }) {
+function LoadGlyph({
+  l,
+  sx,
+  beamY,
+  lv,
+  qmax,
+  fmt,
+  dim,
+  stack = 0,
+  tag = '',
+}: {
+  l: Load;
+  sx: XScale;
+  beamY: number;
+  lv: number;
+  qmax: number;
+  fmt: Fmt;
+  dim: boolean;
+  /** position among point loads acting at the same point (labels are stacked) */
+  stack?: number;
+  /** load case tag shown when several loads act at the same point */
+  tag?: string;
+}) {
   const color = dim ? 'var(--load-dim)' : 'var(--load)';
   const common = { stroke: color, fill: 'none', strokeWidth: 1.5 } as const;
   if (l.kind === 'point') {
@@ -191,7 +213,8 @@ function LoadGlyph({ l, sx, beamY, lv, qmax, fmt, dim }: { l: Load; sx: XScale; 
       <g>
         <line x1={tx} y1={ty} x2={x - dx * 6} y2={y - dy * 6} {...common} strokeWidth={2} />
         <path d={arrowHead(x, y, dx, dy, 9)} fill={color} stroke="none" />
-        <text x={tx + (dx >= 0 ? -4 : 4)} y={ty - 4} fontSize="11" textAnchor={dx >= 0 ? 'end' : 'start'} className="svg-text num" style={{ fill: color }}>
+        <text x={tx + (dx >= 0 ? -4 : 4)} y={ty - 4 - stack * 12} fontSize="11" textAnchor={dx >= 0 ? 'end' : 'start'} className="svg-text num" style={{ fill: color }}>
+          {tag && `${tag} `}
           {fmt.q(Math.abs(l.P), 'force', 1)}
           {Math.abs(l.angle - 90) > 1e-9 ? ` ∠${fmt.num(l.angle, 0)}°` : ''}
         </text>
@@ -315,7 +338,24 @@ export function Schematic({ sx }: { sx: XScale }) {
   const lvMap = useMemo(() => levels(model.loads), [model.loads]);
   const nLevels = Math.max(0, ...[...lvMap.values()].map((v) => v + 1));
   const hasPoint = model.loads.some((l) => l.kind === 'point' || l.kind === 'moment');
-  const topArea = Math.max(hasPoint ? 64 : 30, nLevels * LEVEL_H + 26);
+  // point loads at the same point (e.g. Gk and Qk of an import): stacked labels with the load case
+  const pointStack = useMemo(() => {
+    const res = new Map<Id, { stack: number; tag: string }>();
+    const groups = new Map<string, Load[]>();
+    for (const l of model.loads) {
+      if (l.kind !== 'point') continue;
+      const k = `${Math.round(l.x * 1000)}|${Math.round(l.angle)}|${Math.sign(l.P)}`;
+      groups.set(k, [...(groups.get(k) ?? []), l]);
+    }
+    for (const g of groups.values())
+      g.forEach((l, i) => {
+        const c = model.loadCases.find((lc) => lc.id === l.caseId);
+        res.set(l.id, { stack: i, tag: g.length > 1 ? (c?.category === 'custom' ? c.name || c.id : (c?.category ?? l.caseId)) : '' });
+      });
+    return res;
+  }, [model.loads, model.loadCases]);
+  const maxStack = Math.max(0, ...[...pointStack.values()].map((v) => v.stack));
+  const topArea = Math.max(hasPoint ? 64 + maxStack * 12 : 30, nLevels * LEVEL_H + 26);
   const beamY = topArea + 8;
   const reactionRows = vr ? reactionLabels(model, vr, sx, fmt, checks) : [];
   const nRows = Math.max(0, ...reactionRows.map((r) => r.row + r.lines.length));
@@ -530,7 +570,17 @@ export function Schematic({ sx }: { sx: XScale }) {
                 {...hitProps({ kind: 'load', id: l.id }, l.x)}
               >
                 <rect x={sx.px(l.x) - 10} y={beamY - 52} width={20} height={50} fill="transparent" />
-                <LoadGlyph l={l} sx={sx} beamY={beamY} lv={0} qmax={qmax} fmt={fmt} dim={!activeFactor(model, view, l.caseId)} />
+                <LoadGlyph
+                  l={l}
+                  sx={sx}
+                  beamY={beamY}
+                  lv={0}
+                  qmax={qmax}
+                  fmt={fmt}
+                  dim={!activeFactor(model, view, l.caseId)}
+                  stack={pointStack.get(l.id)?.stack}
+                  tag={pointStack.get(l.id)?.tag}
+                />
               </g>
             );
           })}

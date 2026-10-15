@@ -37,7 +37,8 @@ describe('PERI components', () => {
   it('catalogue lengths', () => {
     expect(findPeriProduct('GT24')!.lengths).toHaveLength(18);
     expect(findPeriProduct('GT24')!.lengths.at(-1)).toBe(6);
-    expect(findPeriProduct('RCS')!.lengths).toEqual([1.48, 2.48, 3.48, 4.98, 7.48, 9.98]);
+    expect(findPeriProduct('RCS')!.lengths).toEqual([1.48, 2.48, 2.98, 3.48, 3.98, 4.98, 7.48, 9.98]);
+    expect(findPeriProduct('SRU120')!.lengths[0]).toBe(0.722);
     expect(findPeriProduct('SRU120')!.lengths).toHaveLength(16);
     for (const p of PERI_PRODUCTS) expect(p.lengths.length).toBeGreaterThan(0);
   });

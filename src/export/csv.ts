@@ -1,5 +1,5 @@
 import type { Analysis } from '../core/analysis';
-import { valuesAt, type ViewResult } from '../core/results';
+import { displayReaction, valuesAt, type ViewResult } from '../core/results';
 import type { Field } from '../core/postprocess';
 import { translate } from '../i18n';
 import { formatInput, usesDecimalPoint, type Lang } from '../units/format';
@@ -53,8 +53,9 @@ export function buildCsv(an: Analysis, vr: ViewResult, opt: CsvOptions): string 
   model.supports.forEach((s, i) => {
     const cells = [t(`support.types.${s.type}`), num(s.x, 'length')];
     (['force', 'force', 'moment'] as const).forEach((q, c) => {
-      if (env) cells.push(num(vr.reactions.min[3 * i + c], q), num(vr.reactions.max[3 * i + c], q));
-      else cells.push(num(vr.reactions.max[3 * i + c], q));
+      const [mn, mx] = displayReaction(vr.reactions, i, c);
+      if (env) cells.push(num(mn, q), num(mx, q));
+      else cells.push(num(mx, q));
     });
     lines.push(row(cells));
   });

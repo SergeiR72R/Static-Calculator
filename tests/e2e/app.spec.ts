@@ -243,7 +243,8 @@ test('support reactions on the diagram; a lifting pinned/roller support fails', 
   await expect(page.getByTestId('toast')).toBeVisible();
   for (const s of m.supports) await expect(page.getByTestId(`reaction-label-${s.id}`)).toContainText('R_z =');
   // option off (default): values only, no failure
-  await expect(page.getByTestId(`reaction-label-${m.supports[1].id}`)).toContainText('−');
+  // global axes (z down): the support carrying the tip load pushes up → R_z < 0
+  await expect(page.getByTestId(`reaction-label-${m.supports[2].id}`)).toContainText('−');
   await expect(page.getByTestId(`reaction-label-${m.supports[1].id}`)).not.toContainText('hebt ab');
   await expect(page.getByTestId('check-uplift')).toHaveCount(0);
   await page.getByTestId('tab-settings').click();
@@ -252,7 +253,7 @@ test('support reactions on the diagram; a lifting pinned/roller support fails', 
   await expect(page.getByTestId(`reaction-label-${m.supports[0].id}`)).not.toContainText('hebt ab');
   const up = page.getByTestId('check-uplift');
   await expect(up).toContainText('nicht erfüllt');
-  await expect(page.getByTestId(`uplift-${m.supports[1].id}`)).toContainText('< 0');
+  await expect(page.getByTestId(`uplift-${m.supports[1].id}`)).toContainText('> 0');
 });
 
 test('autosaved project with the old default 1,35·G + 1,5·Q opens with 1,5·G + 1,5·Q', async ({ page }) => {

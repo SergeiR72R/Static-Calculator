@@ -1,4 +1,5 @@
 import type { Field } from '../../core/postprocess';
+import { displayReaction } from '../../core/results';
 import { isCompressionOnly, upliftTolerance, type PeriCheck } from '../../core/checks';
 import { findPeriProduct } from '../../sections/peri';
 import { isRtl } from '../../units/format';
@@ -15,8 +16,7 @@ export function ReactionsCard() {
   const sups = an.model.supports.map((s, i) => ({ s, i })).sort((a, b) => a.s.x - b.s.x);
   const env = vr.kind === 'envelope';
   const cell = (i: number, c: number, q: Quantity) => {
-    const mx = vr.reactions.max[3 * i + c];
-    const mn = vr.reactions.min[3 * i + c];
+    const [mn, mx] = displayReaction(vr.reactions, i, c);
     if (env && Math.abs(mx - mn) > 1e-9 * Math.max(1, Math.abs(mx))) return `${fmt.num(fmt.val(mn, q))} … ${fmt.num(fmt.val(mx, q))}`;
     return fmt.num(fmt.val(mx, q));
   };
@@ -205,7 +205,7 @@ function UpliftView() {
             <div key={u.supportId} className={cx(!u.ok && 'text-red-600 dark:text-red-400')} data-testid={`uplift-${u.supportId}`}>
               {sp && fmt.t(`support.types.${sp.type}`)}{' '}
               <bdi dir="ltr">
-                x = {fmt.q(u.x, 'length')}: R_z,min = {fmt.q(u.Rmin, 'force')} {u.ok ? '≥ 0' : '< 0'}
+                x = {fmt.q(u.x, 'length')}: R_z,max = {fmt.q(-u.Rmin, 'force')} {u.ok ? '≤ 0' : '> 0'}
               </bdi>
               {!u.ok && <> — {fmt.t('kpi.upliftFail')}</>}
             </div>

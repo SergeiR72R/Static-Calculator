@@ -4,7 +4,7 @@
  * Drawing units: mm, beam at scale 1:1, diagrams offset downwards (DXF y axis points up).
  */
 import type { Analysis } from '../core/analysis';
-import type { ViewResult } from '../core/results';
+import { displayReaction, type ViewResult } from '../core/results';
 import type { Load, Support } from '../core/types';
 import { translate } from '../i18n';
 import { formatNumber, type Lang } from '../units/format';
@@ -306,12 +306,11 @@ export function buildDxf(an: Analysis, vr: ViewResult, options: DxfOptions): Dxf
     dw.text('BEAM_AXIS', [(X(a) + X(b)) / 2, yd + S * 0.15], th * 0.8, formatNumber(fromSI(b - a, 'length', opt.units), opt.lang, 3, false), 'center');
   }
 
-  // support reactions below the dimension chain (force on the beam, R_z ↑ +)
+  // support reactions below the dimension chain (global axes of the drawing: R_z ↓ +)
   const { max: rmax, min: rmin } = vr.reactions;
   const rtol = upliftTolerance(rmax, rmin);
   const rval = (i: number, c: number, q: Quantity) => {
-    const a = rmin[3 * i + c];
-    const b = rmax[3 * i + c];
+    const [a, b] = displayReaction(vr.reactions, i, c);
     const u = unit(q);
     return vr.kind === 'envelope' && Math.abs(b - a) > rtol ? `${fmtv(a, q)} ... ${fmtv(b, q)} ${u}` : `${fmtv(b, q)} ${u}`;
   };

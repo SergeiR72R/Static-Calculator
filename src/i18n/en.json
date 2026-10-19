@@ -212,7 +212,7 @@
     "snap": "Snap step for dragging",
     "limitsHint": "Limits for the deflection check with the SLS combinations: L = span length, L_c = cantilever length. Typical: L/250 and L_c/125.",
     "upliftCheck": "Uplift = failure (pinned/roller compression only)",
-    "upliftCheckHint": "Pinned and roller supports take compression only: if the beam lifts off (R_z < 0 in any combination), the support fails."
+    "upliftCheckHint": "Pinned and roller supports take compression only: if the beam lifts off (R_z > 0 in any combination), the support fails."
   },
   "results": {
     "view": "Result",
@@ -268,7 +268,7 @@
   "kpi": {
     "reactions": "Support reactions",
     "springForce": "spring force",
-    "reactionSigns": "Reactions acting on the beam: R_x > 0 to the right (→), R_z > 0 upwards (↑), M_R > 0 clockwise (↻).",
+    "reactionSigns": "Support reactions in the global axes of the drawing (z downwards): R_x > 0 to the right (→), R_z > 0 downwards (↓), M_R > 0 clockwise (↻). A support pushing the beam up has R_z < 0.",
     "extremes": "Extreme values",
     "lengthUnit": "positions x in {u}",
     "checks": "Express checks",
@@ -460,7 +460,7 @@
     "periValues": "Section values of the PERI component {name} (source: {src}):",
     "periPerm": "Check with permissible internal forces (perm F = R_d / γ_F, γ_F = 1.5) under the actual loads.",
     "periDesign": "Cross-section check per PERI (ST_was_2024/00040) with the interaction n–v, v–m, n–v–m, ρ = (2·max(0.5; v) − 1)², for the sections A 4-4, A 5-5 and B 2-2.",
-    "upliftNote": "Pinned and roller supports transfer compression only; R_z < 0 (uplift) means the support fails.",
+    "upliftNote": "Pinned and roller supports transfer compression only; R_z > 0 (uplift, global z axis downwards) means the support fails.",
     "periGirder": "Check with the design values of the MULTIFLEX instructions for assembly and use: V_Ed ≤ V_Rd, M_Ed ≤ M_Rd, support force F_Ed ≤ F_R,d per support case (end/intermediate support, position to the nodes or distance from the girder end), for GT 24 the moment at the support M_Ed ≤ M_m,Rd; minimum distance of the end supports from the girder end.",
     "periEc3": "Cross-section check per EN 1993-1-1 6.2.10 with 6.2.9.1 (6.36), procedure after Wagenknecht, net section with bolt holes (PERI proof ST_kls_2016-00106)."
   },

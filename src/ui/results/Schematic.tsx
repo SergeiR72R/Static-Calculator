@@ -7,7 +7,7 @@ import { HingeEditor, LoadEditor, SupportEditor, loadKindLabel } from '../inputs
 import { IconX } from '../icons';
 import { cx } from '../common';
 import { isCompressionOnly, upliftTolerance, type Checks } from '../../core/checks';
-import type { ViewResult } from '../../core/results';
+import { displayReaction, type ViewResult } from '../../core/results';
 import type { Quantity } from '../../units/units';
 
 const LEVEL_H = 30;
@@ -43,15 +43,15 @@ interface ReactionLabel {
 }
 
 /**
- * Reaction labels below the supports: R_z (↑ +) always, R_x and M where non-zero; range min … max
- * for envelopes. Compression-only supports (pinned, roller) with R_z < 0 lift off → marked as failing.
+ * Reaction labels below the supports in the global axes of the drawing (R_z ↓ +): R_z always, R_x and M
+ * where non-zero; range min … max for envelopes. Compression-only supports (pinned, roller) lifting off
+ * (displayed R_z > 0) are marked as failing.
  */
 function reactionLabels(model: BeamModel, vr: ViewResult, sx: XScale, fmt: Fmt, checks: Checks | null): ReactionLabel[] {
   const { max, min } = vr.reactions;
   const tol = upliftTolerance(max, min);
   const val = (i: number, c: number, q: Quantity) => {
-    const a = min[3 * i + c];
-    const b = max[3 * i + c];
+    const [a, b] = displayReaction(vr.reactions, i, c);
     if (vr.kind === 'envelope' && Math.abs(b - a) > tol) return `${fmt.num(fmt.val(a, q))} … ${fmt.q(b, q)}`;
     return fmt.q(b, q);
   };
@@ -605,7 +605,7 @@ export function Schematic({ sx }: { sx: XScale }) {
         <text x={(sx.px(0) + sx.px(model.L)) / 2} y={beamY + 64} fontSize="11" textAnchor="middle" className="svg-text num">
           L = {fmt.q(model.L, 'length')}
         </text>
-        {/* support reactions (force on the beam; R_z ↑ +) */}
+        {/* support reactions (global axes: R_z ↓ +) */}
         {reactionRows.map((r) => (
           <g key={r.id} data-testid={`reaction-label-${r.id}`} className="num" fontSize="10" textAnchor="middle" pointerEvents="none">
             {r.lines.map((ln, k) => (

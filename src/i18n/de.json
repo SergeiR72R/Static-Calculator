@@ -212,7 +212,7 @@
     "snap": "Fangraster beim Ziehen",
     "limitsHint": "Grenzwerte für den Durchbiegungsnachweis mit den GZG-Kombinationen: L = Stützweite des Feldes, L_k = Kraglänge. Üblich: L/250 und L_k/125.",
     "upliftCheck": "Abheben = Versagen (Fest-/Loslager nur Druck)",
-    "upliftCheckHint": "Fest- und Loslager übertragen nur Druck: hebt der Träger ab (R_z < 0 in einer Kombination), gilt das Lager als versagt."
+    "upliftCheckHint": "Fest- und Loslager übertragen nur Druck: hebt der Träger ab (R_z > 0 in einer Kombination), gilt das Lager als versagt."
   },
   "results": {
     "view": "Ergebnis",
@@ -268,7 +268,7 @@
   "kpi": {
     "reactions": "Auflagerreaktionen",
     "springForce": "Federkraft",
-    "reactionSigns": "Reaktionen auf den Träger: R_x > 0 nach rechts (→), R_z > 0 nach oben (↑), M_R > 0 im Uhrzeigersinn (↻).",
+    "reactionSigns": "Lagerreaktionen in globalen Achsen der Zeichnung (z nach unten): R_x > 0 nach rechts (→), R_z > 0 nach unten (↓), M_R > 0 im Uhrzeigersinn (↻). Ein Lager, das den Träger nach oben stützt, hat R_z < 0.",
     "extremes": "Extremwerte",
     "lengthUnit": "Stellen x in {u}",
     "checks": "Expressnachweise",
@@ -460,7 +460,7 @@
     "periValues": "Querschnittswerte des PERI-Bauteils {name} (Quelle: {src}):",
     "periPerm": "Nachweis mit zulässigen Schnittgrößen (perm F = R_d / γ_F, γ_F = 1,5) unter den tatsächlichen Lasten.",
     "periDesign": "Querschnittsnachweis nach PERI (ST_was_2024/00040) mit Interaktion n–v, v–m, n–v–m, ρ = (2·max(0,5; v) − 1)², für die Schnitte A 4-4, A 5-5 und B 2-2.",
-    "upliftNote": "Fest- und Loslager übertragen nur Druck; R_z < 0 (Abheben) bedeutet Versagen des Lagers.",
+    "upliftNote": "Fest- und Loslager übertragen nur Druck; R_z > 0 (Abheben, globale z-Achse nach unten) bedeutet Versagen des Lagers.",
     "periGirder": "Nachweis mit den Bemessungswerten der MULTIFLEX-Aufbau- und Verwendungsanleitung: V_Ed ≤ V_Rd, M_Ed ≤ M_Rd, Auflagerkraft F_Ed ≤ F_R,d je Auflagerfall (End-/Zwischenauflager, Lage zu den Knoten bzw. Abstand vom Trägerende), bei GT 24 Moment am Auflager M_Ed ≤ M_m,Rd; Mindestabstand der Endauflager vom Trägerende.",
     "periEc3": "Querschnittsnachweis nach EN 1993-1-1 6.2.10 mit 6.2.9.1 (6.36), Verfahren nach Wagenknecht, Nettoquerschnitt mit Bohrungen (PERI-Nachweis ST_kls_2016-00106)."
   },

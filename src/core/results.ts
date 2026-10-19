@@ -279,3 +279,16 @@ export function valuesAt(an: Analysis, vr: ViewResult, x: number): { left: Point
     rightMin: pick(vr.min, eR),
   };
 }
+
+/**
+ * Support reaction component c (0 = R_x, 1 = R_z, 2 = M_R) of support i as displayed: in the global
+ * axes of the drawing (x →, z ↓, moments ↻). Internally R_z is stored upwards positive (force on
+ * the beam), for the display the sign of R_z is flipped – a support pushing the beam up has R_z < 0.
+ * Returns [min, max] (equal for single results).
+ */
+export function displayReaction(r: { max: ArrayLike<number>; min: ArrayLike<number> }, i: number, c: number): [number, number] {
+  const s = c === 1 ? -1 : 1;
+  const a = s * r.min[3 * i + c];
+  const b = s * r.max[3 * i + c];
+  return a <= b ? [a, b] : [b, a];
+}

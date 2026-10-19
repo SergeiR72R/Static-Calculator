@@ -588,8 +588,8 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
   const rv = reactionVector(prep, lr);
   blocks.push({
     type: 'table',
-    head: [t('support.single'), 'x [m]', 'R_x [N] (→)', 'R_z [N] (↑)', 'M_R [N·m] (↻)'],
-    rows: model.supports.map((s, i) => [t(`support.types.${s.type}`), T(s.x), T(rv[3 * i]), T(rv[3 * i + 1]), T(rv[3 * i + 2])]),
+    head: [t('support.single'), 'x [m]', 'R_x [N] (→)', 'R_z [N] (↓)', 'M_R [N·m] (↻)'],
+    rows: model.supports.map((s, i) => [t(`support.types.${s.type}`), T(s.x), T(rv[3 * i]), T(-rv[3 * i + 1]), T(rv[3 * i + 2])]),
   });
   const eq = equilibrium(prep, lr);
   blocks.push({ type: 'p', text: t('report.equilibriumIntro') });
@@ -685,7 +685,7 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
       const letter = String.fromCharCode(65 + Math.max(0, si));
       blocks.push({
         type: 'tex',
-        tex: `R_{z,${letter},\\min}(x = ${N(u.x)}\\,\\mathrm{m}) = ${N(u.Rmin)}\\,\\mathrm{N} ${u.ok ? '\\ge' : '<'} 0 \\;\\Rightarrow\\; \\text{${tt(u.ok ? 'kpi.ok' : 'kpi.fail')}}`,
+        tex: `R_{z,${letter},\\max}(x = ${N(u.x)}\\,\\mathrm{m}) = ${N(-u.Rmin)}\\,\\mathrm{N} ${u.ok ? '\\le' : '>'} 0 \\;\\Rightarrow\\; \\text{${tt(u.ok ? 'kpi.ok' : 'kpi.fail')}}`,
       });
     }
   }

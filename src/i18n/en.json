@@ -40,7 +40,8 @@
     "theme": "Toggle light/dark",
     "newProject": "New project",
     "project": "Project",
-    "importAcad": "Import from AutoCAD (Excel)…"
+    "importAcad": "Import from AutoCAD (Excel)…",
+    "saveList": "Save beam list ({n} beams, JSON)"
   },
   "templates": {
     "simple": "Simply supported beam",
@@ -185,9 +186,9 @@
       "ULS": "ULS",
       "SLS": "SLS"
     },
-    "presets": "EN 1990 presets",
+    "presets": "Default combinations",
     "inEnvelope": "include in envelope",
-    "hint": "Presets according to EN 1990: ULS 1.35·G + 1.5·Q and 1.0·G + 1.5·Q, SLS 1.0·G + 1.0·Q. The strength check uses the ULS, the deflection check the SLS combinations."
+    "hint": "Default: ULS 1.5·G + 1.5·Q (formwork/falsework, γ_F = 1.5 as in the PERI design information) and 1.0·G + 1.5·Q (favourable G), SLS 1.0·G + 1.0·Q. The strength check uses the ULS, the deflection check the SLS combinations."
   },
   "settings": {
     "analysis": "Analysis",
@@ -332,7 +333,8 @@
     "loadedFromLink": "Calculation loaded from the link.",
     "linkCopied": "Link copied to the clipboard.",
     "projectCreated": "Project “{name}” created.",
-    "imported": "{n} beams imported."
+    "imported": "{n} beams imported.",
+    "listSaved": "Beam list with {n} beams saved as one project."
   },
   "share": {
     "description": "The complete model is compressed into the link. Copy and share it:"
@@ -515,7 +517,7 @@
     "assumptions": "Import assumptions",
     "rule": {
       "supports": "Supports: all pinned (fixed). Beams with a single stand rest on the structure with the other end – a pinned support is added at that beam end.",
-      "loads": "Loads: vertical point loads, Gk as permanent load G, Qk as imposed load Q (characteristic); combinations per EN 1990.",
+      "loads": "Loads: vertical point loads, Gk as permanent load G, Qk as imposed load Q (characteristic); combinations: ULS 1.5·G + 1.5·Q and 1.0·G + 1.5·Q, SLS 1.0·G + 1.0·Q.",
       "length": "Length: catalogue length of the designation (e.g. RCS 248 → 2480 mm); deviations up to 25 mm are adjusted, larger ones reported.",
       "selfWeight": "Self weight of the PERI profile is included."
     },
@@ -582,6 +584,9 @@
     },
     "drawing": "Drawing from AutoCAD",
     "hide": "Hide",
-    "show": "Show"
+    "show": "Show",
+    "save": "Save all {n} beams as one project",
+    "saveHint": "One JSON file with all beams, review status and drawings – load it again via File → Open project.",
+    "rename": "Project name of the beam list"
   }
 }

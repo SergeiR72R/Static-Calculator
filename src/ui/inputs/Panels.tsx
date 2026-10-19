@@ -221,7 +221,7 @@ export function CasesPanel() {
             <Button
               size="sm"
               onClick={() =>
-                update((m) => void m.combinations.push({ id: uid('k'), name: '', type: 'ULS', factors: { G: 1.35 }, inEnvelope: true }))
+                update((m) => void m.combinations.push({ id: uid('k'), name: '', type: 'ULS', factors: { G: 1.5, Q: 1.5 }, inEnvelope: true }))
               }
             >
               <IconPlus /> {fmt.t('common.add')}

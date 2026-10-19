@@ -60,11 +60,19 @@ test('AutoCAD import: beam list, switching, checked status, persistence and proj
   await expect(page.getByTestId('beam-length')).toHaveValue('5');
   await expect(page.getByTestId('drawing-card').locator('img')).toBeVisible();
 
-  // save the whole list as one project file and open it again
+  // save the whole list as one project file (button in the list) and open it again
+  await expect(page.getByTestId('batch-save')).toContainText('Alle 6 Träger als ein Projekt speichern');
+  page.once('dialog', (d) => void d.accept('Baustelle Test'));
+  await page.getByTestId('batch-name').click();
+  await expect(page.getByTestId('batch-name')).toContainText('Baustelle Test');
   await page.getByTestId('file-menu').click();
+  await expect(page.getByTestId('menu-save')).toContainText('Trägerliste speichern (6 Träger');
+  await page.keyboard.press('Escape');
   const dl = page.waitForEvent('download');
-  await page.getByTestId('menu-save').click();
-  const file = await (await dl).path();
+  await page.getByTestId('batch-save').click();
+  const download = await dl;
+  expect(download.suggestedFilename()).toBe('Baustelle_Test.json');
+  const file = await download.path();
   const json = readFileSync(file!, 'utf8');
   expect(JSON.parse(json).format).toBe('balkenrechner-batch');
   await page.getByTestId('batch-item-B-005').click();

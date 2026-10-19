@@ -32,27 +32,27 @@ test('opens in German by default, independent of the browser language', async ({
 test('template → change load → diagrams and KPIs update', async ({ page }) => {
   await page.goto('/');
   await template(page, 'simple');
-  // ULS1 = 1.35·5 + 1.5·3 = 11.25 kN/m on 6 m → M = 50.63 kNm
-  await expect(page.getByTestId('kpi-M-max')).toHaveText('50,63');
-  await expect(page.getByTestId('extreme-M-max')).toHaveText('50,63');
+  // ULS1 = 1.5·5 + 1.5·3 = 12 kN/m on 6 m → M = 54.00 kNm
+  await expect(page.getByTestId('kpi-M-max')).toHaveText('54,00');
+  await expect(page.getByTestId('extreme-M-max')).toHaveText('54,00');
   const pathBefore = await page.getByTestId('diagram-path-M').getAttribute('d');
   await page.getByTestId('tab-loads').click();
   const q1 = page.getByTestId('load-q1').first();
   await q1.fill('10');
-  // (1.35·10 + 1.5·3)·36/8 = 81.00 kNm
-  await expect(page.getByTestId('kpi-M-max')).toHaveText('81,00');
-  await expect(page.getByTestId('extreme-M-max')).toHaveText('81,00');
+  // (1.5·10 + 1.5·3)·36/8 = 87.75 kNm
+  await expect(page.getByTestId('kpi-M-max')).toHaveText('87,75');
+  await expect(page.getByTestId('extreme-M-max')).toHaveText('87,75');
   // trapezoidal load changes the shape of the diagram
   await page.getByTestId('load-q2').first().fill('20');
   await expect(page.getByTestId('diagram-path-M')).not.toHaveAttribute('d', pathBefore!);
   await page.keyboard.press('Control+z');
-  await expect(page.getByTestId('kpi-M-max')).toHaveText('81,00');
+  await expect(page.getByTestId('kpi-M-max')).toHaveText('87,75');
   // undo restores the previous value
   await page.locator('body').click({ position: { x: 5, y: 5 } });
   await page.keyboard.press('Control+z');
-  await expect(page.getByTestId('kpi-M-max')).toHaveText('50,63');
+  await expect(page.getByTestId('kpi-M-max')).toHaveText('54,00');
   await page.keyboard.press('Control+y');
-  await expect(page.getByTestId('kpi-M-max')).toHaveText('81,00');
+  await expect(page.getByTestId('kpi-M-max')).toHaveText('87,75');
 });
 
 test('language switch persists and changes number format and symbols', async ({ page }) => {
@@ -60,7 +60,7 @@ test('language switch persists and changes number format and symbols', async ({ 
   await template(page, 'simple');
   await page.getByTestId('lang-select').selectOption('en');
   await expect(page.getByRole('heading', { name: 'Beam Calculator' })).toBeVisible();
-  await expect(page.getByTestId('kpi-M-max')).toHaveText('50.63');
+  await expect(page.getByTestId('kpi-M-max')).toHaveText('54.00');
   await page.getByTestId('lang-select').selectOption('ru');
   await expect(page.getByRole('heading', { name: 'Калькулятор балок' })).toBeVisible();
   await expect(page.getByTestId('extreme-row-V')).toContainText('Q');
@@ -173,9 +173,9 @@ test('3D view renders the beam with a stress heat map and legend', async ({ page
   const card = page.getByTestId('view-3d');
   await card.scrollIntoViewIfNeeded();
   await expect(card.locator('canvas')).toBeVisible();
-  // ULS1: M = 50.63 kNm, IPE 240 W = 324.3 cm³ → σ = 156.1 MPa at the outer fibres
-  await expect(page.getByTestId('view3d-legend')).toContainText('156,11');
-  await expect(page.getByTestId('view3d-legend')).toContainText('−156,11');
+  // ULS1: M = 54.00 kNm, IPE 240 W = 324.3 cm³ → σ = 166.5 MPa at the outer fibres
+  await expect(page.getByTestId('view3d-legend')).toContainText('166,51');
+  await expect(page.getByTestId('view3d-legend')).toContainText('−166,51');
   await page.getByTestId('view3d-field').selectOption('eta');
   await expect(page.getByTestId('view3d-legend')).toContainText('100 %');
   // hovering the beam shows the value and moves the common cursor

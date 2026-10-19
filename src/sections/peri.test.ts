@@ -106,8 +106,8 @@ describe('PERI components', () => {
     const p = c.peri[0];
     expect(p.basis).toBe('ULS');
     const M = p.items.find((i) => i.key === 'M')!;
-    // self weight off; 1.35·10 + 1.5·10 = 28.5 kN/m
-    expect(M.Ed).toBeCloseTo((28.5 * kN * L * L) / 8, 2);
+    // self weight off; 1.5·10 + 1.5·10 = 30 kN/m
+    expect(M.Ed).toBeCloseTo((30 * kN * L * L) / 8, 2);
     expect(M.Rd).toBe(28.34 * kN);
     expect(p.items.find((i) => i.key === 'int')!.eta).toBeGreaterThanOrEqual(M.eta - 1e-12);
   });

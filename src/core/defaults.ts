@@ -41,10 +41,10 @@ export function defaultLoadCases(): LoadCase[] {
   ];
 }
 
-/** DIN EN 1990 presets (editable): GZT 1,35·G + 1,5·Q; 1,0·G + 1,5·Q; GZG 1,0·G + 1,0·Q */
+/** Default combinations (editable): GZT 1,5·G + 1,5·Q (formwork / falsework, γ_F = 1,5 as in the PERI design information); 1,0·G + 1,5·Q (favourable G); GZG 1,0·G + 1,0·Q */
 export function defaultCombinations(): Combination[] {
   return [
-    { id: 'ULS1', name: '', type: 'ULS', factors: { G: 1.35, Q: 1.5 }, inEnvelope: true },
+    { id: 'ULS1', name: '', type: 'ULS', factors: { G: 1.5, Q: 1.5 }, inEnvelope: true },
     { id: 'ULS2', name: '', type: 'ULS', factors: { G: 1.0, Q: 1.5 }, inEnvelope: true },
     { id: 'SLS1', name: '', type: 'SLS', factors: { G: 1.0, Q: 1.0 }, inEnvelope: false },
   ];

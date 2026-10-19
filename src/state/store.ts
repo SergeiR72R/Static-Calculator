@@ -104,6 +104,8 @@ export interface AppState extends Prefs {
   setBeamChecked: (id: Id, checked: boolean) => void;
   /** leave the beam list; the active beam stays as a single project */
   closeBatch: () => void;
+  /** project name of the beam list (also the file name) */
+  renameBatch: (name: string) => void;
 }
 
 const MODEL_KEY = 'balken.model';
@@ -345,6 +347,10 @@ export const useStore = create<AppState>()((set, get) => ({
     set({ batch: { ...b, items: b.items.map((i) => (i.id === id ? checkItem(i, checked) : i)) } });
   },
   closeBatch: () => set({ batch: null, batchImages: {} }),
+  renameBatch: (name) => {
+    const b = get().batch;
+    if (b && name.trim()) set({ batch: { ...b, name: name.trim() } });
+  },
 }));
 
 // the active beam of a beam list follows every edit of the model

@@ -2,8 +2,9 @@ import { useRef, useState } from 'react';
 import { DropdownMenu } from 'radix-ui';
 import { useStore } from '../state/store';
 import { TEMPLATE_IDS } from '../core/defaults';
-import { serializeProject, shareUrl } from '../state/persist';
-import { parseAnyProject, serializeBatch } from '../state/batch';
+import { shareUrl } from '../state/persist';
+import { parseAnyProject } from '../state/batch';
+import { fileBase, saveProjectFile } from './projectFile';
 import { ImportDialog, type PendingImport } from './batch/ImportDialog';
 import { LANGS } from '../i18n';
 import type { Lang } from '../units/format';
@@ -34,9 +35,6 @@ const menuContent =
 const menuItem =
   'flex cursor-pointer select-none items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-accent-100 data-[disabled]:opacity-40 dark:data-[highlighted]:bg-accent-900/50';
 
-function fileBase(name: string) {
-  return (name || 'balken').replace(/[^\w\-äöüÄÖÜß]+/g, '_').slice(0, 60);
-}
 
 export function Header() {
   const fmt = useFmt();
@@ -50,10 +48,7 @@ export function Header() {
 
   const xlsxRef = useRef<HTMLInputElement>(null);
   const [pendingImport, setPendingImport] = useState<PendingImport | null>(null);
-  const saveJson = () =>
-    st.batch
-      ? downloadBlob(serializeBatch(st.batch, st.batchImages), `${fileBase(st.batch.name.replace(/\.\w+$/, ''))}.json`, 'application/json')
-      : downloadBlob(serializeProject(st.model), `${fileBase(st.model.name)}.json`, 'application/json');
+  const saveJson = saveProjectFile;
   const openJson = async (f: File) => {
     try {
       const p = parseAnyProject(await f.text());
@@ -170,7 +165,7 @@ export function Header() {
               <IconUpload /> {fmt.t('header.importAcad')}
             </DropdownMenu.Item>
             <DropdownMenu.Item className={menuItem} data-testid="menu-save" onSelect={saveJson}>
-              <IconDownload /> {fmt.t('header.save')}
+              <IconDownload /> {st.batch ? fmt.t('header.saveList', { n: st.batch.items.length }) : fmt.t('header.save')}
             </DropdownMenu.Item>
             <DropdownMenu.Item className={menuItem} data-testid="menu-share" onSelect={share}>
               <IconLink /> {fmt.t('header.share')}

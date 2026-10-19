@@ -40,7 +40,8 @@
     "theme": "Hell/Dunkel umschalten",
     "newProject": "Neues Projekt",
     "project": "Projekt",
-    "importAcad": "Import aus AutoCAD (Excel)…"
+    "importAcad": "Import aus AutoCAD (Excel)…",
+    "saveList": "Trägerliste speichern ({n} Träger, JSON)"
   },
   "templates": {
     "simple": "Einfeldträger",
@@ -185,9 +186,9 @@
       "ULS": "GZT",
       "SLS": "GZG"
     },
-    "presets": "DIN EN 1990 Vorgaben",
+    "presets": "Standardkombinationen",
     "inEnvelope": "in Umhüllende berücksichtigen",
-    "hint": "Vorgaben nach DIN EN 1990: GZT 1,35·G + 1,5·Q und 1,0·G + 1,5·Q, GZG 1,0·G + 1,0·Q. Der Festigkeitsnachweis verwendet die GZT-, der Durchbiegungsnachweis die GZG-Kombinationen."
+    "hint": "Standard: GZT 1,5·G + 1,5·Q (Schalung/Traggerüst, γ_F = 1,5 wie in den PERI-Bemessungsinformationen) und 1,0·G + 1,5·Q (günstig wirkendes G), GZG 1,0·G + 1,0·Q. Der Festigkeitsnachweis verwendet die GZT-, der Durchbiegungsnachweis die GZG-Kombinationen."
   },
   "settings": {
     "analysis": "Berechnung",
@@ -332,7 +333,8 @@
     "loadedFromLink": "Berechnung aus dem Link geladen.",
     "linkCopied": "Link in die Zwischenablage kopiert.",
     "projectCreated": "Projekt „{name}“ angelegt.",
-    "imported": "{n} Träger importiert."
+    "imported": "{n} Träger importiert.",
+    "listSaved": "Trägerliste mit {n} Trägern als ein Projekt gespeichert."
   },
   "share": {
     "description": "Das vollständige Modell ist komprimiert im Link enthalten. Link kopieren und weitergeben:"
@@ -515,7 +517,7 @@
     "assumptions": "Annahmen beim Import",
     "rule": {
       "supports": "Auflager: alle als Festlager (unverschieblich). Träger mit nur einem Ständer liegen mit dem anderen Ende auf dem Bauwerk auf – dort wird ein Festlager am Trägerende ergänzt.",
-      "loads": "Lasten: Einzellasten senkrecht, Gk als ständige Last G, Qk als Nutzlast Q (charakteristisch); Kombinationen nach EN 1990.",
+      "loads": "Lasten: Einzellasten senkrecht, Gk als ständige Last G, Qk als Nutzlast Q (charakteristisch); Kombinationen: GZT 1,5·G + 1,5·Q und 1,0·G + 1,5·Q, GZG 1,0·G + 1,0·Q.",
       "length": "Länge: Kataloglänge der Bezeichnung (z. B. RCS 248 → 2480 mm); Abweichungen bis 25 mm werden angeglichen, größere gemeldet.",
       "selfWeight": "Eigengewicht des PERI-Profils wird berücksichtigt."
     },
@@ -582,6 +584,9 @@
     },
     "drawing": "Abbildung aus AutoCAD",
     "hide": "Ausblenden",
-    "show": "Anzeigen"
+    "show": "Anzeigen",
+    "save": "Alle {n} Träger als ein Projekt speichern",
+    "saveHint": "Eine JSON-Datei mit allen Trägern, Prüfstatus und Abbildungen – über Datei → Projekt öffnen wieder laden.",
+    "rename": "Projektname der Trägerliste"
   }
 }

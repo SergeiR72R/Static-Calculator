@@ -3,7 +3,8 @@ import { useStore } from '../../state/store';
 import { itemStatus, type BatchItem, type ItemStatus } from '../../state/batch';
 import { Button, cx } from '../common';
 import { useFmt, type Fmt } from '../hooks';
-import { IconAlert, IconCheck, IconChevronDown, IconChevronRight, IconX } from '../icons';
+import { IconAlert, IconCheck, IconChevronDown, IconChevronRight, IconDownload, IconX } from '../icons';
+import { saveProjectFile } from '../projectFile';
 import { beamSummary, type BeamSummary } from './summary';
 
 type Filter = 'all' | 'open' | 'checked' | 'problems';
@@ -56,6 +57,7 @@ export function BatchPanel() {
   const switchBeam = useStore((s) => s.switchBeam);
   const setBeamChecked = useStore((s) => s.setBeamChecked);
   const closeBatch = useStore((s) => s.closeBatch);
+  const renameBatch = useStore((s) => s.renameBatch);
   const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
@@ -108,9 +110,18 @@ export function BatchPanel() {
         <button type="button" className="flex min-w-0 flex-1 items-center gap-1 text-start" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>
           {collapsed ? <IconChevronRight /> : <IconChevronDown />}
           <span className="text-sm font-semibold">{fmt.t('batch.title')}</span>
-          <span className="truncate text-xs text-slate-500" title={batch.name}>
-            · {batch.name}
-          </span>
+        </button>
+        <button
+          type="button"
+          className="min-w-0 truncate rounded px-1 text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+          title={fmt.t('batch.rename')}
+          data-testid="batch-name"
+          onClick={() => {
+            const n = window.prompt(fmt.t('batch.rename'), batch.name.replace(/\.(xlsx|json)$/i, ''));
+            if (n) renameBatch(n);
+          }}
+        >
+          {batch.name.replace(/\.(xlsx|json)$/i, '')} ✎
         </button>
         <button
           type="button"
@@ -124,6 +135,11 @@ export function BatchPanel() {
         >
           <IconX />
         </button>
+      </div>
+      <div className="px-3 pt-1.5">
+        <Button size="sm" className="w-full justify-center" onClick={saveProjectFile} data-testid="batch-save" title={fmt.t('batch.saveHint')}>
+          <IconDownload /> {fmt.t('batch.save', { n: rows.length })}
+        </Button>
       </div>
       {/* progress */}
       <div className="px-3 pt-1">

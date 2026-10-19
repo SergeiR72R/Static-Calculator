@@ -20,22 +20,22 @@ describe('load cases and combinations', () => {
     close(v.extremes.M.max.value, (3 * kN * L * L) / 8);
   });
 
-  it('ULS combination 1.35·G + 1.5·Q (hand example)', () => {
+  it('ULS combination 1.5·G + 1.5·Q (hand example)', () => {
     const v = computeView(an, { type: 'combo', id: 'ULS1' })!;
     expect(v.kind).toBe('single');
-    // (1.35·5 + 1.5·3)·6²/8 = 50.625 kNm
-    close(v.extremes.M.max.value, 50.625 * kN);
-    close(v.reactions.max[1], ((1.35 * 5 + 1.5 * 3) * kN * L) / 2);
+    // (1.5·5 + 1.5·3)·6²/8 = 54 kNm
+    close(v.extremes.M.max.value, 54 * kN);
+    close(v.reactions.max[1], ((1.5 * 5 + 1.5 * 3) * kN * L) / 2);
   });
 
   it('envelope over the ULS combinations', () => {
     const v = computeView(an, { type: 'envelope' })!;
     expect(v.kind).toBe('envelope');
-    close(v.extremes.M.max.value, 50.625 * kN);
+    close(v.extremes.M.max.value, 54 * kN);
     // minimum at midspan is the smaller combination 1.0·5 + 1.5·3 = 9.5 kN/m → 42.75 kNm
     const mid = v.grid.x.findIndex((x) => Math.abs(x - L / 2) < 1e-12);
     close(v.min.M[mid], 42.75 * kN);
-    close(v.max.M[mid], 50.625 * kN);
+    close(v.max.M[mid], 54 * kN);
     close(v.reactions.min[1], (9.5 * kN * L) / 2);
   });
 
@@ -48,7 +48,7 @@ describe('load cases and combinations', () => {
     close(Math.abs(c.deflection[0].w), w, 1e-6);
     close(c.deflection[0].limit, L / 250);
     expect(c.strengthBasis).toBe('ULS');
-    close(c.strength!.value, (50.625 * kN) / 5.571e-4, 1e-3);
+    close(c.strength!.value, (54 * kN) / 5.571e-4, 1e-3);
   });
 });
 
@@ -65,14 +65,14 @@ describe('pattern loading (chessboard) on continuous beams', () => {
     expect(v.variants).toBe(4);
     const prep = an.prep!;
     const grid = sampleGrid(prep);
-    // explicit variants: G·1.35 + Q·1.5 on subsets of the spans
+    // explicit variants: G·1.5 + Q·1.5 on subsets of the spans
     const variants = [
       [],
       [[0, L]],
       [[L, 2 * L]],
       [[0, L], [L, 2 * L]],
     ].map((spans) => {
-      const mm = testModel(2 * L, sup, [udl('G', 0, 2 * L, 5 * 1.35), ...spans.map(([a, b]) => udl('G', a, b, 4 * 1.5))]);
+      const mm = testModel(2 * L, sup, [udl('G', 0, 2 * L, 5 * 1.5), ...spans.map(([a, b]) => udl('G', a, b, 4 * 1.5))]);
       const a = analyze(mm);
       return sampleResult(a.prep!, a.cases.get('G')!.full, grid);
     });
@@ -86,8 +86,8 @@ describe('pattern loading (chessboard) on continuous beams', () => {
 
   it('maximum span moment > uniformly loaded case, support moment from full load', () => {
     const v = computeView(an, { type: 'combo', id: 'ULS1' })!;
-    const full = combinationResult(an, { G: 1.35, Q: 1.5 });
-    const q = (1.35 * 5 + 1.5 * 4) * kN;
+    const full = combinationResult(an, { G: 1.5, Q: 1.5 });
+    const q = (1.5 * 5 + 1.5 * 4) * kN;
     const fullSampled = sampleResult(an.prep!, full, v.grid);
     const fullMax = Math.max(...fullSampled.M);
     expect(v.extremes.M.max.value).toBeGreaterThan(fullMax * 1.05);
@@ -173,8 +173,8 @@ describe('uplift of compression-only supports', () => {
     expect(c.upliftBasis).toBe('combos');
     expect(c.uplift).toHaveLength(2);
     const [a, b] = c.uplift;
-    // smallest R_z over all combinations: 1.35·G → −6.75 kN
-    close(a.Rmin, -1.35 * 5 * kN, 1e-9);
+    // smallest R_z over all combinations: 1.5·G → −7.5 kN
+    close(a.Rmin, -1.5 * 5 * kN, 1e-9);
     expect(a.ok).toBe(false);
     expect(b.ok).toBe(true);
     close(b.Rmin, 15 * kN, 1e-9);

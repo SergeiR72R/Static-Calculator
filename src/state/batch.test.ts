@@ -40,3 +40,26 @@ describe('beam list', () => {
     expect(() => parseAnyProject('{"format":"balkenrechner-batch","batch":{"items":[]}}')).toThrow('file.invalid');
   });
 });
+
+describe('migration of the old default combination', () => {
+  it('untouched 1,35·G + 1,5·Q becomes 1,5·G + 1,5·Q; edited combinations stay', () => {
+    const m = beams[0].model;
+    const old = {
+      ...m,
+      combinations: [
+        { id: 'ULS1', name: '', type: 'ULS' as const, factors: { G: 1.35, Q: 1.5 }, inEnvelope: true },
+        { id: 'k1', name: '', type: 'ULS' as const, factors: { G: 1.35, Q: 1.5 }, inEnvelope: true },
+        { id: 'ULS2', name: '', type: 'ULS' as const, factors: { G: 1.0, Q: 1.5 }, inEnvelope: true },
+      ],
+    };
+    const p = parseAnyProject(serializeProject(old));
+    expect(p.kind).toBe('model');
+    if (p.kind !== 'model') return;
+    expect(p.model.combinations.map((c) => c.factors)).toEqual([{ G: 1.5, Q: 1.5 }, { G: 1.35, Q: 1.5 }, { G: 1.0, Q: 1.5 }]);
+    // beam lists (autosave / file) are migrated per beam
+    const { batch, images } = batchFromImport('x.xlsx', [{ ...beams[0], model: old }]);
+    const pb = parseAnyProject(serializeBatch(batch, images));
+    if (pb.kind !== 'batch') throw new Error('kind');
+    expect(pb.batch.items[0].model.combinations[0].factors).toEqual({ G: 1.5, Q: 1.5 });
+  });
+});

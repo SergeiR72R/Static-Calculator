@@ -1,5 +1,5 @@
 import LZString from 'lz-string';
-import type { BeamModel } from '../core/types';
+import type { BeamModel, Combination } from '../core/types';
 import { MODEL_SCHEMA_VERSION } from '../core/types';
 import { DEFAULT_SETTINGS, defaultCombinations, defaultLoadCases } from '../core/defaults';
 
@@ -19,6 +19,18 @@ export function serializeProject(model: BeamModel): string {
     model,
   };
   return JSON.stringify(file, null, 2);
+}
+
+/**
+ * The default ULS combination changed from 1,35·G + 1,5·Q to 1,5·G + 1,5·Q. An untouched old default
+ * (preset id, no name, exactly the old factors) is updated when a project is loaded; edited
+ * combinations stay as they are.
+ */
+export function migrateCombination(c: Combination): Combination {
+  const f = c.factors ?? {};
+  const keys = Object.keys(f).filter((k) => f[k] !== 0);
+  const oldDefault = c.id === 'ULS1' && !c.name && c.type === 'ULS' && keys.length === 2 && f.G === 1.35 && f.Q === 1.5;
+  return oldDefault ? { ...c, factors: { ...f, G: 1.5 } } : c;
 }
 
 function isObj(v: unknown): v is Record<string, unknown> {
@@ -50,7 +62,7 @@ export function normalizeModel(raw: unknown): BeamModel {
     hinges: Array.isArray(m.hinges) ? m.hinges : [],
     loads: m.loads,
     loadCases: Array.isArray(m.loadCases) && m.loadCases.length ? m.loadCases : defaultLoadCases(),
-    combinations: Array.isArray(m.combinations) ? m.combinations : defaultCombinations(),
+    combinations: Array.isArray(m.combinations) ? m.combinations.map(migrateCombination) : defaultCombinations(),
     settings: { ...DEFAULT_SETTINGS, ...(isObj(m.settings) ? m.settings : {}) },
   };
 }

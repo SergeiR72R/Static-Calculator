@@ -252,3 +252,13 @@ test('support reactions on the diagram; a lifting pinned/roller support fails', 
   await expect(up).toContainText('nicht erfüllt');
   await expect(page.getByTestId(`uplift-${m.supports[1].id}`)).toContainText('< 0');
 });
+
+test('autosaved project with the old default 1,35·G + 1,5·Q opens with 1,5·G + 1,5·Q', async ({ page }) => {
+  const m = exampleModel('simple');
+  m.combinations[0].factors = { G: 1.35, Q: 1.5 };
+  await page.addInitScript((json) => localStorage.setItem('balken.model', json), JSON.stringify(m));
+  await page.goto('/');
+  // (1.5·5 + 1.5·3)·6²/8 = 54.00 kNm
+  await expect(page.getByTestId('kpi-M-max')).toHaveText('54,00');
+  await expect(page.locator('select option').filter({ hasText: '1,35' })).toHaveCount(0);
+});

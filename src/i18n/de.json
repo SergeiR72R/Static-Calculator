@@ -284,7 +284,7 @@
     "basisView": "Grundlage: angezeigtes Ergebnis",
     "periPerm": "zulässige Werte",
     "periDesign": "Bemessungswiderstände",
-    "periRegion": "Bereich {r}",
+    "periRegion": "Schnitt {r}",
     "periInteraction": "Interaktion M–N–V",
     "periRend": "Endauflager",
     "periRint": "Zwischenauflager",

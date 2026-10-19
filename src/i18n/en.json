@@ -284,7 +284,7 @@
     "basisView": "Basis: displayed result",
     "periPerm": "permissible values",
     "periDesign": "design resistances",
-    "periRegion": "region {r}",
+    "periRegion": "section {r}",
     "periInteraction": "M–N–V interaction",
     "periRend": "End support",
     "periRint": "Intermediate support",

@@ -157,7 +157,7 @@ function PeriFields({
   L,
   onLength,
 }: {
-  def: { kind: 'peri'; product: PeriProductId };
+  def: { kind: 'peri'; product: PeriProductId; atNode?: boolean };
   setDef: (d: SectionDef) => void;
   L?: number;
   onLength?: (L: number) => void;
@@ -189,9 +189,15 @@ function PeriFields({
           />
         )}
       </div>
+      {pr?.check.method === 'girder' && pr.check.Mm && (
+        <label className="flex items-center gap-1.5 text-xs" title={fmt.t('section.periAtNodeHint')}>
+          <input type="checkbox" checked={!!def.atNode} onChange={(e) => setDef({ ...def, atNode: e.target.checked })} data-testid="peri-at-node" />
+          {fmt.t('section.periAtNode')}
+        </label>
+      )}
       {pr && (
         <p className="text-[11px] text-slate-500 dark:text-slate-400" data-testid="peri-info">
-          {fmt.t(pr.check.method === 'perm' ? 'section.periPermNote' : 'section.periDesignNote')} {fmt.t('section.periSource')}: {pr.source}.
+          {fmt.t(pr.check.method === 'girder' ? 'section.periGirderNote' : pr.check.ec3 ? 'section.periEc3Note' : 'section.periDesignNote')} {fmt.t('section.periSource')}: {pr.source}.
         </p>
       )}
     </div>

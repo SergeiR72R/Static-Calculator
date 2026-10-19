@@ -99,7 +99,7 @@ export type PeriProductId = 'GT24' | 'VT20K' | 'SRU120' | 'RCS';
 
 export type SectionDef =
   | { kind: 'catalog'; family: CatalogFamily; name: string }
-  | { kind: 'peri'; product: PeriProductId }
+  | { kind: 'peri'; product: PeriProductId; /** GT 24: supports under a lattice node (MULTIFLEX cases 1/3) */ atNode?: boolean }
   | { kind: 'rect'; b: number; h: number }
   | { kind: 'circle'; D: number }
   | { kind: 'tube'; D: number; t: number }

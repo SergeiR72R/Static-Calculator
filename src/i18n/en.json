@@ -99,8 +99,12 @@
     "periLength": "Catalogue length",
     "periLengthCustom": "custom",
     "periPermNote": "Checked with permissible values (perm M, perm Q, perm R) under service loads 1.0·G + 1.0·Q; I from the chords, E = 11,000 N/mm².",
-    "periDesignNote": "Checked with design resistances M_Rd, N_Rd, V_Rd and the PERI M–N–V interaction (ULS); net section values. No stability check.",
-    "periSource": "Source"
+    "periDesignNote": "Checked with the design resistances N_Rd, V_z,Rd, M_y,Rd of the net sections A 4-4, A 5-5 and B 2-2 and the interaction n–v, v–m, n–v–m (ULS). No stability check.",
+    "periSource": "Source",
+    "periGirderNote": "Checked with the MULTIFLEX design values (V_Rd, M_Rd, support force F_R,d per support case) for the ULS combinations; edge distance of the end supports. I from the chords, E = 11,000 N/mm².",
+    "periEc3Note": "Checked per EN 1993-1-1 6.2.10 (N–V–M interaction, Wagenknecht) on the net section with bolt holes, γ_M1 = 1.1 (ULS). No stability check.",
+    "periAtNode": "Supports under a lattice node (MULTIFLEX case 1 / 3)",
+    "periAtNodeHint": "Unchecked: supports between the nodes (case 2 / 4, on the safe side: F_R,d = 19.5 / 30 kN, M_m,Rd = 6 kNm)."
   },
   "material": {
     "label": "Material",
@@ -287,7 +291,16 @@
     "periBasisSLS": "Basis: service loads (characteristic combinations, SLS), perm F = R_d/1.5",
     "uplift": "Supports: no uplift (compression only)",
     "upliftFail": "support lifts off (tension) – fails",
-    "upliftBasis": "Basis: all combinations (ULS and SLS)"
+    "upliftBasis": "Basis: all combinations (ULS and SLS)",
+    "periGirder": "MULTIFLEX design values",
+    "periMm": "Moment at the support",
+    "periEdge": "Edge distance of the end support",
+    "periCase": {
+      "node": "under a node",
+      "between": "between nodes",
+      "near": "< 45 cm from the girder end",
+      "far": "≥ 45 cm from the girder end"
+    }
   },
   "issues": {
     "failed": "Analysis not possible"
@@ -446,8 +459,10 @@
     },
     "periValues": "Section values of the PERI component {name} (source: {src}):",
     "periPerm": "Check with permissible internal forces (perm F = R_d / γ_F, γ_F = 1.5) under the actual loads.",
-    "periDesign": "Cross-section check per PERI Structural Design Information with interaction (m_y, n, v, ρ = (2v − 1)² for v > 0.5).",
-    "upliftNote": "Pinned and roller supports transfer compression only; R_z < 0 (uplift) means the support fails."
+    "periDesign": "Cross-section check per PERI (ST_was_2024/00040) with the interaction n–v, v–m, n–v–m, ρ = (2·max(0.5; v) − 1)², for the sections A 4-4, A 5-5 and B 2-2.",
+    "upliftNote": "Pinned and roller supports transfer compression only; R_z < 0 (uplift) means the support fails.",
+    "periGirder": "Check with the design values of the MULTIFLEX instructions for assembly and use: V_Ed ≤ V_Rd, M_Ed ≤ M_Rd, support force F_Ed ≤ F_R,d per support case (end/intermediate support, position to the nodes or distance from the girder end), for GT 24 the moment at the support M_Ed ≤ M_m,Rd; minimum distance of the end supports from the girder end.",
+    "periEc3": "Cross-section check per EN 1993-1-1 6.2.10 with 6.2.9.1 (6.36), procedure after Wagenknecht, net section with bolt holes (PERI proof ST_kls_2016-00106)."
   },
   "wizard": {
     "titleFirst": "Welcome – create your first project",

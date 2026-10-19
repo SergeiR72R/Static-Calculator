@@ -221,35 +221,40 @@ function PeriCheckView({ c }: { c: PeriCheck }) {
   const fmt = useFmt();
   const pct = (e: number) => `${fmt.num(e * 100, 1)} %`;
   const name = findPeriProduct(c.product)?.name ?? c.product;
-  const perm = c.method === 'perm';
-  const sym = (k: string) => (perm ? `perm ${k}` : `${k}_Rd`);
   return (
     <div data-testid={`check-peri-${c.product}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium">
-          {name} — {fmt.t(perm ? 'kpi.periPerm' : 'kpi.periDesign')}
+          {name} — {fmt.t(c.method === 'girder' ? 'kpi.periGirder' : 'kpi.periDesign')}
         </span>
         <Badge ok={c.ok}>{c.ok ? fmt.t('kpi.ok') : fmt.t('kpi.fail')}</Badge>
       </div>
       <div className="space-y-0.5 tabular-nums text-slate-600 dark:text-slate-300">
         {c.items.map((it, i) => {
-          // inside a left-to-right formula only the region letter for right-to-left languages
+          // inside a left-to-right formula only the section name for right-to-left languages
           const reg = it.region ? ` (${isRtl(fmt.lang) ? it.region : fmt.t('kpi.periRegion', { r: it.region })})` : '';
+          const cs = it.case ? ` (${fmt.t(`kpi.periCase.${it.case}`)})` : '';
           // label (localized text) + formula (left to right)
           let label = '';
           let txt: string;
           if (it.key === 'int') {
             label = `${fmt.t('kpi.periInteraction')}:`;
             txt = `η = ${pct(it.eta)}${reg} · x = ${fmt.q(it.x, 'length')}`;
-          } else if (it.key === 'M') txt = `|M| = ${fmt.q(it.Ed, 'moment')} ≤ ${sym('M')} = ${fmt.q(it.Rd, 'moment')}${reg} · η = ${pct(it.eta)}`;
-          else if (it.key === 'V') txt = `|V| = ${fmt.q(it.Ed, 'force')} ≤ ${perm ? 'perm Q' : 'V_Rd'} = ${fmt.q(it.Rd, 'force')}${reg} · η = ${pct(it.eta)}`;
+          } else if (it.key === 'M') txt = `|M| = ${fmt.q(it.Ed, 'moment')} ≤ M_Rd = ${fmt.q(it.Rd, 'moment')}${reg} · η = ${pct(it.eta)}`;
+          else if (it.key === 'V') txt = `|V| = ${fmt.q(it.Ed, 'force')} ≤ V_Rd = ${fmt.q(it.Rd, 'force')}${reg} · η = ${pct(it.eta)}`;
           else if (it.key === 'N') txt = `|N| = ${fmt.q(it.Ed, 'force')} ≤ N_Rd = ${fmt.q(it.Rd, 'force')}${reg} · η = ${pct(it.eta)}`;
-          else {
-            label = `${fmt.t(it.key === 'Rend' ? 'kpi.periRend' : 'kpi.periRint')}`;
-            txt = `x = ${fmt.q(it.x, 'length')}: R = ${fmt.q(it.Ed, 'force')} ≤ perm R = ${fmt.q(it.Rd, 'force')} · η = ${pct(it.eta)}`;
+          else if (it.key === 'Mm') {
+            label = `${fmt.t('kpi.periMm')}${cs}`;
+            txt = `x = ${fmt.q(it.x, 'length')}: |M| = ${fmt.q(it.Ed, 'moment')} ≤ M_m,Rd = ${fmt.q(it.Rd, 'moment')} · η = ${pct(it.eta)}`;
+          } else if (it.key === 'edge') {
+            label = fmt.t('kpi.periEdge');
+            txt = `x = ${fmt.q(it.x, 'length')}: a = ${fmt.q(it.Ed, 'length')} ${it.eta <= 1 ? '≥' : '<'} a_min = ${fmt.q(it.Rd, 'length')}`;
+          } else {
+            label = `${fmt.t(it.key === 'Rend' ? 'kpi.periRend' : 'kpi.periRint')}${cs}`;
+            txt = `x = ${fmt.q(it.x, 'length')}: F_Ed = ${fmt.q(it.Ed, 'force')} ≤ F_R,d = ${fmt.q(it.Rd, 'force')} · η = ${pct(it.eta)}`;
           }
           return (
-            <div key={i} className={cx(it.eta > 1 && 'text-red-600 dark:text-red-400')}>
+            <div key={i} className={cx(it.eta > 1 && 'text-red-600 dark:text-red-400')} data-testid={`peri-item-${it.key}`}>
               {label && <span className="font-sans">{label} </span>}
               <bdi dir="ltr">{txt}</bdi>
             </div>
@@ -257,7 +262,7 @@ function PeriCheckView({ c }: { c: PeriCheck }) {
         })}
       </div>
       <Eta eta={c.eta} />
-      <div className="text-[10px] text-slate-500">{fmt.t(c.basis === 'ULS' ? 'kpi.basisULS' : c.basis === 'SLS' ? 'kpi.periBasisSLS' : 'kpi.basisView')}</div>
+      <div className="text-[10px] text-slate-500">{fmt.t(c.basis === 'ULS' ? 'kpi.basisULS' : 'kpi.basisView')}</div>
     </div>
   );
 }

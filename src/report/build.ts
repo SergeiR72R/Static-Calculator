@@ -691,30 +691,36 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
   }
   for (const c of ch?.peri ?? []) {
     const pr = findPeriProduct(c.product);
-    blocks.push({ type: 'p', text: `${pr?.name ?? c.product}: ${t(c.method === 'perm' ? 'report.periPerm' : 'report.periDesign')}` });
-    blocks.push({ type: 'p', text: t(c.basis === 'ULS' ? 'kpi.basisULS' : c.basis === 'SLS' ? 'kpi.periBasisSLS' : 'kpi.basisView') });
-    const perm = c.method === 'perm';
+    const method = c.method === 'girder' ? 'report.periGirder' : pr?.check.method === 'design' && pr.check.ec3 ? 'report.periEc3' : 'report.periDesign';
+    blocks.push({ type: 'p', text: `${pr?.name ?? c.product}: ${t(method)}` });
+    blocks.push({ type: 'p', text: t(c.basis === 'ULS' ? 'kpi.basisULS' : 'kpi.basisView') });
     for (const it of c.items) {
-      const reg = it.region ? `\\;(${it.region})` : '';
+      const reg = it.region ? `\\;(\\text{${it.region}})` : '';
+      const cs = it.case ? `\\;(\\text{${tt(`kpi.periCase.${it.case}`)}})` : '';
       const ok = `\\;\\Rightarrow\\; \\text{${tt(it.eta <= 1 ? 'kpi.ok' : 'kpi.fail')}}`;
       if (it.key === 'int' && it.parts) {
         const q = it.parts;
         blocks.push({
           type: 'tex',
-          tex: `x = ${N(it.x)}\\,\\mathrm{m}${reg}:\\; m_y = ${N(q.my, 4)},\\; n = ${N(q.n, 4)},\\; v = ${N(q.v, 4)},\\; \\rho = ${N(q.rho, 4)}`,
+          tex: `x = ${N(it.x)}\\,\\mathrm{m}${reg}:\\; n = ${N(q.n, 4)},\\; v = ${N(q.v, 4)},\\; m = ${N(q.m, 4)},\\; \\rho = (2\\max(\\tfrac{1}{2},\\,v) - 1)^2 = ${N(q.rho, 4)}`,
         });
         blocks.push({
           type: 'tex',
-          tex: `\\frac{m_y (1 - \\tfrac{a_w}{2})}{1 - n} = ${N(q.nm, 4)}${q.v > 0.5 ? `,\\; \\frac{m_y}{1-\\rho w_w} = ${N(q.vm, 4)},\\; \\frac{n}{1-\\rho a_w} = ${N(q.nv, 4)},\\; (n\\text{–}v\\text{–}m_y) = ${N(q.nvm, 4)}` : ''}\\;\\Rightarrow\\; \\eta = ${N(it.eta * 100, 4)}\\,\\%${ok}`,
+          tex: `${q.terms.map(([l, v]) => `\\text{${l}} = ${N(v, 4)}`).join(',\\; ')}\\;\\Rightarrow\\; \\eta = ${N(it.eta * 100, 4)}\\,\\%${ok}`,
         });
         continue;
       }
+      if (it.key === 'edge') {
+        blocks.push({ type: 'tex', tex: `a(x = ${N(it.x)}\\,\\mathrm{m}) = ${N(it.Ed)}\\,\\mathrm{m} ${it.eta <= 1 ? '\\ge' : '<'} a_{min} = ${N(it.Rd)}\\,\\mathrm{m}${ok}` });
+        continue;
+      }
       const sym =
-        it.key === 'M' ? (perm ? 'M \\le \\mathrm{perm}\\,M' : 'M_{Ed} \\le M_{Rd}') :
-        it.key === 'V' ? (perm ? 'Q \\le \\mathrm{perm}\\,Q' : 'V_{Ed} \\le V_{Rd}') :
+        it.key === 'M' ? 'M_{Ed} \\le M_{Rd}' :
+        it.key === 'V' ? 'V_{Ed} \\le V_{Rd}' :
         it.key === 'N' ? 'N_{Ed} \\le N_{Rd}' :
-        `R(x = ${N(it.x)}\\,\\mathrm{m}) \\le \\mathrm{perm}\\,${it.key === 'Rend' ? 'A' : 'B'}`;
-      blocks.push({ type: 'tex', tex: `${sym}:\\; ${N(it.Ed)} \\le ${N(it.Rd)}${reg},\\; \\eta = ${N(it.eta * 100, 4)}\\,\\%${ok}` });
+        it.key === 'Mm' ? `M_{Ed}(x = ${N(it.x)}\\,\\mathrm{m}) \\le M_{m,Rd}` :
+        `F_{Ed}(x = ${N(it.x)}\\,\\mathrm{m}) \\le F_{R,d}`;
+      blocks.push({ type: 'tex', tex: `${sym}${cs}:\\; ${N(it.Ed)} \\le ${N(it.Rd)}${reg},\\; \\eta = ${N(it.eta * 100, 4)}\\,\\%${ok}` });
     }
   }
   if (ch) {

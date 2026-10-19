@@ -99,8 +99,12 @@
     "periLength": "Katalog-Länge",
     "periLengthCustom": "frei",
     "periPermNote": "Nachweis mit zulässigen Werten (perm M, perm Q, perm R) unter Gebrauchslasten 1,0·G + 1,0·Q; I aus den Gurten, E = 11 000 N/mm².",
-    "periDesignNote": "Nachweis mit Bemessungswiderständen M_Rd, N_Rd, V_Rd und PERI-Interaktion M–N–V (GZT); Nettoquerschnittswerte. Ohne Stabilitätsnachweis.",
-    "periSource": "Quelle"
+    "periDesignNote": "Nachweis mit Bemessungswiderständen N_Rd, V_z,Rd, M_y,Rd der Nettoschnitte A 4-4, A 5-5 und B 2-2 und Interaktion n–v, v–m, n–v–m (GZT). Ohne Stabilitätsnachweis.",
+    "periSource": "Quelle",
+    "periGirderNote": "Nachweis mit Bemessungswerten nach MULTIFLEX (V_Rd, M_Rd, Auflagerkraft F_R,d je Auflagerfall) für die GZT-Kombinationen; Randabstand der Endauflager. I aus den Gurten, E = 11 000 N/mm².",
+    "periEc3Note": "Nachweis nach EN 1993-1-1 6.2.10 (Interaktion N–V–M, Wagenknecht) am Nettoquerschnitt mit Bohrungen, γ_M1 = 1,1 (GZT). Ohne Stabilitätsnachweis.",
+    "periAtNode": "Auflager unter einem Knoten (MULTIFLEX-Fall 1 / 3)",
+    "periAtNodeHint": "Ohne Haken: Auflager zwischen den Knoten (Fall 2 / 4, auf der sicheren Seite: F_R,d = 19,5 / 30 kN, M_m,Rd = 6 kNm)."
   },
   "material": {
     "label": "Material",
@@ -287,7 +291,16 @@
     "periBasisSLS": "Grundlage: Gebrauchslasten (charakteristische Kombinationen, GZG), perm F = R_d/1,5",
     "uplift": "Auflager: kein Abheben (nur Druck)",
     "upliftFail": "Lager hebt ab (Zug) – versagt",
-    "upliftBasis": "Grundlage: alle Kombinationen (GZT und GZG)"
+    "upliftBasis": "Grundlage: alle Kombinationen (GZT und GZG)",
+    "periGirder": "Bemessungswerte MULTIFLEX",
+    "periMm": "Moment am Auflager",
+    "periEdge": "Randabstand Endauflager",
+    "periCase": {
+      "node": "unter Knoten",
+      "between": "zwischen Knoten",
+      "near": "< 45 cm vom Trägerende",
+      "far": "≥ 45 cm vom Trägerende"
+    }
   },
   "issues": {
     "failed": "Berechnung nicht möglich"
@@ -446,8 +459,10 @@
     },
     "periValues": "Querschnittswerte des PERI-Bauteils {name} (Quelle: {src}):",
     "periPerm": "Nachweis mit zulässigen Schnittgrößen (perm F = R_d / γ_F, γ_F = 1,5) unter den tatsächlichen Lasten.",
-    "periDesign": "Querschnittsnachweis nach PERI Bemessungsinformationen mit Interaktion (m_y, n, v, ρ = (2v − 1)² für v > 0,5).",
-    "upliftNote": "Fest- und Loslager übertragen nur Druck; R_z < 0 (Abheben) bedeutet Versagen des Lagers."
+    "periDesign": "Querschnittsnachweis nach PERI (ST_was_2024/00040) mit Interaktion n–v, v–m, n–v–m, ρ = (2·max(0,5; v) − 1)², für die Schnitte A 4-4, A 5-5 und B 2-2.",
+    "upliftNote": "Fest- und Loslager übertragen nur Druck; R_z < 0 (Abheben) bedeutet Versagen des Lagers.",
+    "periGirder": "Nachweis mit den Bemessungswerten der MULTIFLEX-Aufbau- und Verwendungsanleitung: V_Ed ≤ V_Rd, M_Ed ≤ M_Rd, Auflagerkraft F_Ed ≤ F_R,d je Auflagerfall (End-/Zwischenauflager, Lage zu den Knoten bzw. Abstand vom Trägerende), bei GT 24 Moment am Auflager M_Ed ≤ M_m,Rd; Mindestabstand der Endauflager vom Trägerende.",
+    "periEc3": "Querschnittsnachweis nach EN 1993-1-1 6.2.10 mit 6.2.9.1 (6.36), Verfahren nach Wagenknecht, Nettoquerschnitt mit Bohrungen (PERI-Nachweis ST_kls_2016-00106)."
   },
   "wizard": {
     "titleFirst": "Willkommen – erstes Projekt anlegen",

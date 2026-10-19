@@ -5,7 +5,7 @@ import { designShearStrength, designStrength } from '../sections/materials';
 import type { FieldArrays, SampleGrid } from './postprocess';
 import type { PeriProductId } from './types';
 import { X_TOL } from './types';
-import { findPeriProduct, periInteraction, type PeriInteraction } from '../sections/peri';
+import { findPeriProduct, girderSupport, periInteraction, rcsInteraction, rcsResistances } from '../sections/peri';
 
 export interface StressCheck {
   value: number;
@@ -33,26 +33,32 @@ export interface DeflectionCheck {
 
 /** One verification of a PERI component */
 export interface PeriCheckItem {
-  /** 'M' | 'V' | 'N' | 'int' (interaction) | 'Rend' | 'Rint' (support force) */
-  key: 'M' | 'V' | 'N' | 'int' | 'Rend' | 'Rint';
-  /** acting value (absolute) and resistance / permissible value; for 'int' Ed = η, Rd = 1 */
+  /**
+   * 'M' | 'V' | 'N' (single resistances), 'int' (interaction), 'Rend' | 'Rint' (support force at an
+   * end / intermediate support), 'Mm' (moment at a support, GT 24), 'edge' (support distance from the girder end)
+   */
+  key: 'M' | 'V' | 'N' | 'int' | 'Rend' | 'Rint' | 'Mm' | 'edge';
+  /** acting value (absolute) and resistance; for 'int' Ed = η, Rd = 1; for 'edge' Ed = distance, Rd = minimum (m) */
   Ed: number;
   Rd: number;
   eta: number;
   x: number;
-  /** region label (SRU: A / B) */
+  /** cross-section (SRU: A 4-4, A 5-5, B 2-2) */
   region?: string;
+  /** support case (i18n key below kpi.periCase) */
+  case?: 'node' | 'between' | 'near' | 'far';
   /** forces at the governing point (interaction) */
   N?: number;
   V?: number;
   M?: number;
-  parts?: PeriInteraction;
+  /** ratios of the interaction */
+  parts?: { n: number; v: number; m: number; rho: number; terms: [string, number][] };
 }
 
 export interface PeriCheck {
   product: PeriProductId;
-  method: 'design' | 'perm';
-  basis: 'ULS' | 'SLS' | 'view';
+  method: 'design' | 'girder';
+  basis: 'ULS' | 'view';
   items: PeriCheckItem[];
   eta: number;
   ok: boolean;
@@ -178,11 +184,12 @@ export function upliftChecks(prep: Prepared, rmin: Float64Array, rmax: Float64Ar
 }
 
 /**
- * PERI components: steel members (SRU, RCS) with the design resistances and the PERI M–N–V
- * interaction on the ULS envelope; timber girders (GT 24, VT 20K) with the permissible values
- * (perm F = R_d/1.5) on the actual loads, i.e. the characteristic (SLS) combinations.
+ * PERI components, design actions of the ULS envelope against the design resistances of the
+ * PERI beam proofs: SRU (three net sections + interaction), RCS (EN 1993-1-1 6.2.10, Wagenknecht),
+ * GT 24 / VT 20 (MULTIFLEX: V, M, support forces by support case, GT 24 also M at the supports,
+ * minimum distance of the outer supports from the girder end).
  */
-export function periChecks(prep: Prepared, uls: Basis, ulsBasis: 'ULS' | 'view', sls: Basis, slsBasis: 'SLS' | 'view'): PeriCheck[] {
+export function periChecks(prep: Prepared, b: Basis, basis: 'ULS' | 'view'): PeriCheck[] {
   const used = new Set<PeriProductId>();
   for (let ei = 0; ei < prep.mesh.elements.length; ei++) {
     const p = periOf(prep, ei);
@@ -193,53 +200,90 @@ export function periChecks(prep: Prepared, uls: Basis, ulsBasis: 'ULS' | 'view',
     const pr = findPeriProduct(id);
     if (!pr) continue;
     const c = pr.check;
-    const b = c.method === 'design' ? uls : sls;
     const items: PeriCheckItem[] = [];
+    const onProduct = (k: number) => periOf(prep, b.grid.elem[k]) === id;
     const maxAbs = (f: 'N' | 'V' | 'M', Rd: number, key: 'N' | 'V' | 'M', region?: string) => {
       let best: PeriCheckItem | null = null;
       for (let k = 0; k < b.grid.x.length; k++) {
-        if (periOf(prep, b.grid.elem[k]) !== id) continue;
+        if (!onProduct(k)) continue;
         const v = Math.abs(absMax(b, f, k));
         if (!best || v > best.Ed) best = { key, Ed: v, Rd, eta: v / Rd, x: b.grid.x[k], region };
       }
       if (best) items.push(best);
     };
-    if (c.method === 'perm') {
-      maxAbs('M', c.M, 'M');
-      maxAbs('V', c.V, 'V');
-      // support forces of supports on the girder (end of the beam = girder end)
+    if (c.method === 'girder') {
+      maxAbs('M', c.MRd, 'M');
+      maxAbs('V', c.VRd, 'V');
       const segs = prep.model.segments.filter((s) => s.section.kind === 'peri' && s.section.product === id);
-      const L = prep.model.L;
-      prep.model.supports.forEach((sp, i) => {
-        if (!b.reactions || !segs.some((s) => sp.x >= s.x1 - X_TOL && sp.x <= s.x2 + X_TOL)) return;
-        const R = Math.max(Math.abs(b.reactions.max[3 * i + 1]), Math.abs(b.reactions.min[3 * i + 1]));
-        const end = sp.x <= X_TOL || sp.x >= L - X_TOL;
-        const Rd = end ? c.Rend : c.Rint;
-        items.push({ key: end ? 'Rend' : 'Rint', Ed: R, Rd, eta: R / Rd, x: sp.x });
+      const g0 = Math.min(...segs.map((s) => s.x1));
+      const g1 = Math.max(...segs.map((s) => s.x2));
+      const atNode = segs.some((s) => s.section.kind === 'peri' && s.section.atNode === true);
+      const sups = prep.model.supports
+        .map((sp, i) => ({ sp, i }))
+        .filter(({ sp }) => sp.x >= g0 - X_TOL && sp.x <= g1 + X_TOL)
+        .sort((p, q) => p.sp.x - q.sp.x);
+      sups.forEach(({ sp, i }, k) => {
+        const end = k === 0 || k === sups.length - 1;
+        const edge = Math.min(sp.x - g0, g1 - sp.x);
+        const sc = girderSupport(c, end, edge, atNode);
+        if (b.reactions) {
+          const R = Math.max(Math.abs(b.reactions.max[3 * i + 1]), Math.abs(b.reactions.min[3 * i + 1]));
+          const cs = c.byEdge ? (edge >= c.byEdge.farFrom - 1e-9 ? 'far' : 'near') : atNode ? 'node' : 'between';
+          items.push({ key: end ? 'Rend' : 'Rint', Ed: R, Rd: sc.F, eta: R / sc.F, x: sp.x, case: cs });
+        }
+        if (sc.Mm !== undefined) {
+          // moment at the support: largest |M| of the grid points at the support
+          let Ms = 0;
+          for (let j = 0; j < b.grid.x.length; j++) if (Math.abs(b.grid.x[j] - sp.x) < 1e-9) Ms = Math.max(Ms, Math.abs(absMax(b, 'M', j)));
+          items.push({ key: 'Mm', Ed: Ms, Rd: sc.Mm, eta: Ms / sc.Mm, x: sp.x, case: atNode ? 'node' : 'between' });
+        }
+        if (end) items.push({ key: 'edge', Ed: edge, Rd: c.minEdge, eta: Math.min(9.99, c.minEdge / Math.max(edge, 1e-6)), x: sp.x });
       });
+    } else if (c.ec3) {
+      const R = rcsResistances(c.ec3);
+      maxAbs('M', R.Mpl, 'M');
+      maxAbs('N', R.Npl, 'N');
+      maxAbs('V', R.Vpl, 'V');
+      let best: PeriCheckItem | null = null;
+      for (let k = 0; k < b.grid.x.length; k++) {
+        if (!onProduct(k)) continue;
+        const N = absMax(b, 'N', k);
+        const V = absMax(b, 'V', k);
+        const M = absMax(b, 'M', k);
+        const q = rcsInteraction(c.ec3, N, V, M);
+        if (!best || q.eta > best.eta)
+          best = {
+            key: 'int', Ed: q.eta, Rd: 1, eta: q.eta, x: b.grid.x[k], N, V, M,
+            parts: { n: q.n, v: q.v, m: q.m, rho: q.rho, terms: [['n–v', q.nv], ['v–m', q.vm], ['n–v–m', q.nvm]] },
+          };
+      }
+      if (best) items.push(best);
     } else {
       const multi = c.regions.length > 1;
-      // single resistances: the weakest region
+      // single resistances: the weakest section
       const weakest = (f: 'MRd' | 'NRd' | 'VRd') => c.regions.reduce((a, r) => (r[f] < a[f] ? r : a));
       maxAbs('M', weakest('MRd').MRd, 'M', multi ? weakest('MRd').label : undefined);
       maxAbs('N', weakest('NRd').NRd, 'N', multi ? weakest('NRd').label : undefined);
       maxAbs('V', weakest('VRd').VRd, 'V', multi ? weakest('VRd').label : undefined);
       let best: PeriCheckItem | null = null;
       for (let k = 0; k < b.grid.x.length; k++) {
-        if (periOf(prep, b.grid.elem[k]) !== id) continue;
+        if (!onProduct(k)) continue;
         const N = absMax(b, 'N', k);
         const V = absMax(b, 'V', k);
         const M = absMax(b, 'M', k);
         for (const r of c.regions) {
-          const parts = periInteraction(r, N, V, M);
-          if (!best || parts.eta > best.eta)
-            best = { key: 'int', Ed: parts.eta, Rd: 1, eta: parts.eta, x: b.grid.x[k], region: multi ? r.label : undefined, N, V, M, parts };
+          const q = periInteraction(r, N, V, M);
+          if (!best || q.eta > best.eta)
+            best = {
+              key: 'int', Ed: q.eta, Rd: 1, eta: q.eta, x: b.grid.x[k], region: multi ? r.label : undefined, N, V, M,
+              parts: { n: q.n, v: q.v, m: q.my, rho: q.rho, terms: [['n–v', q.nv], ['v–m', q.vm], ['n–v–m', q.nvm]] },
+            };
         }
       }
       if (best) items.push(best);
     }
     const eta = Math.max(0, ...items.map((i) => i.eta));
-    out.push({ product: id, method: c.method, basis: c.method === 'design' ? ulsBasis : slsBasis, items, eta, ok: eta <= 1 });
+    out.push({ product: id, method: c.method, basis, items, eta, ok: eta <= 1 });
   }
   return out;
 }
@@ -272,7 +316,7 @@ export function runChecks(an: Analysis, view: ViewResult): Checks | null {
     upliftBasis: ulsEnv || slsEnv ? 'combos' : 'view',
     shear: an.model.settings.shearCheck ? shearCheck(prep, sb) : null,
     deflection: deflectionChecks(prep, db),
-    peri: periChecks(prep, sb, ulsEnv ? 'ULS' : 'view', db, slsEnv ? 'SLS' : 'view'),
+    peri: periChecks(prep, sb, ulsEnv ? 'ULS' : 'view'),
     strengthBasis: ulsEnv ? 'ULS' : 'view',
     deflectionBasis: slsEnv ? 'SLS' : 'view',
   };

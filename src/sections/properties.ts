@@ -135,7 +135,7 @@ export function sectionProps(def: SectionDef): SectionProps {
       const { h, b } = periDims(pr);
       const s = pr.shape;
       // shear area: web(s); S / b unknown (no τ check, the PERI check governs)
-      const As = s.type === 'girder' ? s.tw * mm * h : 2 * s.tw * mm * h;
+      const As = s.type === 'girder' ? s.tw * mm * h : s.type === 'lattice' ? A : 2 * s.tw * mm * h;
       const p = symmetric(A, I, h, b, As, 0, 0);
       p.fixedMass = pr.mass;
       p.tableMass = pr.mass;

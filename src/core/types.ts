@@ -95,11 +95,33 @@ export interface Material {
 export type CatalogFamily = 'IPE' | 'HEA' | 'HEB' | 'HEM' | 'UPE' | 'UPN' | 'SHS' | 'RHS' | 'CHS';
 
 /** PERI system components (see sections/peri.ts) */
-export type PeriProductId = 'GT24' | 'VT20K' | 'SRU120' | 'RCS';
+export type PeriProductId = 'GT24' | 'VT20K' | 'SRU120' | 'RCS' | 'ULA50HD' | 'ULA70HD' | 'ULS50' | 'ULS70' | 'ULSFLEX';
+
+/** Tube couplers at the chords of ULA / ULS girders (bottom chord / top chord): NK = right-angle coupler class B, UNK = NK with an underlying NK (BB/BB) */
+export type CouplerConfig = 'NK/NK' | 'UNK/NK' | 'NK/UNK' | 'UNK/UNK';
+
+/** Options of PERI lattice girders (sections/lattice.ts) */
+export interface LatticeConfig {
+  /** spacing of the lateral restraints of the top chord, m (ULA / ULS; default 1.0) */
+  restraint?: number;
+  /** ULS Flex: system lengths of the intermediate elements, m (1, 1.25, 1.5) */
+  flex?: number[];
+  /** ULA / ULS: couplers at the supports */
+  couplers?: CouplerConfig;
+  /** ULA / ULS: diagonals with the gap of the drawing at the chord (eccentric nodes); default centric */
+  eccentric?: boolean;
+}
 
 export type SectionDef =
   | { kind: 'catalog'; family: CatalogFamily; name: string }
-  | { kind: 'peri'; product: PeriProductId; /** GT 24: supports under a lattice node (MULTIFLEX cases 1/3) */ atNode?: boolean }
+  | {
+      kind: 'peri';
+      product: PeriProductId;
+      /** GT 24: supports under a lattice node (MULTIFLEX cases 1/3) */
+      atNode?: boolean;
+      /** lattice girders (ULA, ULS, ULS Flex) */
+      lattice?: LatticeConfig;
+    }
   | { kind: 'rect'; b: number; h: number }
   | { kind: 'circle'; D: number }
   | { kind: 'tube'; D: number; t: number }

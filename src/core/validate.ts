@@ -1,3 +1,4 @@
+import { isLattice, flexElements, flexLength } from '../sections/lattice';
 import type { BeamModel, Issue, SectionDef } from './types';
 import { X_TOL } from './types';
 import { sectionProps } from '../sections/properties';
@@ -161,5 +162,28 @@ export function validateModel(model: BeamModel): Issue[] {
     issues.push(err('settings.deflLimitCantilever', 'err.positive'));
   if (st.selfWeight && !model.loadCases.some((c) => c.category === 'G'))
     issues.push({ path: 'settings.selfWeight', key: 'warn.noGCase', severity: 'warning' });
+  latticeIssues(model, issues);
   return issues;
+}
+
+/** Lattice girders: one product over the whole beam, catalogue length (ULA / ULS), ULS Flex elements matching the length */
+function latticeIssues(model: BeamModel, issues: Issue[]) {
+  const lat = model.segments.filter((s) => s.section.kind === 'peri' && isLattice(s.section.product));
+  if (!lat.length) return;
+  const s0 = lat[0];
+  const base = `segments.${s0.id}`;
+  if (lat.length !== model.segments.length || lat.some((s) => s.section.kind === 'peri' && s0.section.kind === 'peri' && s.section.product !== s0.section.product)) {
+    issues.push({ path: base, key: 'warn.latticeMixed', severity: 'warning' });
+    return;
+  }
+  if (s0.section.kind !== 'peri') return;
+  const id = s0.section.product;
+  if (id === 'ULSFLEX') {
+    const el = flexElements(s0.section.lattice, model.L);
+    const Ls = flexLength(el);
+    if (!el.length || Math.abs(Ls - model.L) > 1e-6) issues.push({ path: 'L', key: 'warn.flexLength', severity: 'warning', params: { L: Ls } });
+  } else {
+    const pr = findPeriProduct(id);
+    if (pr && !pr.lengths.some((l) => Math.abs(l - model.L) < 1e-6)) issues.push({ path: 'L', key: 'warn.latticeLength', severity: 'warning', params: { lengths: pr.lengths.join(' / ') } });
+  }
 }

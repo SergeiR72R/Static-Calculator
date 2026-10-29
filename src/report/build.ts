@@ -8,7 +8,7 @@ import { dirCos, equivalentNodalLoads, localStiffness, shearParam } from '../cor
 import { equilibrium, evalElement, reactionVector } from '../core/postprocess';
 import { combinationResult } from '../core/results';
 import type { ResultView } from '../core/results';
-import type { Checks } from '../core/checks';
+import type { Checks, PeriCheck } from '../core/checks';
 import { findPeriProduct } from '../sections/peri';
 import { handCalculation, handMoment } from '../core/handcalc';
 import type { BeamModel, Id, SectionDef } from '../core/types';
@@ -691,6 +691,10 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
   }
   for (const c of ch?.peri ?? []) {
     const pr = findPeriProduct(c.product);
+    if (c.method === 'lattice') {
+      latticeReport(blocks, c, t, tt, N);
+      continue;
+    }
     const method = c.method === 'girder' ? 'report.periGirder' : pr?.check.method === 'design' && pr.check.ec3 ? 'report.periEc3' : 'report.periDesign';
     blocks.push({ type: 'p', text: `${pr?.name ?? c.product}: ${t(method)}` });
     blocks.push({ type: 'p', text: t(c.basis === 'ULS' ? 'kpi.basisULS' : 'kpi.basisView') });
@@ -724,7 +728,10 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
     }
   }
   if (ch) {
-    blocks.push({ type: 'p', text: t(ch.deflectionBasis === 'SLS' ? 'kpi.basisSLS' : 'kpi.basisView') });
+    blocks.push({
+      type: 'p',
+      text: `${t(ch.deflectionBasis === 'SLS' ? 'kpi.basisSLS' : ch.deflectionBasis === 'char' ? 'kpi.basisChar' : 'kpi.basisView')}${ch.deflectionLattice ? ` ${t('kpi.lattice.deflection')}` : ''}`,
+    });
     for (const d of ch.deflection) {
       const Ls = d.span.x2 - d.span.x1;
       blocks.push({
@@ -801,4 +808,68 @@ export function buildReport(an: Analysis, opt: ReportOptions): Report | null {
   }
 
   return { title: model.name || t('app.title'), loadSetLabel, blocks };
+}
+
+/** Lattice girder: model, governing members, bearings and the member table (like an RSTAB printout) */
+function latticeReport(
+  blocks: Block[],
+  c: PeriCheck,
+  t: (k: string, p?: Record<string, string | number>) => string,
+  tt: (k: string) => string,
+  N: (v: number, d?: number) => string,
+) {
+  const pr = findPeriProduct(c.product);
+  const v = c.lattice;
+  blocks.push({ type: 'p', text: `${v?.name ?? pr?.name ?? c.product}: ${t('report.periLattice')} ${t('section.periSource')}: ${pr?.source ?? ''}.` });
+  if (c.error || !v) {
+    blocks.push({ type: 'p', text: t('kpi.lattice.mechanism') });
+    return;
+  }
+  blocks.push({ type: 'p', text: `${t(c.basis === 'ULS' ? 'kpi.basisULS' : 'kpi.basisView')} ${t('kpi.lattice.variants', { n: v.variants })}` });
+  const pct = (e: number) => `${N(e * 100, 3)} %`;
+  const rows: string[][] = [];
+  for (const it of c.items) {
+    if (it.key === 'bearing') continue;
+    rows.push([
+      t(`kpi.lattice.${it.key}`),
+      it.section ?? '',
+      it.mode ? t(`kpi.lattice.mode.${it.mode}`) : '',
+      N(it.N ?? 0),
+      N(it.M ?? 0),
+      it.Lcr !== undefined ? N(it.Lcr) : '–',
+      it.chi !== undefined ? N(it.chi, 3) : '–',
+      N(it.x),
+      pct(it.eta),
+    ]);
+  }
+  blocks.push({
+    type: 'table',
+    head: [t('report.latticeRole'), t('report.latticeSection'), t('report.latticeMode'), 'N [N]', 'M [Nm]', 'L_cr [m]', 'χ', 'x [m]', 'η'],
+    rows,
+    align: ['l', 'l', 'l', 'r', 'r', 'r', 'r', 'r', 'r'],
+  });
+  for (const it of c.items) {
+    if (it.key !== 'bearing') continue;
+    const ok = `\\;\\Rightarrow\\; \\text{${tt(it.eta <= 1 ? 'kpi.ok' : 'kpi.fail')}}`;
+    const what = it.bearing === 'head' ? tt('kpi.lattice.head') : `${tt('kpi.lattice.couplers')} ${it.bearing}`;
+    const sh = it.shares ? `\\;(${N(it.shares[0])} + ${N(it.shares[1])})` : '';
+    blocks.push({
+      type: 'tex',
+      tex: `\\text{${tt('kpi.lattice.bearing')} (${what})}\\; x = ${N(it.x)}\\,\\mathrm{m}:\\; |R| = ${N(it.Ed)}\\,\\mathrm{N}${sh} \\le R_d = ${N(it.Rd)}\\,\\mathrm{N},\\; \\eta = ${N(it.eta * 100, 4)}\\,\\%${ok}`,
+    });
+  }
+  blocks.push({ type: 'p', text: t('report.latticeTable') });
+  blocks.push({
+    type: 'table',
+    head: ['#', t('report.latticeRole'), 'x_i … x_j [m]', t('report.latticeSection'), 'N [N]', 'η'],
+    rows: v.members.map((m, k) => [
+      String(k + 1),
+      t(`kpi.lattice.${m.role}`),
+      `${N(v.nodes[m.i].x, 4)} … ${N(v.nodes[m.j].x, 4)}`,
+      m.section,
+      N(m.N),
+      pct(m.eta),
+    ]),
+    align: ['r', 'l', 'l', 'l', 'r', 'r'],
+  });
 }

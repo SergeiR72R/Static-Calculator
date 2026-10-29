@@ -2,6 +2,7 @@ import type { Field } from '../../core/postprocess';
 import { displayReaction } from '../../core/results';
 import { isCompressionOnly, upliftTolerance, type PeriCheck } from '../../core/checks';
 import { findPeriProduct } from '../../sections/peri';
+import { LatticeDiagram } from './LatticeDiagram';
 import { isRtl } from '../../units/format';
 import { useStore } from '../../state/store';
 import { Badge, Card, cx } from '../common';
@@ -181,7 +182,10 @@ export function ChecksCard() {
             <Eta eta={d.eta} />
           </div>
         ))}
-        <div className="text-[10px] text-slate-500">{fmt.t(checks.deflectionBasis === 'SLS' ? 'kpi.basisSLS' : 'kpi.basisView')}</div>
+        <div className="text-[10px] text-slate-500">
+          {fmt.t(checks.deflectionBasis === 'SLS' ? 'kpi.basisSLS' : checks.deflectionBasis === 'char' ? 'kpi.basisChar' : 'kpi.basisView')}
+          {checks.deflectionLattice && <> {fmt.t('kpi.lattice.deflection')}</>}
+        </div>
       </div>
     </Card>
   );
@@ -217,10 +221,59 @@ function UpliftView() {
   );
 }
 
+function LatticeCheckItems({ c }: { c: PeriCheck }) {
+  const fmt = useFmt();
+  const pct = (e: number) => `${fmt.num(e * 100, 1)} %`;
+  if (c.error) return <div className="text-red-600 dark:text-red-400">{fmt.t('kpi.lattice.mechanism')}</div>;
+  return (
+    <div className="space-y-0.5 tabular-nums text-slate-600 dark:text-slate-300">
+      {c.items.map((it, i) => {
+        let label: string;
+        let txt: string;
+        if (it.key === 'bearing') {
+          label = `${fmt.t('kpi.lattice.bearing')} (${it.bearing === 'head' ? fmt.t('kpi.lattice.head') : `${fmt.t('kpi.lattice.couplers')} ${it.bearing}`}):`;
+          const sh = it.shares ? ` (${fmt.t('kpi.lattice.shares')} ${fmt.q(it.shares[0], 'force')} / ${fmt.q(it.shares[1], 'force')})` : '';
+          txt = `x = ${fmt.q(it.x, 'length')}: |R| = ${fmt.q(it.Ed, 'force')}${sh} ≤ R_d = ${fmt.q(it.Rd, 'force')} · η = ${pct(it.eta)}`;
+        } else {
+          label = `${fmt.t(`kpi.lattice.${it.key}`)} ${it.section ?? ''}:`;
+          const mode = it.mode ? fmt.t(`kpi.lattice.mode.${it.mode}`) : '';
+          const buck = it.Lcr !== undefined && it.chi !== undefined ? `, L_cr = ${fmt.q(it.Lcr, 'length')}, χ = ${fmt.num(it.chi, 3)}` : '';
+          const mm = it.M ? ` · M = ${fmt.q(it.M, 'moment')}` : '';
+          txt = `η = ${pct(it.eta)} (${mode}${buck}) · N = ${fmt.q(it.N ?? 0, 'force')}${mm} · x = ${fmt.q(it.x, 'length')}`;
+        }
+        return (
+          <div key={i} className={cx(it.eta > 1 && 'text-red-600 dark:text-red-400')} data-testid={`peri-item-${it.key}`}>
+            <span className="font-sans">{label} </span>
+            <bdi dir="ltr">{txt}</bdi>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function PeriCheckView({ c }: { c: PeriCheck }) {
   const fmt = useFmt();
   const pct = (e: number) => `${fmt.num(e * 100, 1)} %`;
   const name = findPeriProduct(c.product)?.name ?? c.product;
+  if (c.method === 'lattice')
+    return (
+      <div data-testid={`check-peri-${c.product}`}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-medium">
+            {c.lattice?.name ?? name} — {fmt.t('kpi.periLattice')}
+          </span>
+          <Badge ok={c.ok}>{c.ok ? fmt.t('kpi.ok') : fmt.t('kpi.fail')}</Badge>
+        </div>
+        <LatticeCheckItems c={c} />
+        {c.lattice && <LatticeDiagram v={c.lattice} />}
+        {Number.isFinite(c.eta) && <Eta eta={c.eta} />}
+        <div className="text-[10px] text-slate-500">
+          {fmt.t(c.basis === 'ULS' ? 'kpi.basisULS' : 'kpi.basisView')}
+          {c.lattice && <> {fmt.t('kpi.lattice.variants', { n: c.lattice.variants })}</>}
+        </div>
+      </div>
+    );
   return (
     <div data-testid={`check-peri-${c.product}`}>
       <div className="flex items-center justify-between gap-2">

@@ -104,7 +104,17 @@
     "periGirderNote": "Checked with the MULTIFLEX design values (V_Rd, M_Rd, support force F_R,d per support case) for the ULS combinations; edge distance of the end supports. I from the chords, E = 11,000 N/mm².",
     "periEc3Note": "Checked per EN 1993-1-1 6.2.10 (N–V–M interaction, Wagenknecht) on the net section with bolt holes, γ_M1 = 1.1 (ULS). No stability check.",
     "periAtNode": "Supports under a lattice node (MULTIFLEX case 1 / 3)",
-    "periAtNodeHint": "Unchecked: supports between the nodes (case 2 / 4, on the safe side: F_R,d = 19.5 / 30 kN, M_m,Rd = 6 kNm)."
+    "periAtNodeHint": "Unchecked: supports between the nodes (case 2 / 4, on the safe side: F_R,d = 19.5 / 30 kN, M_m,Rd = 6 kNm).",
+    "periLatticeNote": "Member model as in RSTAB: continuous chords, pin-ended diagonals; design of all members to EN 1993-1-1 (steel) or EN 1999-1-1 (aluminium, with heat affected zone) for all ULS combinations, flexural buckling with the spacing of the nodes or lateral restraints, bearings (couplers or ledger heads), deflection of the framework.",
+    "flexElements": "ULS Flex elements (end element 50 + intermediate elements + end element 50)",
+    "flexElement": "Intermediate element {n}",
+    "flexRemove": "Remove element",
+    "flexAdd": "element",
+    "flexSystem": "System length (standard to standard): {L}",
+    "latticeRestraint": "Lateral restraint of the top chord every",
+    "latticeCouplers": "Couplers bottom/top",
+    "latticeEccentric": "Nodes with gap g (eccentric, system lines of the drawing)",
+    "latticeEccentricHint": "Unchecked: diagonals meet centrically on the chord axis (agrees with the PERI tables). Checked: gap 65 / 79 mm as in the PERI drawings, additional eccentricity moments in the chords."
   },
   "material": {
     "label": "Material",
@@ -300,6 +310,33 @@
       "between": "between nodes",
       "near": "< 45 cm from the girder end",
       "far": "≥ 45 cm from the girder end"
+    },
+    "periLattice": "member model (EN 1993 / EN 1999)",
+    "basisChar": "Basis: characteristic combination of all load cases (no SLS combination)",
+    "lattice": {
+      "top": "Top chord",
+      "bottom": "Bottom chord",
+      "diag": "Diagonals",
+      "vert": "Verticals",
+      "conn": "Connectors ULS Flex",
+      "post": "End posts",
+      "bearing": "Bearing",
+      "head": "ledger heads UH Plus at the rosette",
+      "couplers": "couplers bottom/top",
+      "shares": "bottom/top",
+      "restraints": "Ticks above the top chord: lateral restraints",
+      "deflection": "(deflection of the member model)",
+      "mechanism": "The member model is a mechanism (check the supports).",
+      "variants": "· {n} load arrangements",
+      "mode": {
+        "section": "cross-section N + M",
+        "haz": "heat affected zone",
+        "bucklingY": "buckling in plane",
+        "bucklingZ": "buckling out of plane",
+        "shear": "shear",
+        "tension": "tension",
+        "compression": "compression"
+      }
     }
   },
   "issues": {
@@ -326,7 +363,10 @@
     "duplicateRestraint": "DOF already restrained by another support – the reaction is assigned to the first support.",
     "springZero": "Spring support without stiffness.",
     "illConditioned": "Stiffness matrix is ill-conditioned (κ ≈ {cond}). Please check the results.",
-    "noGCase": "No load case of category G – the self weight is not applied."
+    "noGCase": "No load case of category G – the self weight is not applied.",
+    "latticeMixed": "Lattice girder: the beam must consist of one lattice girder only – no member model check.",
+    "latticeLength": "Lattice girder: the length is not a catalogue length ({lengths} m); the nodes are arranged from the girder end.",
+    "flexLength": "ULS Flex: the elements give the system length {L} m, not the beam length."
   },
   "mech": {
     "noSupports": "The beam is not supported.",
@@ -462,7 +502,12 @@
     "periDesign": "Cross-section check per PERI (ST_was_2024/00040) with the interaction n–v, v–m, n–v–m, ρ = (2·max(0.5; v) − 1)², for the sections A 4-4, A 5-5 and B 2-2.",
     "upliftNote": "Pinned and roller supports transfer compression only; R_z > 0 (uplift, global z axis downwards) means the support fails.",
     "periGirder": "Check with the design values of the MULTIFLEX instructions for assembly and use: V_Ed ≤ V_Rd, M_Ed ≤ M_Rd, support force F_Ed ≤ F_R,d per support case (end/intermediate support, position to the nodes or distance from the girder end), for GT 24 the moment at the support M_Ed ≤ M_m,Rd; minimum distance of the end supports from the girder end.",
-    "periEc3": "Cross-section check per EN 1993-1-1 6.2.10 with 6.2.9.1 (6.36), procedure after Wagenknecht, net section with bolt holes (PERI proof ST_kls_2016-00106)."
+    "periEc3": "Cross-section check per EN 1993-1-1 6.2.10 with 6.2.9.1 (6.36), procedure after Wagenknecht, net section with bolt holes (PERI proof ST_kls_2016-00106).",
+    "periLattice": "Plane member model (continuous chords, pin-ended diagonals, rigid end posts); loads on the top chord, both chords supported vertically. Design to EN 1993-1-1 (γ_M = 1.1, M_Rd with α_pl ≤ 1.25, interaction 6.2.9.1, flexural buckling curve a with Annex B, C_m = 1) or EN 1999-1-1 (EN AW-6082 T5: f_0 = 230 N/mm², heat affected zone ρ_o,haz = 0.54, ρ_u,haz = 0.69, buckling class A, γ_M1 = 1.1, γ_M2 = 1.25). Buckling lengths: chords in plane = node spacing, out of plane = spacing of the lateral restraints; web members = system length. Couplers EN 74-1 class B: NK F_Rd = 1.5 · 9.1 kN, UNK F_Rd = 1.5 · 15.1 kN (both chords together); ledger heads UH Plus (Z-8.22-863): V_z,Rd = 30.4 / 13.4 kN, N_Rd = 37.3 kN.",
+    "latticeRole": "Member",
+    "latticeSection": "Section",
+    "latticeMode": "Check",
+    "latticeTable": "Member list: axial force of the governing load arrangement, utilisation η as envelope of all ULS load arrangements."
   },
   "wizard": {
     "titleFirst": "Welcome – create your first project",

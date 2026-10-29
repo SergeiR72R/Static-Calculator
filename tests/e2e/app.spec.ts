@@ -265,3 +265,23 @@ test('autosaved project with the old default 1,35·G + 1,5·Q opens with 1,5·G 
   await expect(page.getByTestId('kpi-M-max')).toHaveText('54,00');
   await expect(page.locator('select option').filter({ hasText: '1,35' })).toHaveCount(0);
 });
+
+test('PERI lattice girders: member model check with diagram, ULS Flex elements', async ({ page }) => {
+  await page.goto('/');
+  await template(page, 'simple');
+  await page.getByTestId('tab-beam').click();
+  await page.getByTestId('section-kind').selectOption('peri');
+  await page.getByTestId('peri-product').selectOption('ULA50HD');
+  await page.getByTestId('peri-length').selectOption('6.25');
+  await expect(page.getByTestId('lattice-restraint')).toBeVisible();
+  const chk = page.getByTestId('check-peri-ULA50HD');
+  await expect(chk.getByTestId('lattice-diagram')).toBeVisible();
+  await expect(chk.getByTestId('peri-item-top')).toContainText('η =');
+  await expect(chk.getByTestId('peri-item-diag')).toContainText('RR 40 × 20 × 3');
+  await expect(chk.getByTestId('peri-item-bearing').first()).toContainText('NK/NK');
+  await page.getByTestId('peri-product').selectOption('ULSFLEX');
+  await expect(page.getByTestId('flex-elements')).toBeVisible();
+  await page.getByTestId('flex-add').click();
+  await expect(page.getByTestId('check-peri-ULSFLEX').getByTestId('peri-item-conn')).toBeVisible();
+  await page.screenshot({ path: 'test-results/lattice.png', fullPage: true });
+});

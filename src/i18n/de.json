@@ -104,7 +104,17 @@
     "periGirderNote": "Nachweis mit Bemessungswerten nach MULTIFLEX (V_Rd, M_Rd, Auflagerkraft F_R,d je Auflagerfall) für die GZT-Kombinationen; Randabstand der Endauflager. I aus den Gurten, E = 11 000 N/mm².",
     "periEc3Note": "Nachweis nach EN 1993-1-1 6.2.10 (Interaktion N–V–M, Wagenknecht) am Nettoquerschnitt mit Bohrungen, γ_M1 = 1,1 (GZT). Ohne Stabilitätsnachweis.",
     "periAtNode": "Auflager unter einem Knoten (MULTIFLEX-Fall 1 / 3)",
-    "periAtNodeHint": "Ohne Haken: Auflager zwischen den Knoten (Fall 2 / 4, auf der sicheren Seite: F_R,d = 19,5 / 30 kN, M_m,Rd = 6 kNm)."
+    "periAtNodeHint": "Ohne Haken: Auflager zwischen den Knoten (Fall 2 / 4, auf der sicheren Seite: F_R,d = 19,5 / 30 kN, M_m,Rd = 6 kNm).",
+    "periLatticeNote": "Stabwerk wie in RSTAB: durchlaufende Gurte, gelenkige Diagonalen; Bemessung aller Stäbe nach EN 1993-1-1 (Stahl) bzw. EN 1999-1-1 (Aluminium, mit Wärmeeinflusszone) für alle GZT-Kombinationen, Biegeknicken mit den Abständen der Knoten bzw. seitlichen Halterungen, Auflager (Kupplungen bzw. Riegelköpfe), Durchbiegung am Stabwerk.",
+    "flexElements": "Elemente ULS Flex (Endelement 50 + Zwischenelemente + Endelement 50)",
+    "flexElement": "Zwischenelement {n}",
+    "flexRemove": "Element entfernen",
+    "flexAdd": "Element",
+    "flexSystem": "Systemlänge (Ständer bis Ständer): {L}",
+    "latticeRestraint": "Seitliche Halterung Obergurt alle",
+    "latticeCouplers": "Kupplungen UG/OG",
+    "latticeEccentric": "Knoten mit Spalt g (exzentrisch, Systemlinien der Zeichnung)",
+    "latticeEccentricHint": "Ohne Haken: Diagonalen treffen sich zentrisch auf der Gurtachse (stimmt mit den PERI-Tabellen überein). Mit Haken: Spalt 65 / 79 mm wie in den PERI-Zeichnungen, zusätzliche Exzentrizitätsmomente in den Gurten."
   },
   "material": {
     "label": "Material",
@@ -300,6 +310,33 @@
       "between": "zwischen Knoten",
       "near": "< 45 cm vom Trägerende",
       "far": "≥ 45 cm vom Trägerende"
+    },
+    "periLattice": "Stabwerk (EN 1993 / EN 1999)",
+    "basisChar": "Grundlage: charakteristische Kombination aller Lastfälle (keine GZG-Kombination)",
+    "lattice": {
+      "top": "Obergurt",
+      "bottom": "Untergurt",
+      "diag": "Diagonalen",
+      "vert": "Vertikalstreben",
+      "conn": "Verbinder ULS Flex",
+      "post": "Endpfosten",
+      "bearing": "Auflager",
+      "head": "Riegelköpfe UH Plus an Rosette",
+      "couplers": "Kupplungen UG/OG",
+      "shares": "UG/OG",
+      "restraints": "Striche über dem Obergurt: seitliche Halterungen",
+      "deflection": "(Durchbiegung am Stabwerk)",
+      "mechanism": "Das Stabwerk ist kinematisch (Auflager prüfen).",
+      "variants": "· {n} Laststellungen",
+      "mode": {
+        "section": "Querschnitt N + M",
+        "haz": "Wärmeeinflusszone",
+        "bucklingY": "Knicken in Trägerebene",
+        "bucklingZ": "Knicken aus der Ebene",
+        "shear": "Querkraft",
+        "tension": "Zug",
+        "compression": "Druck"
+      }
     }
   },
   "issues": {
@@ -326,7 +363,10 @@
     "duplicateRestraint": "Freiheitsgrad bereits durch ein anderes Auflager gehalten – Reaktion wird dem ersten Auflager zugeordnet.",
     "springZero": "Federlager ohne Federsteifigkeit.",
     "illConditioned": "Steifigkeitsmatrix schlecht konditioniert (κ ≈ {cond}). Ergebnisse prüfen.",
-    "noGCase": "Kein Lastfall der Kategorie G vorhanden – Eigengewicht wird nicht angesetzt."
+    "noGCase": "Kein Lastfall der Kategorie G vorhanden – Eigengewicht wird nicht angesetzt.",
+    "latticeMixed": "Gitterträger: der Träger muss vollständig aus einem Gitterträger bestehen – Stabwerksnachweis entfällt.",
+    "latticeLength": "Gitterträger: Länge ist keine Katalog-Länge ({lengths} m); die Knoten werden vom Trägerende aus angeordnet.",
+    "flexLength": "ULS Flex: die Elemente ergeben die Systemlänge {L} m, nicht die Trägerlänge."
   },
   "mech": {
     "noSupports": "Der Träger ist nicht gelagert.",
@@ -462,7 +502,12 @@
     "periDesign": "Querschnittsnachweis nach PERI (ST_was_2024/00040) mit Interaktion n–v, v–m, n–v–m, ρ = (2·max(0,5; v) − 1)², für die Schnitte A 4-4, A 5-5 und B 2-2.",
     "upliftNote": "Fest- und Loslager übertragen nur Druck; R_z > 0 (Abheben, globale z-Achse nach unten) bedeutet Versagen des Lagers.",
     "periGirder": "Nachweis mit den Bemessungswerten der MULTIFLEX-Aufbau- und Verwendungsanleitung: V_Ed ≤ V_Rd, M_Ed ≤ M_Rd, Auflagerkraft F_Ed ≤ F_R,d je Auflagerfall (End-/Zwischenauflager, Lage zu den Knoten bzw. Abstand vom Trägerende), bei GT 24 Moment am Auflager M_Ed ≤ M_m,Rd; Mindestabstand der Endauflager vom Trägerende.",
-    "periEc3": "Querschnittsnachweis nach EN 1993-1-1 6.2.10 mit 6.2.9.1 (6.36), Verfahren nach Wagenknecht, Nettoquerschnitt mit Bohrungen (PERI-Nachweis ST_kls_2016-00106)."
+    "periEc3": "Querschnittsnachweis nach EN 1993-1-1 6.2.10 mit 6.2.9.1 (6.36), Verfahren nach Wagenknecht, Nettoquerschnitt mit Bohrungen (PERI-Nachweis ST_kls_2016-00106).",
+    "periLattice": "Stabwerk in der Trägerebene (durchlaufende Gurte, gelenkig angeschlossene Diagonalen, Endpfosten biegesteif); Lasten auf dem Obergurt, beide Gurte vertikal gelagert. Nachweise nach EN 1993-1-1 (γ_M = 1,1, M_Rd mit α_pl ≤ 1,25, Interaktion 6.2.9.1, Biegeknicken Kurve a mit Anhang B, C_m = 1) bzw. EN 1999-1-1 (EN AW-6082 T5: f_0 = 230 N/mm², Wärmeeinflusszone ρ_o,haz = 0,54, ρ_u,haz = 0,69, Knickklasse A, γ_M1 = 1,1, γ_M2 = 1,25). Knicklängen: Gurte in der Ebene = Knotenabstand, aus der Ebene = Abstand der seitlichen Halterungen; Füllstäbe = Systemlänge. Kupplungen EN 74-1 Klasse B: NK F_Rd = 1,5 · 9,1 kN, UNK F_Rd = 1,5 · 15,1 kN (beide Gurte gemeinsam); Riegelköpfe UH Plus (Z-8.22-863): V_z,Rd = 30,4 / 13,4 kN, N_Rd = 37,3 kN.",
+    "latticeRole": "Stab",
+    "latticeSection": "Querschnitt",
+    "latticeMode": "Nachweis",
+    "latticeTable": "Stabliste: Normalkraft der maßgebenden Laststellung, Ausnutzung η als Umhüllende aller GZT-Laststellungen."
   },
   "wizard": {
     "titleFirst": "Willkommen – erstes Projekt anlegen",

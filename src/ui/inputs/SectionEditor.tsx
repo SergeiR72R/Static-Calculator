@@ -1,4 +1,5 @@
-import type { CatalogFamily, Material, MaterialPreset, PeriProductId, SectionDef, SectionKind } from '../../core/types';
+import type { CatalogFamily, CouplerConfig, LatticeConfig, Material, MaterialPreset, PeriProductId, SectionDef, SectionKind } from '../../core/types';
+import { DEFAULT_RESTRAINT, FLEX, flexElements, flexLength, isLattice } from '../../sections/lattice';
 import { CATALOG, CATALOG_FAMILIES } from '../../sections/catalog';
 import { sectionOutline, sectionProps, type SectionProps } from '../../sections/properties';
 import { MATERIAL_ORDER, designStrength, materialPreset } from '../../sections/materials';
@@ -157,7 +158,7 @@ function PeriFields({
   L,
   onLength,
 }: {
-  def: { kind: 'peri'; product: PeriProductId; atNode?: boolean };
+  def: { kind: 'peri'; product: PeriProductId; atNode?: boolean; lattice?: LatticeConfig };
   setDef: (d: SectionDef) => void;
   L?: number;
   onLength?: (L: number) => void;
@@ -195,11 +196,105 @@ function PeriFields({
           {fmt.t('section.periAtNode')}
         </label>
       )}
+      {isLattice(def.product) && <LatticeFields def={def} setDef={setDef} L={L} onLength={onLength} />}
       {pr && (
         <p className="text-[11px] text-slate-500 dark:text-slate-400" data-testid="peri-info">
-          {fmt.t(pr.check.method === 'girder' ? 'section.periGirderNote' : pr.check.ec3 ? 'section.periEc3Note' : 'section.periDesignNote')} {fmt.t('section.periSource')}: {pr.source}.
+          {fmt.t(
+            pr.check.method === 'girder'
+              ? 'section.periGirderNote'
+              : pr.check.method === 'lattice'
+                ? 'section.periLatticeNote'
+                : pr.check.ec3
+                  ? 'section.periEc3Note'
+                  : 'section.periDesignNote',
+          )}{' '}
+          {fmt.t('section.periSource')}: {pr.source}.
         </p>
       )}
+    </div>
+  );
+}
+
+const COUPLERS: CouplerConfig[] = ['NK/NK', 'UNK/NK', 'NK/UNK', 'UNK/UNK'];
+
+/** Lattice girders: ULS Flex elements, lateral restraints of the top chord, couplers, node model */
+function LatticeFields({
+  def,
+  setDef,
+  L,
+  onLength,
+}: {
+  def: { kind: 'peri'; product: PeriProductId; lattice?: LatticeConfig };
+  setDef: (d: SectionDef) => void;
+  L?: number;
+  onLength?: (L: number) => void;
+}) {
+  const fmt = useFmt();
+  const cfg = def.lattice ?? {};
+  const set = (c: Partial<LatticeConfig>) => setDef({ ...def, lattice: { ...cfg, ...c } });
+  if (def.product === 'ULSFLEX') {
+    const el = flexElements(cfg, L ?? 3);
+    const apply = (e: number[]) => {
+      set({ flex: e });
+      onLength?.(flexLength(e));
+    };
+    return (
+      <div className="space-y-1" data-testid="flex-elements">
+        <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{fmt.t('section.flexElements')}</div>
+        <div className="flex flex-wrap items-center gap-1 text-xs">
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">50</span>
+          {el.map((e, k) => (
+            <span key={k} className="inline-flex items-center gap-0.5">
+              <select
+                className="rounded border border-slate-300 bg-white px-1 py-0.5 dark:border-slate-600 dark:bg-slate-900"
+                value={String(e)}
+                aria-label={fmt.t('section.flexElement', { n: k + 1 })}
+                data-testid={`flex-el-${k}`}
+                onChange={(ev) => apply(el.map((v, j) => (j === k ? Number(ev.target.value) : v)))}
+              >
+                {FLEX.elements.map((v) => (
+                  <option key={v} value={String(v)}>
+                    {Math.round(v * 100)}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="px-0.5 text-slate-400 hover:text-red-600" title={fmt.t('section.flexRemove')} disabled={el.length <= 1} onClick={() => apply(el.filter((_, j) => j !== k))}>
+                ×
+              </button>
+            </span>
+          ))}
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">50</span>
+          <button type="button" className="rounded border border-slate-300 px-1.5 py-0.5 dark:border-slate-600" data-testid="flex-add" onClick={() => apply([...el, 1])}>
+            + {fmt.t('section.flexAdd')}
+          </button>
+        </div>
+        <div className="text-[11px] text-slate-500 dark:text-slate-400">
+          {fmt.t('section.flexSystem', { L: fmt.q(flexLength(el), 'length') })}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      <NumberField
+        label={fmt.t('section.latticeRestraint')}
+        value={cfg.restraint ?? DEFAULT_RESTRAINT}
+        q="length"
+        path="lattice.restraint"
+        testId="lattice-restraint"
+        onChange={(v) => set({ restraint: v })}
+      />
+      <SelectField
+        label={fmt.t('section.latticeCouplers')}
+        value={cfg.couplers ?? 'NK/NK'}
+        testId="lattice-couplers"
+        options={COUPLERS.map((c) => ({ value: c, label: c }))}
+        onChange={(c: CouplerConfig) => set({ couplers: c })}
+      />
+      <label className="col-span-2 flex items-center gap-1.5 text-xs" title={fmt.t('section.latticeEccentricHint')}>
+        <input type="checkbox" checked={!!cfg.eccentric} onChange={(e) => set({ eccentric: e.target.checked })} data-testid="lattice-eccentric" />
+        {fmt.t('section.latticeEccentric')}
+      </label>
     </div>
   );
 }

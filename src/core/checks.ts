@@ -6,6 +6,8 @@ import type { FieldArrays, SampleGrid } from './postprocess';
 import type { PeriProductId } from './types';
 import { X_TOL } from './types';
 import { findPeriProduct, girderSupport, periInteraction, rcsInteraction, rcsResistances } from '../sections/peri';
+import { analyzeLattice, characteristicCombination, latticeEnvelope, latticeOf, type LatticeMode } from './lattice';
+import type { MemberRole } from '../sections/lattice';
 
 export interface StressCheck {
   value: number;
@@ -37,7 +39,7 @@ export interface PeriCheckItem {
    * 'M' | 'V' | 'N' (single resistances), 'int' (interaction), 'Rend' | 'Rint' (support force at an
    * end / intermediate support), 'Mm' (moment at a support, GT 24), 'edge' (support distance from the girder end)
    */
-  key: 'M' | 'V' | 'N' | 'int' | 'Rend' | 'Rint' | 'Mm' | 'edge';
+  key: 'M' | 'V' | 'N' | 'int' | 'Rend' | 'Rint' | 'Mm' | 'edge' | LatticeItemKey;
   /** acting value (absolute) and resistance; for 'int' Ed = η, Rd = 1; for 'edge' Ed = distance, Rd = minimum (m) */
   Ed: number;
   Rd: number;
@@ -53,15 +55,43 @@ export interface PeriCheckItem {
   M?: number;
   /** ratios of the interaction */
   parts?: { n: number; v: number; m: number; rho: number; terms: [string, number][] };
+  /** lattice girders: governing verification, buckling length, χ, member section */
+  mode?: LatticeMode;
+  Lcr?: number;
+  chi?: number;
+  section?: string;
+  /** lattice girder bearings: couplers 'NK/NK' …, 'head'; shares of the chords (bottom, top) */
+  bearing?: string;
+  shares?: [number, number];
+}
+
+/** Lattice girder items: chords, web members (diagonals, verticals, connectors), end posts, bearings */
+export type LatticeItemKey = 'top' | 'bottom' | 'diag' | 'vert' | 'conn' | 'post' | 'bearing';
+
+/** Member model of a lattice girder for the drawing */
+export interface LatticeCheckView {
+  name: string;
+  L: number;
+  h: number;
+  nodes: { x: number; z: number }[];
+  members: { i: number; j: number; role: MemberRole; hinged: boolean; eta: number; N: number; section: string }[];
+  /** lateral restraints of the top chord */
+  restraints: number[];
+  supports: number[];
+  /** load arrangements evaluated (combinations × pattern variants) */
+  variants: number;
 }
 
 export interface PeriCheck {
   product: PeriProductId;
-  method: 'design' | 'girder';
+  method: 'design' | 'girder' | 'lattice';
   basis: 'ULS' | 'view';
   items: PeriCheckItem[];
   eta: number;
   ok: boolean;
+  /** lattice girders: member model with utilisations; 'mechanism' if it cannot be solved */
+  lattice?: LatticeCheckView;
+  error?: 'mechanism';
 }
 
 /**
@@ -87,7 +117,9 @@ export interface Checks {
   peri: PeriCheck[];
   /** which results were used */
   strengthBasis: 'ULS' | 'view';
-  deflectionBasis: 'SLS' | 'view';
+  deflectionBasis: 'SLS' | 'view' | 'char';
+  /** deflection from the member model of a lattice girder */
+  deflectionLattice?: boolean;
 }
 
 interface Basis {
@@ -200,6 +232,8 @@ export function periChecks(prep: Prepared, b: Basis, basis: 'ULS' | 'view'): Per
     const pr = findPeriProduct(id);
     if (!pr) continue;
     const c = pr.check;
+    // lattice girders: member model (core/lattice.ts, latticeChecks)
+    if (c.method === 'lattice') continue;
     const items: PeriCheckItem[] = [];
     const onProduct = (k: number) => periOf(prep, b.grid.elem[k]) === id;
     const maxAbs = (f: 'N' | 'V' | 'M', Rd: number, key: 'N' | 'V' | 'M', region?: string) => {
@@ -310,7 +344,7 @@ export function runChecks(an: Analysis, view: ViewResult): Checks | null {
     rmin = envs[0].rmin.map((_, i) => Math.min(...envs.map((e) => e.rmin[i])));
     rmax = envs[0].rmax.map((_, i) => Math.max(...envs.map((e) => e.rmax[i])));
   }
-  return {
+  const out: Checks = {
     strength: strengthCheck(prep, sb),
     uplift: an.model.settings.upliftCheck ? upliftChecks(prep, rmin, rmax) : [],
     upliftBasis: ulsEnv || slsEnv ? 'combos' : 'view',
@@ -320,4 +354,71 @@ export function runChecks(an: Analysis, view: ViewResult): Checks | null {
     strengthBasis: ulsEnv ? 'ULS' : 'view',
     deflectionBasis: slsEnv ? 'SLS' : 'view',
   };
+  latticeChecks(an, out, view);
+  return out;
+}
+
+const ROLE_KEY: Record<MemberRole, LatticeItemKey> = { top: 'top', bottom: 'bottom', diag: 'diag', vert: 'vert', conn: 'conn', post: 'post' };
+
+/**
+ * Lattice girders: member model (core/lattice.ts) for all ULS combinations (with pattern loading);
+ * the deflection of the girder replaces the one of the equivalent beam (SLS combinations, else the
+ * characteristic combination of all load cases).
+ */
+function latticeChecks(an: Analysis, out: Checks, view: ViewResult) {
+  const def = latticeOf(an.model);
+  if (!def || !an.prep) return;
+  const la = analyzeLattice(an);
+  if (!la) return;
+  const uls = an.model.combinations.filter((c) => c.type === 'ULS');
+  const sls = an.model.combinations.filter((c) => c.type === 'SLS');
+  const basis: 'ULS' | 'view' = uls.length ? 'ULS' : 'view';
+  if (la.error) {
+    out.peri.push({ product: def.id, method: 'lattice', basis, items: [], eta: Infinity, ok: false, error: la.error });
+    return;
+  }
+  // without ULS combinations: the combinations of the current view (or all load cases × 1)
+  const view0 = view.view;
+  const ulsUsed = uls.length ? uls : view0.type === 'combo' ? an.model.combinations.filter((c) => c.id === view0.id) : [characteristicCombination(an.model)];
+  const slsUsed = sls.length ? sls : [characteristicCombination(an.model)];
+  const env = latticeEnvelope(an, la, ulsUsed, slsUsed, def.cfg);
+  const lm = la.model;
+  const items: PeriCheckItem[] = [];
+  const roles: MemberRole[] = ['top', 'bottom', 'diag', 'vert', 'conn', 'post'];
+  for (const role of roles) {
+    let best = -1;
+    env.members.forEach((d, k) => {
+      if (lm.members[k].role === role && (best < 0 || d.eta > env.members[best].eta)) best = k;
+    });
+    if (best < 0) continue;
+    const d = env.members[best];
+    items.push({ key: ROLE_KEY[role], Ed: d.eta, Rd: 1, eta: d.eta, x: d.x, N: d.N, M: d.M, V: d.V, mode: d.mode, Lcr: d.Lcr, chi: d.chi, section: lm.members[best].sec.name });
+  }
+  for (const b of env.bearings)
+    items.push({ key: 'bearing', Ed: Math.abs(b.R), Rd: b.Rd, eta: b.eta, x: b.x, bearing: b.kind, shares: b.parts, V: b.H });
+  const eta = Math.max(0, ...items.map((i) => i.eta));
+  out.peri.push({
+    product: def.id,
+    method: 'lattice',
+    basis,
+    items,
+    eta,
+    ok: eta <= 1,
+    lattice: {
+      name: lm.name,
+      L: lm.L,
+      h: lm.h,
+      nodes: lm.nodes.map((n) => ({ x: n.x, z: n.z })),
+      members: lm.members.map((m, k) => ({ i: m.i, j: m.j, role: m.role, hinged: m.hinged, eta: env.members[k]?.eta ?? 0, N: env.N[k] ?? 0, section: m.sec.name })),
+      restraints: lm.restraints[1],
+      supports: la.supports.map((s) => s.x),
+      variants: env.variants,
+    },
+  });
+  // deflection of the member model
+  const spans = an.prep.mesh.spans;
+  // the 125 mm overhangs of ULA / ULS beyond the system points are not cantilevers to be checked
+  out.deflection = env.deflection.filter((d) => !(spans[d.span].kind === 'cantilever' && d.x2 - d.x1 < 0.13 + 1e-9)).map((d) => ({ span: spans[d.span], w: d.w, x: d.x, denominator: d.denominator, limit: d.limit, eta: d.eta, ok: d.eta <= 1 }));
+  out.deflectionBasis = sls.length ? 'SLS' : 'char';
+  out.deflectionLattice = true;
 }

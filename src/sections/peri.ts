@@ -16,6 +16,7 @@
  */
 import type { Material, PeriProductId } from '../core/types';
 import { materialPreset } from './materials';
+import { FLEX, LATTICE_TYPES, latticeEquivalent, type LatticeId } from './lattice';
 
 const kN = 1e3;
 const kNm = 1e3;
@@ -69,18 +70,24 @@ export interface GirderData {
   minEdge: number;
 }
 
-export type PeriCheckData = { method: 'design'; regions: PeriRegion[]; ec3?: Ec3Rail } | ({ method: 'girder' } & GirderData);
+export type PeriCheckData =
+  | { method: 'design'; regions: PeriRegion[]; ec3?: Ec3Rail }
+  | ({ method: 'girder' } & GirderData)
+  /** lattice girder: member model (core/lattice.ts) */
+  | { method: 'lattice' };
 
 /** Cross-section geometry for the sketch / 3D view (mm) */
 export type PeriShape =
   | { type: 'girder'; h: number; b: number; tf: number; tw: number }
-  | { type: 'doubleU'; h: number; bU: number; tw: number; tf: number; gap: number };
+  | { type: 'doubleU'; h: number; bU: number; tw: number; tf: number; gap: number }
+  /** lattice girder: two chords (tubes Ø d or rectangles d × w) at the system height h */
+  | { type: 'lattice'; h: number; d: number; w: number };
 
 export interface PeriProduct {
   id: PeriProductId;
   name: string;
   /** material preset applied when the product is chosen */
-  material: 'C24' | 'S235' | 'S355';
+  material: 'C24' | 'S235' | 'S355' | 'AW6060';
   /** cm², cm⁴ */
   A: number;
   Iy: number;
@@ -181,7 +188,40 @@ export const PERI_PRODUCTS: PeriProduct[] = [
     lengths: [1.48, 2.48, 2.98, 3.48, 3.98, 4.98, 7.48, 9.98],
     source: 'PERI Beam proofs RCS (ST_kls_2016-00106): EN 1993-1-1 6.2.10, Nettoquerschnitt, γM1 = 1,1',
   },
+  ...(['ULA50HD', 'ULA70HD', 'ULS50', 'ULS70', 'ULSFLEX'] as LatticeId[]).map(latticeProduct),
 ];
+
+function latticeProduct(id: LatticeId): PeriProduct {
+  const eq = latticeEquivalent(id);
+  if (id === 'ULSFLEX')
+    return {
+      id,
+      name: 'PERI ULS Flex',
+      material: 'S355',
+      A: eq.A / cm2,
+      Iy: eq.I / cm4,
+      mass: 12.5,
+      shape: { type: 'lattice', h: FLEX.h / mm + 60, d: 60, w: 30 },
+      check: { method: 'lattice' },
+      // 50 + elements 100 / 125 / 150 + 50: 3.00 … 9.00 m in 0.25 m steps
+      lengths: range(3, 9, 0.25),
+      source: 'DIBt Z-8.22-863, Anlage B, S. 154–158 (ULS Flex); PERI Tabellenbuch PERI UP 05/2021, S. 54–63',
+    };
+  const t = LATTICE_TYPES[id];
+  const alu = id.startsWith('ULA');
+  return {
+    id,
+    name: `PERI ${t.name}`,
+    material: alu ? 'AW6060' : 'S235',
+    A: eq.A / cm2,
+    Iy: eq.I / cm4,
+    mass: Math.round((t.weights[0][1] / t.weights[0][0]) * 100) / 100,
+    shape: { type: 'lattice', h: t.h / mm + 48.3, d: 48.3, w: 48.3 },
+    check: { method: 'lattice' },
+    lengths: t.weights.map((w) => w[0]),
+    source: `DIBt Z-8.1-865, Anlage A, S. ${{ ULS50: 45, ULS70: 46, ULA50HD: 47, ULA70HD: 48 }[id]}; PERI Tabellenbuch PERI UP 05/2021, S. 50–51`,
+  };
+}
 
 export const PERI_IDS: PeriProductId[] = PERI_PRODUCTS.map((p) => p.id);
 
@@ -190,12 +230,16 @@ export function findPeriProduct(id: PeriProductId): PeriProduct | undefined {
 }
 
 export function periMaterial(id: PeriProductId): Material {
-  return materialPreset(findPeriProduct(id)?.material ?? 'S235');
+  const m = materialPreset(findPeriProduct(id)?.material ?? 'S235');
+  // ULA HD: EN AW-6082 T5 (f_0 = 230 N/mm²); member design in core/lattice.ts
+  if (id === 'ULA50HD' || id === 'ULA70HD') return { ...m, preset: 'custom', fk: 230e6, fvk: Math.round((230 / Math.sqrt(3)) * 100) * 1e4 };
+  return m;
 }
 
 /** Overall dimensions in m */
 export function periDims(p: PeriProduct): { h: number; b: number } {
   const s = p.shape;
+  if (s.type === 'lattice') return { h: s.h * mm, b: s.w * mm };
   return s.type === 'girder' ? { h: s.h * mm, b: s.b * mm } : { h: s.h * mm, b: (2 * s.bU + s.gap) * mm };
 }
 
@@ -206,6 +250,14 @@ export function periSI(p: PeriProduct): { A: number; I: number } {
 /** Outline polygons in m, origin top-left (one or two solid parts) */
 export function periOutline(p: PeriProduct): [number, number][][] {
   const s = p.shape;
+  if (s.type === 'lattice') {
+    // two chords (drawn as rectangles d × w)
+    const d = s.d * mm;
+    const w = s.w * mm;
+    const h = s.h * mm;
+    const rect = (y: number): [number, number][] => [[0, y], [w, y], [w, y + d], [0, y + d]];
+    return [rect(0), rect(h - d)];
+  }
   if (s.type === 'girder') {
     const h = s.h * mm;
     const b = s.b * mm;

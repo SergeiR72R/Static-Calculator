@@ -371,13 +371,13 @@ export function Schematic({ sx }: { sx: XScale }) {
   const nRows = Math.max(0, ...reactionRows.map((r) => r.row + r.lines.length));
   const reactY = supY + 84 + (lm ? 12 : 0);
   const H = supY + 86 + (lm ? 12 : 0) + (nRows ? nRows * 12 + 8 : 0);
-  // candidate standards (click toggles a support): ULA / ULS every 0.5 m from the system points, ULS Flex at the standards and connectors
+  // candidate standards (click toggles a support): ULA / ULS every 0.25 m (system grid) from the system points, ULS Flex at the standards and connectors
   const candidates = useMemo(() => {
     if (!lm || !lat) return [];
     if (lat.id === 'ULSFLEX') return [0, ...lm.members.filter((m) => m.role === 'conn').map((m) => lm.nodes[m.i].x), model.L];
     const o = LATTICE_TYPES[lat.id].overhang;
     const Ls = Math.round(systemLength(lat.id, model.L));
-    return Array.from({ length: 2 * Ls + 1 }, (_, k) => Math.round((o + k / 2) * 1e6) / 1e6);
+    return Array.from({ length: 4 * Ls + 1 }, (_, k) => Math.round((o + k / 4) * 1e6) / 1e6);
   }, [lm, lat, model.L]);
   const update = useStore((s) => s.update);
   const toggleSupport = (x: number) =>

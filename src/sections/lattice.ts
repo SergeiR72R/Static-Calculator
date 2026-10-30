@@ -102,6 +102,9 @@ export interface MemberSection {
   aw: number;
   tube: boolean;
   mat: LatticeMaterial;
+  /** outer dimensions for drawings, m: tube Ø D (h = b = D), RHS h (in plane) × b */
+  h: number;
+  b: number;
 }
 
 export function chs(D: number, t: number, mat: LatticeMaterial): MemberSection {
@@ -119,6 +122,8 @@ export function chs(D: number, t: number, mat: LatticeMaterial): MemberSection {
     aw: 0,
     tube: true,
     mat,
+    h: D * mm,
+    b: D * mm,
   };
 }
 
@@ -140,6 +145,8 @@ export function rhs(h: number, b: number, t: number, mat: LatticeMaterial): Memb
     aw: Math.min(0.5, (A - 2 * b * t * mm * mm) / A),
     tube: false,
     mat,
+    h: h * mm,
+    b: b * mm,
   };
 }
 

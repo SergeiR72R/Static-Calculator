@@ -1,11 +1,13 @@
 /** Heat map colour scales and helpers of the 3D view (no three.js dependency, statically importable). */
 
-export type HeatField = 'sigma' | 'eta' | 'M' | 'V' | 'w';
+export type HeatField = 'sigma' | 'eta' | 'M' | 'V' | 'w' | 'N';
 export const HEAT_FIELDS: HeatField[] = ['sigma', 'eta', 'M', 'V', 'w'];
+/** lattice girders: axial force, stress and utilisation per member */
+export const LATTICE_HEAT_FIELDS: HeatField[] = ['N', 'sigma', 'eta'];
 
 /** diverging fields are coloured symmetric around 0 (blue = negative / compression, red = positive / tension) */
 export function isDiverging(f: HeatField): boolean {
-  return f === 'sigma' || f === 'M' || f === 'V';
+  return f === 'sigma' || f === 'M' || f === 'V' || f === 'N';
 }
 
 type RGB = [number, number, number];

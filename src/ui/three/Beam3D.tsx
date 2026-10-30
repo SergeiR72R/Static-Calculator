@@ -6,6 +6,9 @@ import { designStrength } from '../../sections/materials';
 import { useStore } from '../../state/store';
 import { useFmt, useResults } from '../hooks';
 import { buildBeamMesh, fieldValue, type HeatField } from './beamMesh';
+import { buildLatticeGroup } from './latticeMesh';
+import { analyzeLattice, latticeOf, latticeView } from '../../core/lattice';
+import { MEMBER_SAMPLES } from '../../core/frame2d';
 
 export interface Beam3DProps {
   field: HeatField;
@@ -23,6 +26,8 @@ interface Scene {
   controls: OrbitControls;
   beam: THREE.Mesh | null;
   extras: THREE.Group;
+  /** lattice members for picking */
+  pick: THREE.Object3D[];
   cursor: THREE.Mesh;
   render: () => void;
 }
@@ -30,7 +35,8 @@ interface Scene {
 /** Interactive 3D view of the beam with a heat map (three.js, loaded on demand). */
 export default function Beam3D({ field, sectionScale, deformed, resetKey, onRange }: Beam3DProps) {
   const fmt = useFmt();
-  const { an, vr } = useResults();
+  const { an, vr, checks } = useResults();
+  const view = useStore((s) => s.view);
   const theme = useStore((s) => s.theme);
   const cursorX = useStore((s) => s.cursorX);
   const setCursor = useStore((s) => s.setCursor);
@@ -39,7 +45,57 @@ export default function Beam3D({ field, sectionScale, deformed, resetKey, onRang
   const [failed, setFailed] = useState(false);
   const [tip, setTip] = useState<{ x: number; y: number; text: string } | null>(null);
 
-  const mesh = useMemo(() => (an.ok && vr ? buildBeamMesh(an, vr, { field, sectionScale, deformed }) : null), [an, vr, field, sectionScale, deformed]);
+  // lattice girder: member values of the displayed result (N, σ) or the utilisation η
+  const lat = useMemo(() => {
+    if (!an.ok || !latticeOf(an.model)) return null;
+    const la = analyzeLattice(an);
+    if (!la || la.error) return null;
+    const r = latticeView(an, la, view);
+    if (!r) return null;
+    const S = MEMBER_SAMPLES;
+    const etas = checks?.peri.find((p) => p.method === 'lattice')?.lattice?.members.map((m) => m.eta) ?? [];
+    const N = la.model.members.map((_, k) => (Math.abs(r.Nmax[k]) >= Math.abs(r.Nmin[k]) ? r.Nmax[k] : r.Nmin[k]));
+    const sig = la.model.members.map((m, k) => {
+      let best = 0;
+      for (let s = 0; s < S; s++)
+        for (const n of [r.Nmax[k], r.Nmin[k]])
+          for (const M of [r.Mmax[k * S + s], r.Mmin[k * S + s]])
+            for (const sg of [1, -1]) {
+              const v = n / m.sec.A + (sg * Math.abs(M)) / m.sec.Wel;
+              if (Math.abs(v) > Math.abs(best)) best = v;
+            }
+      return best;
+    });
+    const values = field === 'eta' ? etas : field === 'sigma' ? sig : N;
+    const m = Math.max(1e-9, ...values.map(Math.abs));
+    const range = field === 'eta' ? { min: 0, max: Math.max(1, m), diverging: false } : { min: -m, max: m, diverging: true };
+    return { la, values, range, N, etas };
+  }, [an, view, checks, field]);
+
+  const mesh = useMemo(() => (an.ok && vr && !lat ? buildBeamMesh(an, vr, { field, sectionScale, deformed }) : null), [an, vr, field, sectionScale, deformed, lat]);
+
+  // lattice girder instead of the beam
+  useEffect(() => {
+    const s = sc.current;
+    if (!s || !lat) return;
+    if (s.beam) {
+      s.scene.remove(s.beam);
+      s.beam.geometry.dispose();
+      s.beam = null;
+    }
+    s.extras.clear();
+    const lm = lat.la.model;
+    const { group, pick } = buildLatticeGroup(lm, { values: lat.values, range: lat.range, scale: sectionScale, supports: lat.la.supports.map((p) => p.x) });
+    s.extras.add(group);
+    s.pick = pick;
+    onRange(lat.range);
+    const L = an.model.L;
+    const grid = new THREE.GridHelper(L * 1.3, 26, theme === 'dark' ? 0x334155 : 0xcbd5e1, theme === 'dark' ? 0x1e293b : 0xe2e8f0);
+    grid.position.set(L / 2, -lm.h / 2 - 0.62, 0);
+    s.extras.add(grid);
+    s.cursor.scale.set(0.4, lm.h * 1.6, 1);
+    s.render();
+  }, [lat, an, theme, onRange, sectionScale]);
 
   // create renderer once
   useEffect(() => {
@@ -77,7 +133,7 @@ export default function Beam3D({ field, sectionScale, deformed, resetKey, onRang
     scene.add(cursor);
     const render = () => renderer.render(scene, camera);
     controls.addEventListener('change', render);
-    sc.current = { renderer, scene, camera, controls, beam: null, extras, cursor, render };
+    sc.current = { renderer, scene, camera, controls, beam: null, extras, pick: [], cursor, render };
     const ro = new ResizeObserver(() => {
       const w = el.clientWidth;
       const h = el.clientHeight;
@@ -101,6 +157,7 @@ export default function Beam3D({ field, sectionScale, deformed, resetKey, onRang
   useEffect(() => {
     const s = sc.current;
     if (!s || !mesh) return;
+    s.pick = [];
     if (s.beam) {
       s.scene.remove(s.beam);
       s.beam.geometry.dispose();
@@ -185,11 +242,28 @@ export default function Beam3D({ field, sectionScale, deformed, resetKey, onRang
 
   const onMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const s = sc.current;
-    if (!s || !s.beam || !vr || !mesh || e.buttons) return;
+    if (!s || e.buttons) return;
     const r = s.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     const ray = new THREE.Raycaster();
     ray.setFromCamera(ndc, s.camera);
+    if (lat) {
+      const hit = ray.intersectObjects(s.pick)[0];
+      if (!hit) {
+        setTip(null);
+        return;
+      }
+      const k = hit.object.userData.member as number;
+      const m = lat.la.model.members[k];
+      setCursor(Math.min(Math.max(hit.point.x, 0), an.model.L));
+      setTip({
+        x: e.clientX - r.left,
+        y: e.clientY - r.top,
+        text: `${fmt.t(`kpi.lattice.${m.role}`)} ${m.sec.name} · N = ${fmt.q(lat.N[k], 'force')}${lat.etas[k] !== undefined ? ` · η = ${fmt.num(lat.etas[k] * 100, 1)} %` : ''}`,
+      });
+      return;
+    }
+    if (!s.beam || !vr || !mesh) return;
     const hit = ray.intersectObject(s.beam)[0];
     if (!hit) {
       setTip(null);

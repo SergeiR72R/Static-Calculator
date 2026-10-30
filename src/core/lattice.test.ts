@@ -3,7 +3,7 @@ import { emptyLoad, frameSolver, MEMBER_SAMPLES } from './frame2d';
 import { testModel } from './testutil';
 import { pointLoad, udl } from './defaults';
 import { analyze } from './analysis';
-import { analyzeLattice, latticeEnvelope } from './lattice';
+import { analyzeLattice, latticeEnvelope, latticeView } from './lattice';
 import { runChecks } from './checks';
 import { computeView } from './results';
 import { periMaterial } from '../sections/peri';
@@ -167,5 +167,21 @@ describe('lattice checks in runChecks', () => {
     const c = runChecks(an, computeView(an, { type: 'envelope' })!)!;
     const nUls = m.combinations.filter((k) => k.type === 'ULS').length;
     expect(c.peri[0].lattice!.variants).toBe(4 * nUls);
+  });
+});
+
+describe('member forces for the displayed result', () => {
+  it('load case: single values; envelope: max ≥ min, reactions balance the load', () => {
+    const m = girder('ULS50', 4.25, [0.125, 4.125], [pointLoad('Q', 2.125, 10)]);
+    m.settings.selfWeight = false;
+    const an = analyze(m);
+    const la = analyzeLattice(an)!;
+    const c = latticeView(an, la, { type: 'case', id: 'Q' })!;
+    expect(c.kind).toBe('single');
+    let Rz = 0;
+    for (let i = 1; i < c.Rmax.length; i += 3) Rz += c.Rmax[i];
+    expect(Rz).toBeCloseTo(10 * kN, 3);
+    const e = latticeView(an, la, { type: 'envelope' })!;
+    for (let k = 0; k < e.Nmax.length; k++) expect(e.Nmax[k]).toBeGreaterThanOrEqual(e.Nmin[k]);
   });
 });

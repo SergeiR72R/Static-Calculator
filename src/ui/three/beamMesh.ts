@@ -114,6 +114,8 @@ export function fieldValue(field: HeatField, N: number, V: number, M: number, w:
       return V;
     case 'w':
       return Math.abs(w);
+    case 'N':
+      return N;
   }
 }
 

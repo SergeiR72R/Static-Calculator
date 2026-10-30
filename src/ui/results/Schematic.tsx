@@ -9,6 +9,9 @@ import { cx } from '../common';
 import { isCompressionOnly, upliftTolerance, type Checks } from '../../core/checks';
 import { displayReaction, type ViewResult } from '../../core/results';
 import type { Quantity } from '../../units/units';
+import { latticeOf } from '../../core/lattice';
+import { LATTICE_TYPES, latticeModel, systemLength } from '../../sections/lattice';
+import { makeSupport } from '../../core/defaults';
 
 const LEVEL_H = 30;
 
@@ -357,10 +360,35 @@ export function Schematic({ sx }: { sx: XScale }) {
   const maxStack = Math.max(0, ...[...pointStack.values()].map((v) => v.stack));
   const topArea = Math.max(hasPoint ? 64 + maxStack * 12 : 30, nLevels * LEVEL_H + 26);
   const beamY = topArea + 8;
+  // lattice girder: drawn as framework (top chord at beamY), supports below the bottom chord
+  const lat = latticeOf(model);
+  const supXs = model.supports.map((s) => s.x).join('|');
+  const lm = useMemo(() => (lat ? latticeModel(lat.id, model.L, lat.cfg, supXs ? supXs.split('|').map(Number) : []) : null), [lat?.id, lat?.cfg, model.L, supXs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pxPerM0 = (sx.px(model.L) - sx.px(0)) / Math.max(model.L, 1e-9);
+  const tH = lm ? Math.min(60, Math.max(26, lm.h * pxPerM0)) : 0;
+  const supY = beamY + tH;
   const reactionRows = vr ? reactionLabels(model, vr, sx, fmt, checks) : [];
   const nRows = Math.max(0, ...reactionRows.map((r) => r.row + r.lines.length));
-  const reactY = beamY + 84;
-  const H = beamY + 86 + (nRows ? nRows * 12 + 8 : 0);
+  const reactY = supY + 84 + (lm ? 12 : 0);
+  const H = supY + 86 + (lm ? 12 : 0) + (nRows ? nRows * 12 + 8 : 0);
+  // candidate standards (click toggles a support): ULA / ULS every 0.5 m from the system points, ULS Flex at the standards and connectors
+  const candidates = useMemo(() => {
+    if (!lm || !lat) return [];
+    if (lat.id === 'ULSFLEX') return [0, ...lm.members.filter((m) => m.role === 'conn').map((m) => lm.nodes[m.i].x), model.L];
+    const o = LATTICE_TYPES[lat.id].overhang;
+    const Ls = Math.round(systemLength(lat.id, model.L));
+    return Array.from({ length: 2 * Ls + 1 }, (_, k) => Math.round((o + k / 2) * 1e6) / 1e6);
+  }, [lm, lat, model.L]);
+  const update = useStore((s) => s.update);
+  const toggleSupport = (x: number) =>
+    update((m) => {
+      const i = m.supports.findIndex((s) => Math.abs(s.x - x) < 1e-6);
+      if (i >= 0) m.supports.splice(i, 1);
+      else {
+        m.supports.push(makeSupport(m.supports.some((s) => s.type === 'pinned' || s.type === 'fixed') ? 'roller' : 'pinned', x));
+        m.supports.sort((a, b) => a.x - b.x);
+      }
+    });
   const qmax = Math.max(1e-9, ...model.loads.map((l) => (l.kind === 'dist' ? Math.max(Math.abs(l.q1), Math.abs(l.q2)) : 0)));
 
   const pts = useMemo(() => {
@@ -508,8 +536,54 @@ export function Schematic({ sx }: { sx: XScale }) {
             );
           })}
 
+        {/* lattice girder */}
+        {lm && (
+          <g data-testid="schematic-lattice" pointerEvents="none">
+            {lm.members.map((m, k) => {
+              const a = lm.nodes[m.i];
+              const b = lm.nodes[m.j];
+              const chord = m.role === 'top' || m.role === 'bottom';
+              const Y = (z: number) => beamY + ((lm.h - z) / lm.h) * tH;
+              return (
+                <line key={k} x1={sx.px(a.x)} y1={Y(a.z)} x2={sx.px(b.x)} y2={Y(b.z)} stroke="var(--beam)" strokeWidth={chord ? 2.6 : 1.2} strokeLinecap="round" />
+              );
+            })}
+          </g>
+        )}
+        {/* candidate standards of the lattice girder */}
+        {lm &&
+          candidates.map((x) => {
+            const on = model.supports.some((s) => Math.abs(s.x - x) < 1e-6);
+            return (
+              <g
+                key={`cand${x}`}
+                role="button"
+                tabIndex={0}
+                data-testid={`lattice-cand-${x}`}
+                aria-label={`${fmt.t(on ? 'schematic.standardRemove' : 'schematic.standardAdd')} x = ${fmt.q(x, 'length')}`}
+                style={{ cursor: 'pointer' }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => toggleSupport(x)}
+                onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && toggleSupport(x)}
+              >
+                <title>{`${fmt.t(on ? 'schematic.standardRemove' : 'schematic.standardAdd')} (x = ${fmt.q(x, 'length')})`}</title>
+                <rect x={sx.px(x) - 7} y={beamY - 14} width={14} height={tH + 28} fill="transparent" />
+                {on ? (
+                  <>
+                    <line x1={sx.px(x)} x2={sx.px(x)} y1={beamY - 12} y2={supY + 2} stroke="var(--muted)" strokeWidth={5} strokeOpacity={0.4} />
+                    {[beamY, supY].map((y) => (
+                      <rect key={y} x={sx.px(x) - 4} y={y - 4} width={8} height={8} rx={1.5} fill={lat?.id === 'ULSFLEX' ? '#0ea5e9' : '#f59e0b'} stroke="#334155" strokeWidth={0.7} />
+                    ))}
+                  </>
+                ) : (
+                  <circle cx={sx.px(x)} cy={supY + 9} r={3.2} fill="var(--surface)" stroke="var(--muted)" strokeWidth={1} strokeDasharray="2 1.5" />
+                )}
+              </g>
+            );
+          })}
+
         {/* beam */}
-        {[...model.segments]
+        {!lm && [...model.segments]
           .sort((a, b) => a.x1 - b.x1)
           .map((s, i) => (
             <g key={s.id}>
@@ -537,8 +611,8 @@ export function Schematic({ sx }: { sx: XScale }) {
             className={cx(isSel('support', s.id) && 'drop-shadow-[0_0_3px_var(--cursor)]')}
             {...hitProps({ kind: 'support', id: s.id }, s.x)}
           >
-            <rect x={sx.px(s.x) - 14} y={beamY - 4} width={28} height={30} fill="transparent" />
-            <SupportSymbol s={s} x={sx.px(s.x)} y={beamY} L={model.L} />
+            <rect x={sx.px(s.x) - 14} y={supY - 4} width={28} height={30} fill="transparent" />
+            <SupportSymbol s={s} x={sx.px(s.x)} y={supY + (lm ? 4 : 0)} L={model.L} />
           </g>
         ))}
 
@@ -587,9 +661,9 @@ export function Schematic({ sx }: { sx: XScale }) {
 
         {/* dimension chain */}
         <g stroke="var(--muted)" strokeWidth={0.8}>
-          <line x1={sx.px(0)} x2={sx.px(model.L)} y1={beamY + 44} y2={beamY + 44} />
+          <line x1={sx.px(0)} x2={sx.px(model.L)} y1={supY + 44} y2={supY + 44} />
           {pts.map((x) => (
-            <line key={x} x1={sx.px(x)} x2={sx.px(x)} y1={beamY + 39} y2={beamY + 49} />
+            <line key={x} x1={sx.px(x)} x2={sx.px(x)} y1={supY + 39} y2={supY + 49} />
           ))}
         </g>
         {pts.slice(1).map((x, i) => {
@@ -597,12 +671,12 @@ export function Schematic({ sx }: { sx: XScale }) {
           const w = sx.px(x) - sx.px(a);
           if (w < 26) return null;
           return (
-            <text key={x} x={(sx.px(a) + sx.px(x)) / 2} y={beamY + 41} fontSize="10" textAnchor="middle" className="svg-text num" style={{ fill: 'var(--muted)' }}>
+            <text key={x} x={(sx.px(a) + sx.px(x)) / 2} y={supY + 41} fontSize="10" textAnchor="middle" className="svg-text num" style={{ fill: 'var(--muted)' }}>
               {fmt.num(fmt.val(x - a, 'length'), w < 50 ? 1 : 2)}
             </text>
           );
         })}
-        <text x={(sx.px(0) + sx.px(model.L)) / 2} y={beamY + 64} fontSize="11" textAnchor="middle" className="svg-text num">
+        <text x={(sx.px(0) + sx.px(model.L)) / 2} y={supY + 64} fontSize="11" textAnchor="middle" className="svg-text num">
           L = {fmt.q(model.L, 'length')}
         </text>
         {/* support reactions (global axes: R_z ↓ +) */}

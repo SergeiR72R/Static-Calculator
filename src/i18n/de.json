@@ -248,7 +248,10 @@
   "schematic": {
     "label": "Statisches System",
     "deformed": "Biegelinie, überhöht ×{f}",
-    "uplift": "⚠ hebt ab – Lager versagt"
+    "uplift": "⚠ hebt ab – Lager versagt",
+    "standardAdd": "Ständer (Auflager) hier anordnen",
+    "standardRemove": "Ständer (Auflager) entfernen",
+    "standardHint": "Gitterträger: Kreise unter dem Untergurt anklicken, um Ständer mit Kupplungen (ULA / ULS) bzw. Auflager an Ständern und Verbindern (ULS Flex) zu setzen oder zu entfernen."
   },
   "diag": {
     "N": "Normalkraft",
@@ -568,7 +571,13 @@
       "w": "Betrag der Durchbiegung entlang der Achse."
     },
     "scaleNote": "Querschnitt zur Darstellung ×{s} überhöht.",
-    "controls": "Ziehen = drehen, Rad = zoomen, rechte Maustaste = verschieben."
+    "controls": "Ziehen = drehen, Rad = zoomen, rechte Maustaste = verschieben.",
+    "latticeFields": {
+      "N": "Normalkraft N je Stab",
+      "sigma": "Randspannung σ = N/A ± M/W je Stab",
+      "eta": "Ausnutzung η je Stab (alle GZT-Kombinationen)"
+    },
+    "latticeHint": "Gitterträger als Stabwerk: rot = Zug, blau = Druck (bei η: rot = hohe Ausnutzung); graue Gerüstständer mit Kupplungen bzw. Riegelköpfen an den Auflagern."
   },
   "import": {
     "title": "Trägerliste importieren",
@@ -648,5 +657,21 @@
     "save": "Alle {n} Träger als ein Projekt speichern",
     "saveHint": "Eine JSON-Datei mit allen Trägern, Prüfstatus und Abbildungen – über Datei → Projekt öffnen wieder laden.",
     "rename": "Projektname der Trägerliste"
+  },
+  "lattice": {
+    "title": "Stabwerk",
+    "field": "Darstellung",
+    "fields": {
+      "N": "N",
+      "M": "M",
+      "sigma": "σ",
+      "eta": "η"
+    },
+    "hint": "Maus über einen Stab: Querschnitt, Schnittgrößen, Ausnutzung.",
+    "legendN": "Rot = Zug, blau = Druck; Umhüllende: max durchgezogen, min gestrichelt. Reaktionen R_z in globalen Achsen (↓ +).",
+    "legendM": "Biegemomente der Gurte und Pfosten (Füllstäbe gelenkig: M = 0). Reaktionen R_z in globalen Achsen (↓ +).",
+    "legendEta": "Ausnutzung η aller GZT-Kombinationen: grün ≤ 70 %, gelb ≤ 90 %, orange ≤ 100 %, rot > 100 %.",
+    "legendCoupler": "Grau: Gerüstständer am Auflager, orange: Kupplungen an Ober- und Untergurt.",
+    "legendHead": "Grau: Gerüstständer am Auflager, blau: Riegelköpfe UH Plus an den Rosetten; ▲ Verbinder ULS Flex."
   }
 }

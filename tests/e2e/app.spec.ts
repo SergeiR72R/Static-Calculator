@@ -283,5 +283,13 @@ test('PERI lattice girders: member model check with diagram, ULS Flex elements',
   await expect(page.getByTestId('flex-elements')).toBeVisible();
   await page.getByTestId('flex-add').click();
   await expect(page.getByTestId('check-peri-ULSFLEX').getByTestId('peri-item-conn')).toBeVisible();
-  await page.screenshot({ path: 'test-results/lattice.png', fullPage: true });
+  // standards: click a candidate point below the bottom chord → support added
+  const before = await page.locator('[data-testid^="glyph-support-"]').count();
+  await page.locator('[data-testid^="lattice-cand-"]').nth(1).click();
+  await expect(page.locator('[data-testid^="glyph-support-"]')).toHaveCount(before + 1);
+  await expect(page.getByTestId('lattice-2d')).toBeVisible();
+  await page.getByTestId('lattice-card').screenshot({ path: 'test-results/lattice-N.png' });
+  await page.getByTestId('lattice-field-M').click();
+  await page.getByTestId('lattice-card').screenshot({ path: 'test-results/lattice-M.png' });
+  await page.getByTestId('schematic').screenshot({ path: 'test-results/lattice-schematic.png' });
 });

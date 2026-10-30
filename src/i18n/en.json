@@ -248,7 +248,10 @@
   "schematic": {
     "label": "Structural system",
     "deformed": "deflected shape, magnified ×{f}",
-    "uplift": "⚠ lifts off – support fails"
+    "uplift": "⚠ lifts off – support fails",
+    "standardAdd": "Place a standard (support) here",
+    "standardRemove": "Remove the standard (support)",
+    "standardHint": "Lattice girder: click the circles below the bottom chord to place or remove standards with couplers (ULA / ULS) or supports at standards and connectors (ULS Flex)."
   },
   "diag": {
     "N": "Axial force",
@@ -568,7 +571,13 @@
       "w": "Magnitude of the deflection along the axis."
     },
     "scaleNote": "Section exaggerated ×{s} for display.",
-    "controls": "Drag = rotate, wheel = zoom, right mouse button = pan."
+    "controls": "Drag = rotate, wheel = zoom, right mouse button = pan.",
+    "latticeFields": {
+      "N": "Axial force N per member",
+      "sigma": "Extreme fibre stress σ = N/A ± M/W per member",
+      "eta": "Utilisation η per member (all ULS combinations)"
+    },
+    "latticeHint": "Lattice girder as member model: red = tension, blue = compression (for η: red = high utilisation); grey scaffold standards with couplers or ledger heads at the supports."
   },
   "import": {
     "title": "Import beam list",
@@ -648,5 +657,21 @@
     "save": "Save all {n} beams as one project",
     "saveHint": "One JSON file with all beams, review status and drawings – load it again via File → Open project.",
     "rename": "Project name of the beam list"
+  },
+  "lattice": {
+    "title": "Member model",
+    "field": "Display",
+    "fields": {
+      "N": "N",
+      "M": "M",
+      "sigma": "σ",
+      "eta": "η"
+    },
+    "hint": "Hover a member: section, internal forces, utilisation.",
+    "legendN": "Red = tension, blue = compression; envelope: max solid, min dashed. Reactions R_z in global axes (↓ +).",
+    "legendM": "Bending moments of chords and posts (web members pin-ended: M = 0). Reactions R_z in global axes (↓ +).",
+    "legendEta": "Utilisation η of all ULS combinations: green ≤ 70 %, yellow ≤ 90 %, orange ≤ 100 %, red > 100 %.",
+    "legendCoupler": "Grey: scaffold standards at the supports, orange: couplers at the top and bottom chord.",
+    "legendHead": "Grey: scaffold standards at the supports, blue: ledger heads UH Plus at the rosettes; ▲ connectors ULS Flex."
   }
 }

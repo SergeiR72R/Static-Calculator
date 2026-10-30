@@ -197,6 +197,7 @@ function PeriFields({
         </label>
       )}
       {isLattice(def.product) && <LatticeFields def={def} setDef={setDef} L={L} onLength={onLength} />}
+      {isLattice(def.product) && <p className="text-[11px] text-sky-700 dark:text-sky-300">{fmt.t('schematic.standardHint')}</p>}
       {pr && (
         <p className="text-[11px] text-slate-500 dark:text-slate-400" data-testid="peri-info">
           {fmt.t(

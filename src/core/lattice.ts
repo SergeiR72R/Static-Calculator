@@ -571,3 +571,65 @@ export function latticeEnvelope(an: Analysis, la: LatticeAnalysis, uls: Combinat
 export function characteristicCombination(model: BeamModel): Combination {
   return { id: '__char', name: 'G + Q', type: 'SLS', factors: Object.fromEntries(model.loadCases.map((c) => [c.id, 1])), inEnvelope: false };
 }
+
+/** Member forces of the displayed result (load case, combination or envelope): max / min per value */
+export interface LatticeViewResult {
+  kind: 'single' | 'envelope';
+  Nmax: Float64Array;
+  Nmin: Float64Array;
+  /** M at the member samples (MEMBER_SAMPLES per member) */
+  Mmax: Float64Array;
+  Mmin: Float64Array;
+  /** support reactions (3 per node, global, z up) */
+  Rmax: Float64Array;
+  Rmin: Float64Array;
+  /** nodal displacements of one representative arrangement (single: exact) */
+  d: Float64Array;
+}
+
+function envelopeOf(rs: FrameResult[]): LatticeViewResult | null {
+  if (!rs.length) return null;
+  const f = rs[0];
+  const out: LatticeViewResult = {
+    kind: rs.length > 1 ? 'envelope' : 'single',
+    Nmax: Float64Array.from(f.N),
+    Nmin: Float64Array.from(f.N),
+    Mmax: Float64Array.from(f.M),
+    Mmin: Float64Array.from(f.M),
+    Rmax: Float64Array.from(f.R),
+    Rmin: Float64Array.from(f.R),
+    d: Float64Array.from(f.d),
+  };
+  let dmax = 0;
+  for (const r of rs) {
+    for (let i = 0; i < r.N.length; i++) {
+      out.Nmax[i] = Math.max(out.Nmax[i], r.N1[i], r.N2[i], r.N[i]);
+      out.Nmin[i] = Math.min(out.Nmin[i], r.N1[i], r.N2[i], r.N[i]);
+    }
+    for (let i = 0; i < r.M.length; i++) {
+      out.Mmax[i] = Math.max(out.Mmax[i], r.M[i]);
+      out.Mmin[i] = Math.min(out.Mmin[i], r.M[i]);
+    }
+    for (let i = 0; i < r.R.length; i++) {
+      out.Rmax[i] = Math.max(out.Rmax[i], r.R[i]);
+      out.Rmin[i] = Math.min(out.Rmin[i], r.R[i]);
+    }
+    let m = 0;
+    for (let i = 1; i < r.d.length; i += 3) m = Math.max(m, Math.abs(r.d[i]));
+    if (m > dmax) {
+      dmax = m;
+      out.d = Float64Array.from(r.d);
+    }
+  }
+  return out;
+}
+
+/** Results of the member model for a result view of the beam */
+export function latticeView(an: Analysis, la: LatticeAnalysis, view: { type: 'case' | 'combo' | 'envelope'; id?: Id }): LatticeViewResult | null {
+  if (view.type === 'case') {
+    const c = view.id ? la.cases.get(view.id) : undefined;
+    return c ? envelopeOf([c.full]) : null;
+  }
+  const combos = view.type === 'combo' ? an.model.combinations.filter((c) => c.id === view.id) : an.model.combinations.filter((c) => c.inEnvelope);
+  return envelopeOf(combos.flatMap((c) => combinationVariants(la, c.factors)));
+}

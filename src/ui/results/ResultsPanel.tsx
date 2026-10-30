@@ -8,6 +8,8 @@ import { CursorReadout, DiagramStack } from './Diagrams';
 import { ChecksCard, ExtremesCard, IssuesBox, ReactionsCard } from './Kpi';
 import { Schematic } from './Schematic';
 import { View3DCard } from './View3DCard';
+import { LatticeCard } from './LatticeCard';
+import { latticeOf } from '../../core/lattice';
 import { DrawingCard } from '../batch/DrawingCard';
 
 function viewKey(v: ResultView): string {
@@ -134,6 +136,7 @@ export function ResultsPanel() {
           </>
         )}
       </div>
+      {vr && width > 0 && latticeOf(model) && <LatticeCard sx={sx} />}
       {vr && (
         <div className="no-print">
           <View3DCard />

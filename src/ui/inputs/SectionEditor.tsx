@@ -41,6 +41,7 @@ export function SectionEditor({
   onMaterial,
   L,
   onLength,
+  onLatticeLayout,
 }: {
   def: SectionDef;
   onChange: (d: SectionDef) => void;
@@ -50,6 +51,8 @@ export function SectionEditor({
   /** current beam length and setter for the standard lengths of PERI components */
   L?: number;
   onLength?: (L: number) => void;
+  /** lattice girders: new length (elements chosen) or new ULS Flex elements (length follows) in one update */
+  onLatticeLayout?: (p: { L?: number; flex?: number[] }) => void;
 }) {
   const fmt = useFmt();
   const setDef = (d: SectionDef) => {
@@ -75,7 +78,7 @@ export function SectionEditor({
         options={KINDS.map((k) => ({ value: k, label: fmt.t(`section.kind.${k}`) }))}
         onChange={(k) => setDef(defaultSectionOfKind(k))}
       />
-      {def.kind === 'peri' && <PeriFields def={def} setDef={setDef} L={L} onLength={onLength} />}
+      {def.kind === 'peri' && <PeriFields def={def} setDef={setDef} L={L} onLength={onLength} onLatticeLayout={onLatticeLayout} />}
       {def.kind === 'catalog' && (
         <div className="grid grid-cols-2 gap-2">
           <SelectField
@@ -157,11 +160,13 @@ function PeriFields({
   setDef,
   L,
   onLength,
+  onLatticeLayout,
 }: {
   def: { kind: 'peri'; product: PeriProductId; atNode?: boolean; lattice?: LatticeConfig };
   setDef: (d: SectionDef) => void;
   L?: number;
   onLength?: (L: number) => void;
+  onLatticeLayout?: (p: { L?: number; flex?: number[] }) => void;
 }) {
   const fmt = useFmt();
   const pr = findPeriProduct(def.product);
@@ -175,7 +180,15 @@ function PeriFields({
           value={def.product}
           testId="peri-product"
           options={PERI_PRODUCTS.map((p) => ({ value: p.id, label: p.name }))}
-          onChange={(p: PeriProductId) => setDef({ kind: 'peri', product: p })}
+          onChange={(p: PeriProductId) => {
+            setDef({ kind: 'peri', product: p });
+            // lattice girders: nearest catalogue length (ULS Flex: with the elements)
+            const lens = findPeriProduct(p)?.lengths ?? [];
+            if (isLattice(p) && onLatticeLayout && lens.length && L !== undefined) {
+              const near = lens.reduce((a, b) => (Math.abs(b - L) < Math.abs(a - L) ? b : a));
+              onLatticeLayout({ L: near });
+            }
+          }}
         />
         {onLength && (
           <SelectField
@@ -186,7 +199,11 @@ function PeriFields({
               ...(cur === undefined ? [{ value: CUSTOM_LENGTH, label: `${fmt.t('section.periLengthCustom')} (${fmt.q(L ?? 0, 'length')})` }] : []),
               ...lengths.map((l) => ({ value: String(l), label: fmt.q(l, 'length') })),
             ]}
-            onChange={(v) => v !== CUSTOM_LENGTH && onLength(Number(v))}
+            onChange={(v) => {
+              if (v === CUSTOM_LENGTH) return;
+              if (isLattice(def.product) && onLatticeLayout) onLatticeLayout({ L: Number(v) });
+              else onLength(Number(v));
+            }}
           />
         )}
       </div>
@@ -196,7 +213,7 @@ function PeriFields({
           {fmt.t('section.periAtNode')}
         </label>
       )}
-      {isLattice(def.product) && <LatticeFields def={def} setDef={setDef} L={L} onLength={onLength} />}
+      {isLattice(def.product) && <LatticeFields def={def} setDef={setDef} L={L} onLatticeLayout={onLatticeLayout} />}
       {isLattice(def.product) && <p className="text-[11px] text-sky-700 dark:text-sky-300">{fmt.t('schematic.standardHint')}</p>}
       {pr && (
         <p className="text-[11px] text-slate-500 dark:text-slate-400" data-testid="peri-info">
@@ -223,22 +240,19 @@ function LatticeFields({
   def,
   setDef,
   L,
-  onLength,
+  onLatticeLayout,
 }: {
   def: { kind: 'peri'; product: PeriProductId; lattice?: LatticeConfig };
   setDef: (d: SectionDef) => void;
   L?: number;
-  onLength?: (L: number) => void;
+  onLatticeLayout?: (p: { L?: number; flex?: number[] }) => void;
 }) {
   const fmt = useFmt();
   const cfg = def.lattice ?? {};
   const set = (c: Partial<LatticeConfig>) => setDef({ ...def, lattice: { ...cfg, ...c } });
   if (def.product === 'ULSFLEX') {
     const el = flexElements(cfg, L ?? 3);
-    const apply = (e: number[]) => {
-      set({ flex: e });
-      onLength?.(flexLength(e));
-    };
+    const apply = (e: number[]) => (onLatticeLayout ? onLatticeLayout({ flex: e }) : set({ flex: e }));
     return (
       <div className="space-y-1" data-testid="flex-elements">
         <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{fmt.t('section.flexElements')}</div>

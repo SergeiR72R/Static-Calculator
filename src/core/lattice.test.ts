@@ -8,6 +8,7 @@ import { runChecks } from './checks';
 import { computeView } from './results';
 import { periMaterial } from '../sections/peri';
 import { defaultFlexElements, flexLength, latticeModel } from '../sections/lattice';
+import { applyLatticeLayout } from './latticeLayout';
 import type { Load, PeriProductId } from './types';
 
 const kN = 1e3;
@@ -183,5 +184,29 @@ describe('member forces for the displayed result', () => {
     expect(Rz).toBeCloseTo(10 * kN, 3);
     const e = latticeView(an, la, { type: 'envelope' })!;
     for (let k = 0; k < e.Nmax.length; k++) expect(e.Nmax[k]).toBeGreaterThanOrEqual(e.Nmin[k]);
+  });
+});
+
+describe('lattice layout', () => {
+  it('ULS Flex: catalogue length → elements; elements → length; supports follow ends and connectors', () => {
+    const m = girder('ULSFLEX', 3, [0, 3], [pointLoad('Q', 3, 5)], { flex: [1, 1] });
+    m.supports.push({ ...m.supports[1], id: 'c', x: 1.5 });
+    applyLatticeLayout(m, { L: 7.75 });
+    expect(m.L).toBe(7.75);
+    const s0 = m.segments[0].section;
+    expect(s0.kind === 'peri' && s0.lattice?.flex).toEqual(defaultFlexElements(7.75));
+    expect(m.supports.map((s) => s.x).sort((a, b) => a - b)).toEqual([0, 1.5, 7.75]);
+    expect(m.loads[0].kind === 'point' && m.loads[0].x).toBe(7.75);
+    applyLatticeLayout(m, { flex: [1.5, 1.5, 1.5] });
+    expect(m.L).toBe(5.5);
+    // support at the 2nd connector (1.5 m) moves to the 2nd connector of the new elements (2.0 m)
+    expect(m.supports.map((s) => s.x).sort((a, b) => a - b)).toEqual([0, 2, 5.5]);
+    expect(m.segments[0].x2).toBe(5.5);
+  });
+
+  it('ULA: catalogue length moves the support at the far system point', () => {
+    const m = girder('ULA50HD', 4.25, [0.125, 4.125], []);
+    applyLatticeLayout(m, { L: 6.25 });
+    expect(m.supports.map((s) => s.x)).toEqual([0.125, 6.125]);
   });
 });

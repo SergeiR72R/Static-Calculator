@@ -281,6 +281,14 @@ test('PERI lattice girders: member model check with diagram, ULS Flex elements',
   await expect(chk.getByTestId('peri-item-bearing').first()).toContainText('NK/NK');
   await page.getByTestId('peri-product').selectOption('ULSFLEX');
   await expect(page.getByTestId('flex-elements')).toBeVisible();
+  // catalogue length → elements chosen automatically (6.75 m = 50 + 4 × 125 + … → elements fit the length)
+  await page.getByTestId('peri-length').selectOption('7.75');
+  await expect(page.getByTestId('beam-length')).toHaveValue('7,75');
+  await expect(page.getByTestId('flex-elements')).toContainText('7,75 m');
+  // element changed by hand → length, drawing and supports follow
+  await page.getByTestId('flex-el-0').selectOption('1.5');
+  await expect(page.getByTestId('beam-length')).toHaveValue('8,25');
+  await expect(page.getByTestId('peri-length')).toHaveValue('8.25');
   await page.getByTestId('flex-add').click();
   await expect(page.getByTestId('check-peri-ULSFLEX').getByTestId('peri-item-conn')).toBeVisible();
   // standards: click a candidate point below the bottom chord → support added

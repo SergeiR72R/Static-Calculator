@@ -8,6 +8,8 @@ import { Button, Card, NumberField, TextField, cx } from '../common';
 import { useFmt } from '../hooks';
 import { IconChevronDown, IconChevronRight, IconPlus, IconTrash } from '../icons';
 import { MaterialEditor, SectionEditor, SectionSketch } from './SectionEditor';
+import { applyLatticeLayout } from '../../core/latticeLayout';
+import { defaultFlexElements, flexLength } from '../../sections/lattice';
 
 /** Change the beam length; items located at the old beam end follow the new end. */
 export function setBeamLength(m: BeamModel, L: number) {
@@ -62,7 +64,14 @@ export function BeamPanel() {
             q="length"
             path="L"
             testId="beam-length"
-            onChange={(v) => update((m) => setBeamLength(m, v), 'L')}
+            onChange={(v) =>
+              update((m) => {
+                // ULS Flex: a length that the elements can form → elements chosen with it
+                const s0 = m.segments[0]?.section;
+                if (s0?.kind === 'peri' && s0.product === 'ULSFLEX' && defaultFlexElements(v).length && Math.abs(flexLength(defaultFlexElements(v)) - v) < 1e-6) applyLatticeLayout(m, { L: v });
+                else setBeamLength(m, v);
+              }, 'L')
+            }
           />
           <TextField
             className="col-span-2"
@@ -186,6 +195,7 @@ export function BeamPanel() {
                       }
                       L={model.L}
                       onLength={(v) => update((m) => setBeamLength(m, v), 'L')}
+                      onLatticeLayout={(p) => update((m) => applyLatticeLayout(m, p))}
                     />
                     <SectionSketch def={s.section} rho={s.material.rho} />
                     <MaterialEditor

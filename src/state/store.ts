@@ -1,3 +1,4 @@
+import { enforcePeriMaterials } from '../sections/peri';
 import { create } from 'zustand';
 import type { BeamModel, Id } from '../core/types';
 import type { ResultView } from '../core/results';
@@ -241,8 +242,9 @@ export const useStore = create<AppState>()((set, get) => ({
   },
   update: (fn, coalesceKey) => {
     const s = get();
-    const draft = clone(s.model);
+    let draft = clone(s.model);
     fn(draft);
+    draft = enforcePeriMaterials(draft);
     const now = Date.now();
     const coalesce = coalesceKey && s.history.lastKey === coalesceKey && now - s.history.lastTime < 2000;
     const past = coalesce ? s.history.past : [...s.history.past, s.model].slice(-HISTORY_LIMIT);
@@ -252,8 +254,9 @@ export const useStore = create<AppState>()((set, get) => ({
       view: fixView(draft, s.view),
     });
   },
-  loadModel: (m) => {
+  loadModel: (m0) => {
     const s = get();
+    const m = enforcePeriMaterials(m0);
     set({
       model: m,
       history: { past: [...s.history.past, s.model].slice(-HISTORY_LIMIT), future: [], lastKey: null, lastTime: 0 },

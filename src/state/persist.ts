@@ -1,3 +1,4 @@
+import { enforcePeriMaterials } from '../sections/peri';
 import LZString from 'lz-string';
 import type { BeamModel, Combination } from '../core/types';
 import { MODEL_SCHEMA_VERSION } from '../core/types';
@@ -47,7 +48,7 @@ export function normalizeModel(raw: unknown): BeamModel {
   if (typeof m.schema === 'number' && m.schema > MODEL_SCHEMA_VERSION) throw new Error('file.newerSchema');
   if (typeof m.L !== 'number' || !Array.isArray(m.segments) || !Array.isArray(m.supports) || !Array.isArray(m.loads))
     throw new Error('file.invalid');
-  return {
+  return enforcePeriMaterials({
     schema: MODEL_SCHEMA_VERSION,
     name: typeof m.name === 'string' ? m.name : '',
     ...(typeof m.author === 'string' ? { author: m.author } : {}),
@@ -64,7 +65,7 @@ export function normalizeModel(raw: unknown): BeamModel {
     loadCases: Array.isArray(m.loadCases) && m.loadCases.length ? m.loadCases : defaultLoadCases(),
     combinations: Array.isArray(m.combinations) ? m.combinations.map(migrateCombination) : defaultCombinations(),
     settings: { ...DEFAULT_SETTINGS, ...(isObj(m.settings) ? m.settings : {}) },
-  };
+  });
 }
 
 export function parseProject(text: string): BeamModel {

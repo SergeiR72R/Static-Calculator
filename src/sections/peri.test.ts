@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PERI_PRODUCTS, findPeriProduct, periInteraction, periMaterial, rcsInteraction, rcsResistances } from './peri';
+import { PERI_PRODUCTS, enforcePeriMaterials, findPeriProduct, periInteraction, periMaterial, rcsInteraction, rcsResistances } from './peri';
 import { lineMass, sectionOutline, sectionProps } from './properties';
 import { testModel } from '../core/testutil';
 import { udl } from '../core/defaults';
@@ -175,5 +175,20 @@ describe('PERI components', () => {
     const int = p.items.find((i) => i.key === 'int')!;
     expect(int.eta).toBeGreaterThanOrEqual(M.eta - 1e-12);
     expect(int.parts!.terms.map((t) => t[0])).toEqual(['n–v', 'v–m', 'n–v–m']);
+  });
+});
+
+describe('PERI material', () => {
+  it('segments with PERI sections always get the PERI material', () => {
+    const m = testModel(3, [['pinned', 0], ['roller', 3]], [], {
+      edit: (mm) => {
+        mm.segments[0].section = { kind: 'peri', product: 'RCS' };
+        mm.segments[0].material = { ...periMaterial('RCS'), fk: 500e6, preset: 'custom' };
+      },
+    });
+    const f = enforcePeriMaterials(m);
+    expect(f.segments[0].material).toEqual(periMaterial('RCS'));
+    // ordinary sections unchanged
+    expect(enforcePeriMaterials(testModel(3, [], []))).toBeDefined();
   });
 });

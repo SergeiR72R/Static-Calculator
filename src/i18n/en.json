@@ -134,7 +134,8 @@
     },
     "fvk": "f_v,k (shear)",
     "gammaM": "γ_M",
-    "expressNote": "express check, not a code check"
+    "expressNote": "express check, not a code check",
+    "periLocked": "PERI component: material as specified by the manufacturer, cannot be changed (checks use the PERI values)."
   },
   "support": {
     "title": "Supports",

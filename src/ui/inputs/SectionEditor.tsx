@@ -120,8 +120,9 @@ export function SectionEditor({
   );
 }
 
-export function MaterialEditor({ m, onChange, base }: { m: Material; onChange: (m: Material) => void; base: string }) {
+export function MaterialEditor({ m, onChange, base, locked }: { m: Material; onChange: (m: Material) => void; base: string; locked?: boolean }) {
   const fmt = useFmt();
+  if (locked) return <LockedMaterial m={m} />;
   const custom = m.preset === 'custom';
   const timber = m.preset === 'C24' || (custom && m.kmod !== 1);
   return (
@@ -149,6 +150,28 @@ export function MaterialEditor({ m, onChange, base }: { m: Material; onChange: (
       <p className="text-[11px] text-slate-500 dark:text-slate-400">
         f_d = {timber ? 'k_mod·' : ''}f_k/γ_M = <span className="num">{fmt.q(designStrength(m), 'stress')}</span> — {fmt.t('material.expressNote')}
       </p>
+    </div>
+  );
+}
+
+/** PERI components: material of the manufacturer, shown read-only */
+function LockedMaterial({ m }: { m: Material }) {
+  const fmt = useFmt();
+  const name = m.preset === 'custom' ? (m.E < 1e11 ? 'EN AW-6082' : fmt.t('material.preset.custom')) : fmt.t(`material.preset.${m.preset}`);
+  return (
+    <div className="space-y-1 rounded border border-slate-200 bg-slate-50 p-2 text-xs dark:border-slate-700 dark:bg-slate-800/50" data-testid="material-locked">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium">
+          {fmt.t('material.label')}: <span data-testid="material-locked-name">{name}</span>
+        </span>
+        <span className="text-[11px] text-slate-500">🔒</span>
+      </div>
+      <div className="num grid grid-cols-3 gap-x-2 text-slate-600 dark:text-slate-300">
+        <span>E = {fmt.q(m.E, 'modulus')}</span>
+        <span>ρ = {fmt.q(m.rho, 'density')}</span>
+        <span>f = {fmt.q(m.fk, 'stress')}</span>
+      </div>
+      <p className="text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('material.periLocked')}</p>
     </div>
   );
 }

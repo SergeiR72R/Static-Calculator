@@ -134,7 +134,8 @@
     },
     "fvk": "f_v,k (Schub)",
     "gammaM": "γ_M",
-    "expressNote": "Expressnachweis, kein Nachweis nach Norm"
+    "expressNote": "Expressnachweis, kein Nachweis nach Norm",
+    "periLocked": "PERI-Bauteil: Material nach Herstellerangabe, nicht änderbar (Nachweise mit den PERI-Werten)."
   },
   "support": {
     "title": "Auflager",

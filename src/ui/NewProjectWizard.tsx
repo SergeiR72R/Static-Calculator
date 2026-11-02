@@ -243,7 +243,7 @@ function WizardDialog({ firstRun }: { firstRun: boolean }) {
                   <SectionEditor def={section} onChange={setSection} base="wizard.section" onMaterial={setMaterial} L={L} onLength={setL} />
                   <SectionSketch def={section} rho={material.rho} />
                 </div>
-                <MaterialEditor m={material} onChange={setMaterial} base="wizard.material" />
+                <MaterialEditor m={material} onChange={setMaterial} base="wizard.material" locked={section.kind === 'peri'} />
               </div>
             )}
 

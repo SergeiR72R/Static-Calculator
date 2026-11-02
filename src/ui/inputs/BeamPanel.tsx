@@ -201,6 +201,7 @@ export function BeamPanel() {
                     <MaterialEditor
                       m={s.material}
                       base={`${base}.material`}
+                      locked={s.section.kind === 'peri'}
                       onChange={(mat) =>
                         update((m) => {
                           const t = m.segments.find((x) => x.id === s.id);

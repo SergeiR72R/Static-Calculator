@@ -236,6 +236,15 @@ export function periMaterial(id: PeriProductId): Material {
   return m;
 }
 
+/** PERI components are made of one material: the segments of PERI sections always get it (not editable) */
+export function enforcePeriMaterials<T extends { segments: { section: { kind: string; product?: PeriProductId }; material: Material }[] }>(m: T): T {
+  if (!m.segments.some((s) => s.section.kind === 'peri')) return m;
+  return {
+    ...m,
+    segments: m.segments.map((s) => (s.section.kind === 'peri' && s.section.product ? { ...s, material: periMaterial(s.section.product) } : s)),
+  };
+}
+
 /** Overall dimensions in m */
 export function periDims(p: PeriProduct): { h: number; b: number } {
   const s = p.shape;

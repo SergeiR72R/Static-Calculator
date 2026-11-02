@@ -193,7 +193,9 @@ test('PERI component: product, catalogue length, material and PERI check', async
   await page.getByTestId('tab-beam').click();
   await page.getByTestId('section-kind').selectOption('peri');
   await expect(page.getByTestId('peri-product')).toHaveValue('GT24');
-  await expect(page.getByTestId('material-preset')).toHaveValue('C24');
+  // material of the PERI component: fixed, not editable
+  await expect(page.getByTestId('material-preset')).toHaveCount(0);
+  await expect(page.getByTestId('material-locked-name')).toContainText('C24');
   await expect(page.getByTestId('peri-info')).toContainText('M_Rd = 10,5 kNm');
   // 6,00 m is a GT 24 catalogue length; choose 2,40 m
   await page.getByTestId('peri-length').selectOption('2.4');
@@ -205,7 +207,7 @@ test('PERI component: product, catalogue length, material and PERI check', async
   await expect(chk.getByTestId('peri-item-edge').first()).toContainText('a_min = 0,16 m');
   await expect(page.getByTestId('check-strength')).toHaveCount(0);
   await page.getByTestId('peri-product').selectOption('RCS');
-  await expect(page.getByTestId('material-preset')).toHaveValue('S355');
+  await expect(page.getByTestId('material-locked-name')).toContainText('S355');
   // 2,40 m is no RCS catalogue length → "free"
   await expect(page.getByTestId('peri-length')).toHaveValue('custom');
   await expect(page.getByTestId('check-peri-RCS')).toContainText('M_Rd');

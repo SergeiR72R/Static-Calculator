@@ -1,5 +1,5 @@
 import type { CatalogFamily, CouplerConfig, LatticeConfig, Material, MaterialPreset, PeriProductId, SectionDef, SectionKind } from '../../core/types';
-import { DEFAULT_RESTRAINT, FLEX, flexElements, flexLength, isLattice } from '../../sections/lattice';
+import { COUPLER_K, DEFAULT_RESTRAINT, FLEX, flexElements, flexLength, isLattice } from '../../sections/lattice';
 import { CATALOG, CATALOG_FAMILIES } from '../../sections/catalog';
 import { sectionOutline, sectionProps, type SectionProps } from '../../sections/properties';
 import { MATERIAL_ORDER, designStrength, materialPreset } from '../../sections/materials';
@@ -329,6 +329,23 @@ function LatticeFields({
         options={COUPLERS.map((c) => ({ value: c, label: c }))}
         onChange={(c: CouplerConfig) => set({ couplers: c })}
       />
+      <NumberField
+        label={fmt.t('section.couplerKz')}
+        value={cfg.couplerKz ?? COUPLER_K.z}
+        q="springTrans"
+        path="lattice.couplerKz"
+        testId="lattice-coupler-kz"
+        onChange={(v) => set({ couplerKz: v })}
+      />
+      <NumberField
+        label={fmt.t('section.couplerKx')}
+        value={cfg.couplerKx ?? COUPLER_K.x}
+        q="springTrans"
+        path="lattice.couplerKx"
+        testId="lattice-coupler-kx"
+        onChange={(v) => set({ couplerKx: v })}
+      />
+      <p className="col-span-2 text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('section.couplerHint')}</p>
       <label className="col-span-2 flex items-center gap-1.5 text-xs" title={fmt.t('section.latticeEccentricHint')}>
         <input type="checkbox" checked={!!cfg.eccentric} onChange={(e) => set({ eccentric: e.target.checked })} data-testid="lattice-eccentric" />
         {fmt.t('section.latticeEccentric')}

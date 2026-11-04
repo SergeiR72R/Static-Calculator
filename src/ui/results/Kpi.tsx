@@ -231,7 +231,8 @@ function LatticeCheckItems({ c }: { c: PeriCheck }) {
         let label: string;
         let txt: string;
         if (it.key === 'bearing') {
-          label = `${fmt.t('kpi.lattice.bearing')} (${it.bearing === 'head' ? fmt.t('kpi.lattice.head') : `${fmt.t('kpi.lattice.couplers')} ${it.bearing}`}):`;
+          const ch = it.chord !== undefined ? `, ${fmt.t(it.chord === 1 ? 'kpi.lattice.top' : 'kpi.lattice.bottom')}` : '';
+          label = `${fmt.t('kpi.lattice.bearing')} (${it.bearing === 'head' ? fmt.t('kpi.lattice.head') : `${fmt.t('kpi.lattice.coupler')} ${it.bearing}`}${ch}):`;
           const sh = it.shares ? ` (${fmt.t('kpi.lattice.shares')} ${fmt.q(it.shares[0], 'force')} / ${fmt.q(it.shares[1], 'force')})` : '';
           txt = `x = ${fmt.q(it.x, 'length')}: |R| = ${fmt.q(it.Ed, 'force')}${sh} ≤ R_d = ${fmt.q(it.Rd, 'force')} · η = ${pct(it.eta)}`;
         } else {

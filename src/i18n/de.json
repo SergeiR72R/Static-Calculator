@@ -114,7 +114,10 @@
     "latticeRestraint": "Seitliche Halterung Obergurt alle",
     "latticeCouplers": "Kupplungen UG/OG",
     "latticeEccentric": "Knoten mit Spalt g (exzentrisch, Systemlinien der Zeichnung)",
-    "latticeEccentricHint": "Ohne Haken: Diagonalen treffen sich zentrisch auf der Gurtachse (stimmt mit den PERI-Tabellen überein). Mit Haken: Spalt 65 / 79 mm wie in den PERI-Zeichnungen, zusätzliche Exzentrizitätsmomente in den Gurten."
+    "latticeEccentricHint": "Ohne Haken: Diagonalen treffen sich zentrisch auf der Gurtachse (stimmt mit den PERI-Tabellen überein). Mit Haken: Spalt 65 / 79 mm wie in den PERI-Zeichnungen, zusätzliche Exzentrizitätsmomente in den Gurten.",
+    "couplerKz": "Kupplung C_u,z",
+    "couplerKx": "Kupplung C_u,x",
+    "couplerHint": "Wie im PERI-RSTAB-Modell: Ständer zwischen den Kupplungen als Stab, jede Kupplung elastische Lagerung des Gurtes (Standard 9100 / 10 kN/m)."
   },
   "material": {
     "label": "Material",
@@ -340,7 +343,9 @@
         "shear": "Querkraft",
         "tension": "Zug",
         "compression": "Druck"
-      }
+      },
+      "coupler": "Kupplung",
+      "std": "Gerüstständer"
     }
   },
   "issues": {

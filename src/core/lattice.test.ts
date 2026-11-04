@@ -151,11 +151,14 @@ describe('lattice checks in runChecks', () => {
     const an = analyze(m);
     const c = runChecks(an, computeView(an, { type: 'envelope' })!)!;
     const p = c.peri.find((x) => x.method === 'lattice')!;
-    expect(p.items.map((i) => i.key)).toEqual(['top', 'bottom', 'diag', 'post', 'bearing', 'bearing']);
+    expect(p.items.map((i) => i.key)).toEqual(['top', 'bottom', 'diag', 'post', 'bearing', 'bearing', 'bearing', 'bearing']);
     expect(p.lattice!.members.length).toBeGreaterThan(30);
-    expect(p.items.find((i) => i.key === 'bearing')!.bearing).toBe('NK/NK');
-    // support force: half of 1.5·(2 + 8) kN (self weight off)
-    expect(p.items.find((i) => i.key === 'bearing')!.Ed).toBeCloseTo(7.5 * kN, 3);
+    expect(p.items.find((i) => i.key === 'bearing')!.bearing).toBe('NK');
+    // support force of the two couplers of a support: half of 1.5·(2 + 8) kN (self weight off), shared by both chords
+    const b = p.items.filter((i) => i.key === 'bearing' && Math.abs(i.x - 0.125) < 1e-9);
+    expect(b.map((i) => i.chord).sort()).toEqual([0, 1]);
+    expect(b[0].Ed + b[1].Ed).toBeCloseTo(7.5 * kN, -1);
+    expect(Math.min(b[0].Ed, b[1].Ed)).toBeGreaterThan(2 * kN);
     expect(c.deflectionLattice).toBe(true);
     expect(c.deflection.find((d) => d.span.kind === 'span')!.w).toBeGreaterThan(0);
   });
@@ -208,5 +211,24 @@ describe('lattice layout', () => {
     const m = girder('ULA50HD', 4.25, [0.125, 4.125], []);
     applyLatticeLayout(m, { L: 6.25 });
     expect(m.supports.map((s) => s.x)).toEqual([0.125, 6.125]);
+  });
+});
+
+describe('couplers as in the PERI RSTAB model (ULS 50, 6.25 m, standards at 0.625 / 4.625 m, 10 kN at 5.125 m)', () => {
+  it('standard between the couplers, elastic couplers: both couplers carry the support force', () => {
+    const m = girder('ULS50', 6.25, [0.625, 4.625], [pointLoad('G', 5.125, 10)]);
+    m.settings.selfWeight = true;
+    const an = analyze(m);
+    const la = analyzeLattice(an)!;
+    const r = latticeView(an, la, { type: 'case', id: 'G' })!;
+    const R = (si: number, c: 0 | 1) => r.Rmax[3 * la.supports[si].nodes[c] + 1] / kN;
+    // RSTAB: left 0.49 (top) / 0.52 (bottom) kN hold-down, right 5.70 / 5.97 kN
+    expect(R(0, 1)).toBeCloseTo(-0.49, 1);
+    expect(R(0, 0)).toBeCloseTo(-0.52, 1);
+    expect(R(1, 1)).toBeCloseTo(5.7, 1);
+    expect(R(1, 0)).toBeCloseTo(5.97, 1);
+    // top chord over the right standard: RSTAB 10.04 kN
+    const k = la.model.members.findIndex((mm) => mm.role === 'top' && Math.abs(la.model.nodes[mm.i].x - 4.625) < 1e-6);
+    expect(r.Nmax[k] / kN).toBeCloseTo(10.04, 0);
   });
 });

@@ -63,10 +63,12 @@ export interface PeriCheckItem {
   /** lattice girder bearings: couplers 'NK/NK' …, 'head'; shares of the chords (bottom, top) */
   bearing?: string;
   shares?: [number, number];
+  /** bearing at the bottom (0) or top (1) chord */
+  chord?: 0 | 1;
 }
 
 /** Lattice girder items: chords, web members (diagonals, verticals, connectors), end posts, bearings */
-export type LatticeItemKey = 'top' | 'bottom' | 'diag' | 'vert' | 'conn' | 'post' | 'bearing';
+export type LatticeItemKey = 'top' | 'bottom' | 'diag' | 'vert' | 'conn' | 'post' | 'std' | 'bearing';
 
 /** Member model of a lattice girder for the drawing */
 export interface LatticeCheckView {
@@ -358,7 +360,7 @@ export function runChecks(an: Analysis, view: ViewResult): Checks | null {
   return out;
 }
 
-const ROLE_KEY: Record<MemberRole, LatticeItemKey> = { top: 'top', bottom: 'bottom', diag: 'diag', vert: 'vert', conn: 'conn', post: 'post' };
+const ROLE_KEY: Record<MemberRole, LatticeItemKey> = { top: 'top', bottom: 'bottom', diag: 'diag', vert: 'vert', conn: 'conn', post: 'post', std: 'std' };
 
 /**
  * Lattice girders: member model (core/lattice.ts) for all ULS combinations (with pattern loading);
@@ -395,7 +397,7 @@ function latticeChecks(an: Analysis, out: Checks, view: ViewResult) {
     items.push({ key: ROLE_KEY[role], Ed: d.eta, Rd: 1, eta: d.eta, x: d.x, N: d.N, M: d.M, V: d.V, mode: d.mode, Lcr: d.Lcr, chi: d.chi, section: lm.members[best].sec.name });
   }
   for (const b of env.bearings)
-    items.push({ key: 'bearing', Ed: Math.abs(b.R), Rd: b.Rd, eta: b.eta, x: b.x, bearing: b.kind, shares: b.parts, V: b.H });
+    items.push({ key: 'bearing', Ed: Math.hypot(b.R, b.H), Rd: b.Rd, eta: b.eta, x: b.x, bearing: b.kind, shares: b.parts, chord: b.chord >= 0 ? (b.chord as 0 | 1) : undefined, V: b.H });
   const eta = Math.max(0, ...items.map((i) => i.eta));
   out.peri.push({
     product: def.id,

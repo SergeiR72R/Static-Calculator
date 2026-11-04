@@ -154,7 +154,12 @@ function fmtMm(v: number): string {
   return String(v).replace('.', ',');
 }
 
-export type MemberRole = 'top' | 'bottom' | 'diag' | 'post' | 'vert' | 'conn';
+export type MemberRole = 'top' | 'bottom' | 'diag' | 'post' | 'vert' | 'conn' | 'std';
+
+/** scaffold standard between the couplers of the two chords (UVR Ø 48.3 × 3.2, S235 R_eH ≥ 320) */
+export const STANDARD = chs(48.3, 3.2, LATTICE_MATERIALS.S235_320);
+/** coupler stiffness (PERI RSTAB models): vertical / horizontal, N/m */
+export const COUPLER_K = { z: 9100e3, x: 10e3 };
 
 export interface LatticeNode {
   x: number;

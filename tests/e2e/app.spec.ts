@@ -280,7 +280,7 @@ test('PERI lattice girders: member model check with diagram, ULS Flex elements',
   await expect(chk.getByTestId('lattice-diagram')).toBeVisible();
   await expect(chk.getByTestId('peri-item-top')).toContainText('η =');
   await expect(chk.getByTestId('peri-item-diag')).toContainText('RR 40 × 20 × 3');
-  await expect(chk.getByTestId('peri-item-bearing').first()).toContainText('NK/NK');
+  await expect(chk.getByTestId('peri-item-bearing').first()).toContainText('NK');
   await page.getByTestId('peri-product').selectOption('ULSFLEX');
   await expect(page.getByTestId('flex-elements')).toBeVisible();
   // catalogue length → elements chosen automatically (6.75 m = 50 + 4 × 125 + … → elements fit the length)

@@ -34,6 +34,13 @@ export interface FrameLoad {
   line: Map<number, [number, number, number, number]>;
 }
 
+/** elastic support: spring of stiffness k (N/m, N·m/rad) on a DOF */
+export interface FrameSpring {
+  node: number;
+  dof: 0 | 1 | 2;
+  k: number;
+}
+
 export function emptyLoad(nNodes: number): FrameLoad {
   return { F: new Float64Array(3 * nNodes), line: new Map() };
 }
@@ -131,7 +138,7 @@ export interface FrameSolver {
 
 export class FrameMechanismError extends Error {}
 
-export function frameSolver(nodes: FrameNode[], members: FrameMember[], supports: FrameSupport[]): FrameSolver {
+export function frameSolver(nodes: FrameNode[], members: FrameMember[], supports: FrameSupport[], springs: FrameSpring[] = []): FrameSolver {
   const n = 3 * nodes.length;
   const fixed = new Uint8Array(n);
   for (const s of supports) fixed[3 * s.node + s.dof] = 1;
@@ -184,6 +191,10 @@ export function frameSolver(nodes: FrameNode[], members: FrameMember[], supports
       }
     }
   });
+  for (const sp of springs) {
+    const a = map[3 * sp.node + sp.dof];
+    if (a >= 0 && sp.k > 0) K.add(a, a, sp.k);
+  }
   const ch = choleskyBand(K, 1e-12);
   if (!ch.ok || !ch.L) throw new FrameMechanismError('frame: mechanism / singular stiffness');
   const Lf = ch.L;
@@ -246,6 +257,8 @@ export function frameSolver(nodes: FrameNode[], members: FrameMember[], supports
         }
       });
       for (let q = 0; q < n; q++) if (fixed[q]) res.R[q] = acc[q] - load.F[q];
+      // spring reactions (force of the spring on the structure)
+      for (const sp of springs) res.R[3 * sp.node + sp.dof] += -sp.k * d[3 * sp.node + sp.dof];
       return res;
     },
   };

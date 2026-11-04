@@ -114,7 +114,10 @@
     "latticeRestraint": "Lateral restraint of the top chord every",
     "latticeCouplers": "Couplers bottom/top",
     "latticeEccentric": "Nodes with gap g (eccentric, system lines of the drawing)",
-    "latticeEccentricHint": "Unchecked: diagonals meet centrically on the chord axis (agrees with the PERI tables). Checked: gap 65 / 79 mm as in the PERI drawings, additional eccentricity moments in the chords."
+    "latticeEccentricHint": "Unchecked: diagonals meet centrically on the chord axis (agrees with the PERI tables). Checked: gap 65 / 79 mm as in the PERI drawings, additional eccentricity moments in the chords.",
+    "couplerKz": "Coupler C_u,z",
+    "couplerKx": "Coupler C_u,x",
+    "couplerHint": "As in the PERI RSTAB model: standard between the couplers as a member, each coupler an elastic support of the chord (default 9100 / 10 kN/m)."
   },
   "material": {
     "label": "Material",
@@ -340,7 +343,9 @@
         "shear": "shear",
         "tension": "tension",
         "compression": "compression"
-      }
+      },
+      "coupler": "coupler",
+      "std": "Scaffold standard"
     }
   },
   "issues": {

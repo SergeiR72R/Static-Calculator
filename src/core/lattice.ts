@@ -27,8 +27,8 @@ import { restrainsW, spanIndexAt, supportRestraint } from './mesh';
 import type { BeamModel, Combination, Id, LatticeConfig, PeriProductId } from './types';
 import { G_ACC } from './types';
 import { dirCos } from './element';
-import { FrameMechanismError, MEMBER_SAMPLES, addLine, combineFrame, emptyLoad, frameSolver, type FrameLoad, type FrameResult } from './frame2d';
-import { isLattice, latticeModel, type LatticeId, type LatticeMember, type LatticeModel, type MemberRole, type MemberSection } from '../sections/lattice';
+import { FrameMechanismError, MEMBER_SAMPLES, type FrameSpring, addLine, combineFrame, emptyLoad, frameSolver, type FrameLoad, type FrameResult } from './frame2d';
+import { COUPLER_K, STANDARD, isLattice, latticeModel, type LatticeId, type LatticeMember, type LatticeModel, type MemberRole, type MemberSection } from '../sections/lattice';
 
 const kN = 1e3;
 
@@ -180,15 +180,30 @@ function computeLattice(an: Analysis): LatticeAnalysis | null {
     return out;
   }
   const fs: { node: number; dof: 0 | 1 | 2 }[] = [];
-  for (const s of sups) fs.push({ node: s.nodes[0], dof: 1 }, { node: s.nodes[1], dof: 1 });
-  const hor = model.supports.filter((s) => supportRestraint(s).u).sort((a, b) => a.x - b.x)[0] ?? model.supports[0];
-  fs.push({ node: nodeAt(lm, 0, hor.x), dof: 0 });
+  const springs: FrameSpring[] = [];
+  if (lm.bearing === 'coupler') {
+    // as the PERI RSTAB models: scaffold standard between the two couplers (pin-ended member), each
+    // coupler an elastic support of the chord node: C_u,z = 9100 kN/m, C_u,x = 10 kN/m
+    const kz = def.cfg?.couplerKz && def.cfg.couplerKz > 0 ? def.cfg.couplerKz : COUPLER_K.z;
+    const kx = def.cfg?.couplerKx !== undefined && def.cfg.couplerKx >= 0 ? def.cfg.couplerKx : COUPLER_K.x;
+    for (const s of sups) {
+      lm.members.push({ i: s.nodes[0], j: s.nodes[1], role: 'std', sec: STANDARD, hinged: true });
+      for (const n of s.nodes) springs.push({ node: n, dof: 1, k: kz }, { node: n, dof: 0, k: kx });
+    }
+    // without horizontal stiffness: one chord node held horizontally
+    if (!(kx > 0)) fs.push({ node: sups[0].nodes[0], dof: 0 });
+  } else {
+    for (const s of sups) fs.push({ node: s.nodes[0], dof: 1 }, { node: s.nodes[1], dof: 1 });
+    const hor = model.supports.filter((s) => supportRestraint(s).u).sort((a, b) => a.x - b.x)[0] ?? model.supports[0];
+    fs.push({ node: nodeAt(lm, 0, hor.x), dof: 0 });
+  }
   let solver;
   try {
     solver = frameSolver(
       lm.nodes,
       lm.members.map((m) => ({ i: m.i, j: m.j, EA: m.sec.mat.E * m.sec.A, EI: m.sec.mat.E * m.sec.Iy, hinged: m.hinged })),
       fs,
+      springs,
     );
   } catch (e) {
     if (e instanceof FrameMechanismError) {
@@ -460,31 +475,26 @@ export interface BearingDesign {
 }
 
 /**
- * Bearings: ULS Flex ledger heads per chord; tube couplers of ULA / ULS per support with the sum of
- * both couplers (the couplers of both chords clamp to the same standard and share the support force,
- * as in the PERI tables).
+ * Bearings per chord: ULS Flex ledger heads; tube couplers of ULA / ULS (elastic supports of the
+ * chords at the standard, as in the PERI RSTAB models) against the coupler resistance of their chord.
  */
 export function designBearings(la: LatticeAnalysis, r: FrameResult, cfg: LatticeConfig | undefined): BearingDesign[] {
   const out: BearingDesign[] = [];
-  const kind = cfg?.couplers ?? 'NK/NK';
-  const conf = kind.split('/') as ('NK' | 'UNK')[];
-  for (const s of la.supports) {
-    const Rv = s.nodes.map((n) => r.R[3 * n + 1]) as [number, number];
-    const Hv = s.nodes.map((n) => r.R[3 * n]) as [number, number];
-    if (la.model.bearing === 'head') {
-      for (const c of [0, 1] as const) {
-        const R = Rv[c];
-        const H = Hv[c];
+  const conf = (cfg?.couplers ?? 'NK/NK').split('/') as ('NK' | 'UNK')[];
+  for (const s of la.supports)
+    for (const c of [0, 1] as const) {
+      const n = s.nodes[c];
+      const R = r.R[3 * n + 1];
+      const H = r.R[3 * n];
+      if (la.model.bearing === 'head') {
         const Rd = R >= 0 ? HEAD_RD.Vdown : HEAD_RD.Vup;
         out.push({ supportId: s.supportId, x: s.x, chord: c, R, H, Rd, eta: Math.max(Math.abs(R) / Rd, Math.abs(H) / HEAD_RD.N), kind: 'head' });
+      } else {
+        const kind = conf[c] ?? 'NK';
+        const Rd = COUPLER_RD[kind];
+        out.push({ supportId: s.supportId, x: s.x, chord: c, R, H, Rd, eta: Math.hypot(R, H) / Rd, kind });
       }
-    } else {
-      const R = Rv[0] + Rv[1];
-      const H = Hv[0] + Hv[1];
-      const Rd = COUPLER_RD[conf[0] ?? 'NK'] + COUPLER_RD[conf[1] ?? 'NK'];
-      out.push({ supportId: s.supportId, x: s.x, chord: -1, R, H, parts: Rv, Rd, eta: Math.hypot(R, H) / Rd, kind });
     }
-  }
   return out;
 }
 

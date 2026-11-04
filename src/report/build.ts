@@ -851,7 +851,8 @@ function latticeReport(
   for (const it of c.items) {
     if (it.key !== 'bearing') continue;
     const ok = `\\;\\Rightarrow\\; \\text{${tt(it.eta <= 1 ? 'kpi.ok' : 'kpi.fail')}}`;
-    const what = it.bearing === 'head' ? tt('kpi.lattice.head') : `${tt('kpi.lattice.couplers')} ${it.bearing}`;
+    const ch = it.chord !== undefined ? `, ${tt(it.chord === 1 ? 'kpi.lattice.top' : 'kpi.lattice.bottom')}` : '';
+    const what = `${it.bearing === 'head' ? tt('kpi.lattice.head') : `${tt('kpi.lattice.coupler')} ${it.bearing}`}${ch}`;
     const sh = it.shares ? `\\;(${N(it.shares[0])} + ${N(it.shares[1])})` : '';
     blocks.push({
       type: 'tex',

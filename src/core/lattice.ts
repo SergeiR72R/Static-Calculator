@@ -74,15 +74,30 @@ export function usesLattice(model: BeamModel): PeriProductId | null {
   return null;
 }
 
-function loadPoints(model: BeamModel): number[] {
-  const xs: number[] = [];
-  for (const s of model.supports) xs.push(s.x);
+/**
+ * Supports and loads closer than this to a node of the framework act at that node (a coupler
+ * clamps over ~5 cm; a chord stub of a few millimetres would carry the whole support force in shear).
+ */
+export const NODE_SNAP = 0.03;
+
+/** additional chord points for supports and loads; points next to a node are snapped to it */
+function loadPoints(model: BeamModel, nodeXs: number[]): number[] {
+  const raw: number[] = [];
+  for (const s of model.supports) raw.push(s.x);
   for (const l of model.loads) {
-    if (l.kind === 'dist') xs.push(l.x1, l.x2);
-    else xs.push(l.x);
+    if (l.kind === 'dist') raw.push(l.x1, l.x2);
+    else raw.push(l.x);
   }
-  for (const sp of model.supports) xs.push(sp.x);
-  return xs;
+  return raw.map((x) => {
+    let best = x;
+    let d = NODE_SNAP + 1e-12;
+    for (const n of nodeXs)
+      if (Math.abs(n - x) < d) {
+        d = Math.abs(n - x);
+        best = n;
+      }
+    return best;
+  });
 }
 
 /** chord members of a chord, sorted by x */
@@ -169,7 +184,8 @@ function computeLattice(an: Analysis): LatticeAnalysis | null {
   const model = an.model;
   const def = latticeOf(model);
   if (!def) return null;
-  const lm = latticeModel(def.id, model.L, def.cfg, loadPoints(model));
+  const base = latticeModel(def.id, model.L, def.cfg, []);
+  const lm = latticeModel(def.id, model.L, def.cfg, loadPoints(model, [...base.braces[0], ...base.braces[1]]));
   const sups = model.supports
     .filter(restrainsW)
     .map((s) => ({ supportId: s.id, x: s.x, nodes: [nodeAt(lm, 0, s.x), nodeAt(lm, 1, s.x)] as [number, number] }))

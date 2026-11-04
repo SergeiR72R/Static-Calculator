@@ -441,7 +441,8 @@ export function Schematic({ sx }: { sx: XScale }) {
     dragUpdate((m) => {
       if (d.sel.kind === 'support') {
         const s = m.supports.find((k) => k.id === d.sel.id);
-        if (s) s.x = snapX(d.startX + dx);
+        // lattice girders: standards on the system grid (ULA / ULS 0.25 m, ULS Flex at standards / connectors)
+        if (s) s.x = candidates.length ? candidates.reduce((a, b) => (Math.abs(b - (d.startX + dx)) < Math.abs(a - (d.startX + dx)) ? b : a)) : snapX(d.startX + dx);
       } else if (d.sel.kind === 'hinge') {
         const h = m.hinges.find((k) => k.id === d.sel.id);
         if (h) h.x = snapX(d.startX + dx);

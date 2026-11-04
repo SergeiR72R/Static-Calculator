@@ -147,6 +147,8 @@ export default function Beam3D({ field, sectionScale, deformed, resetKey, onRang
     return () => {
       ro.disconnect();
       controls.dispose();
+      // free the WebGL context at once (browsers allow only ~16; a re-mounted view would otherwise go blank)
+      renderer.forceContextLoss();
       renderer.dispose();
       renderer.domElement.remove();
       sc.current = null;

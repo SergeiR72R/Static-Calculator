@@ -137,11 +137,10 @@ export function ResultsPanel() {
         )}
       </div>
       {vr && width > 0 && latticeOf(model) && <LatticeCard sx={sx} />}
-      {vr && (
-        <div className="no-print">
-          <View3DCard />
-        </div>
-      )}
+      {/* kept mounted while the analysis is temporarily not possible (one WebGL context only) */}
+      <div className="no-print">
+        <View3DCard />
+      </div>
       {vr && (
         <div className="grid gap-3 xl:grid-cols-2">
           <ReactionsCard />

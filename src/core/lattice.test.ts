@@ -232,3 +232,19 @@ describe('couplers as in the PERI RSTAB model (ULS 50, 6.25 m, standards at 0.62
     expect(r.Nmax[k] / kN).toBeCloseTo(10.04, 0);
   });
 });
+
+describe('supports and loads next to a node', () => {
+  it('a standard 5 mm beside the node acts at the node (no chord stub carrying the support force in shear)', () => {
+    const m = girder('ULS50', 6.25, [0.63, 4.63], [pointLoad('Q', 5.13, 10)]);
+    const an = analyze(m);
+    const la = analyzeLattice(an)!;
+    expect(la.model.nodes.some((n) => Math.abs(n.x - 4.63) < 1e-9)).toBe(false);
+    expect(la.model.nodes[la.supports[1].nodes[0]].x).toBeCloseTo(4.625, 9);
+    const r = latticeView(an, la, { type: 'envelope' })!;
+    let V = 0;
+    la.model.members.forEach((mm, k) => {
+      if (mm.role === 'top' || mm.role === 'bottom') for (let s = 0; s < 5; s++) V = Math.max(V, Math.abs(r.Vmax[k * 5 + s]), Math.abs(r.Vmin[k * 5 + s]));
+    });
+    expect(V).toBeLessThan(1 * kN);
+  });
+});

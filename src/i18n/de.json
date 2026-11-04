@@ -671,13 +671,15 @@
       "N": "N",
       "M": "M",
       "sigma": "σ",
-      "eta": "η"
+      "eta": "η",
+      "V": "V"
     },
     "hint": "Maus über einen Stab: Querschnitt, Schnittgrößen, Ausnutzung.",
-    "legendN": "Rot = Zug, blau = Druck; Umhüllende: max durchgezogen, min gestrichelt. Reaktionen R_z in globalen Achsen (↓ +).",
+    "legendN": "Blau = Zug, rot = Druck (wie RSTAB); Umhüllende: max durchgezogen, min gestrichelt. Reaktionen R_z in globalen Achsen (↓ +).",
     "legendM": "Biegemomente der Gurte und Pfosten (Füllstäbe gelenkig: M = 0). Reaktionen R_z in globalen Achsen (↓ +).",
     "legendEta": "Ausnutzung η aller GZT-Kombinationen: grün ≤ 70 %, gelb ≤ 90 %, orange ≤ 100 %, rot > 100 %.",
     "legendCoupler": "Grau: Gerüstständer am Auflager, orange: Kupplungen an Ober- und Untergurt.",
-    "legendHead": "Grau: Gerüstständer am Auflager, blau: Riegelköpfe UH Plus an den Rosetten; ▲ Verbinder ULS Flex."
+    "legendHead": "Grau: Gerüstständer am Auflager, blau: Riegelköpfe UH Plus an den Rosetten; ▲ Verbinder ULS Flex.",
+    "legendV": "Querkräfte V der Gurte und Pfosten (gelenkige Füllstäbe: nur aus Eigengewicht). Reaktionen R_z in globalen Achsen (↓ +)."
   }
 }

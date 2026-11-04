@@ -671,13 +671,15 @@
       "N": "N",
       "M": "M",
       "sigma": "σ",
-      "eta": "η"
+      "eta": "η",
+      "V": "V"
     },
     "hint": "Hover a member: section, internal forces, utilisation.",
-    "legendN": "Red = tension, blue = compression; envelope: max solid, min dashed. Reactions R_z in global axes (↓ +).",
+    "legendN": "Blue = tension, red = compression (as in RSTAB); envelope: max solid, min dashed. Reactions R_z in global axes (↓ +).",
     "legendM": "Bending moments of chords and posts (web members pin-ended: M = 0). Reactions R_z in global axes (↓ +).",
     "legendEta": "Utilisation η of all ULS combinations: green ≤ 70 %, yellow ≤ 90 %, orange ≤ 100 %, red > 100 %.",
     "legendCoupler": "Grey: scaffold standards at the supports, orange: couplers at the top and bottom chord.",
-    "legendHead": "Grey: scaffold standards at the supports, blue: ledger heads UH Plus at the rosettes; ▲ connectors ULS Flex."
+    "legendHead": "Grey: scaffold standards at the supports, blue: ledger heads UH Plus at the rosettes; ▲ connectors ULS Flex.",
+    "legendV": "Shear forces V of the chords and posts (pin-ended web members: self weight only). Reactions R_z in global axes (↓ +)."
   }
 }

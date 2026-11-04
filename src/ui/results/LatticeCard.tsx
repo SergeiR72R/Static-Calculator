@@ -7,11 +7,12 @@ import { Card, cx } from '../common';
 import { useFmt, useResults, type XScale } from '../hooks';
 import { etaColor } from './LatticeDiagram';
 
-export type LatticeField = 'N' | 'M' | 'sigma' | 'eta';
-const FIELDS: LatticeField[] = ['N', 'M', 'sigma', 'eta'];
+export type LatticeField = 'N' | 'V' | 'M' | 'sigma' | 'eta';
+const FIELDS: LatticeField[] = ['N', 'V', 'M', 'sigma', 'eta'];
 
-const TENSION = '#dc2626';
-const COMPRESSION = '#2563eb';
+// as in RSTAB: tension (positive) blue, compression (negative) red
+const TENSION = '#2563eb';
+const COMPRESSION = '#dc2626';
 
 /** Values of a member along its length (k = 0 … MEMBER_SAMPLES−1): [max, min] */
 function memberValues(la: LatticeAnalysis, r: LatticeViewResult, k: number, field: LatticeField): [number[], number[]] {
@@ -20,6 +21,7 @@ function memberValues(la: LatticeAnalysis, r: LatticeViewResult, k: number, fiel
   const idx = Array.from({ length: S }, (_, s) => k * S + s);
   if (field === 'N') return [idx.map(() => r.Nmax[k]), idx.map(() => r.Nmin[k])];
   if (field === 'M') return [idx.map((i) => r.Mmax[i]), idx.map((i) => r.Mmin[i])];
+  if (field === 'V') return [idx.map((i) => r.Vmax[i]), idx.map((i) => r.Vmin[i])];
   // σ at the extreme fibre: N/A ± |M|/W
   const A = m.sec.A;
   const W = m.sec.Wel;
@@ -77,7 +79,7 @@ export function LatticeCard({ sx }: { sx: XScale }) {
   });
   // one common scale (values comparable): the tighter of both limits
   const scale = vmax > 0 ? Math.min(vChord > 0 ? amp / vChord : Infinity, vWeb > 0 ? ampWeb / vWeb : Infinity, amp / vmax) : 0;
-  const q = field === 'N' ? 'force' : field === 'M' ? 'moment' : 'stress';
+  const q = field === 'N' || field === 'V' ? 'force' : field === 'M' ? 'moment' : 'stress';
   const unitVal = (v: number) => fmt.q(v, q);
 
   /** polygon of a member diagram: offsets perpendicular to the member on screen */
@@ -110,7 +112,9 @@ export function LatticeCard({ sx }: { sx: XScale }) {
     return pts.map((p) => p.map((c) => c.toFixed(1)).join(',')).join(' ');
   };
 
-  const sign = (v: number) => (v >= 0 ? TENSION : COMPRESSION);
+  // M, V: one colour (sign by the side of the diagram); N, σ: tension / compression
+  const flat = field === 'M' ? 'var(--diag-m, #16a34a)' : field === 'V' ? '#d97706' : null;
+  const sign = (v: number) => flat ?? (v >= 0 ? TENSION : COMPRESSION);
   // labels: every web member, chord extremes
   const labels: { x: number; y: number; text: string; color: string }[] = [];
   if (field !== 'eta') {
@@ -211,8 +215,8 @@ export function LatticeCard({ sx }: { sx: XScale }) {
               const ext = [...v[0], ...v[1]].reduce((p, c) => (Math.abs(c) > Math.abs(p) ? c : p), 0);
               return (
                 <g key={`d${k}`} opacity={hover === null || hover === k ? 1 : 0.35}>
-                  <polygon points={diagram(m, v[0])} fill={field === 'M' ? 'var(--diag-m, #16a34a)' : sign(both ? Math.max(...v[0]) : ext)} fillOpacity={0.25} stroke={field === 'M' ? 'var(--diag-m, #16a34a)' : sign(both ? Math.max(...v[0]) : ext)} strokeWidth={0.8} />
-                  {both && <polygon points={diagram(m, v[1])} fill={field === 'M' ? 'var(--diag-m, #16a34a)' : sign(Math.min(...v[1]))} fillOpacity={0.18} stroke={field === 'M' ? 'var(--diag-m, #16a34a)' : sign(Math.min(...v[1]))} strokeWidth={0.6} strokeDasharray="3 2" />}
+                  <polygon points={diagram(m, v[0])} fill={sign(both ? Math.max(...v[0]) : ext)} fillOpacity={0.25} stroke={sign(both ? Math.max(...v[0]) : ext)} strokeWidth={0.8} />
+                  {both && <polygon points={diagram(m, v[1])} fill={sign(Math.min(...v[1]))} fillOpacity={0.18} stroke={sign(Math.min(...v[1]))} strokeWidth={0.6} strokeDasharray="3 2" />}
                 </g>
               );
             })}
@@ -289,7 +293,7 @@ export function LatticeCard({ sx }: { sx: XScale }) {
             <bdi dir="ltr">
               {`${hm.sec.name} · x = ${fmt.q(lm.nodes[hm.i].x, 'length')} … ${fmt.q(lm.nodes[hm.j].x, 'length')} · N = ${
                 r.kind === 'envelope' ? `${fmt.q(r.Nmin[hover], 'force')} … ${fmt.q(r.Nmax[hover], 'force')}` : fmt.q(r.Nmax[hover], 'force')
-              }${hm.hinged ? '' : ` · |M|max = ${fmt.q(Math.max(...Array.from({ length: MEMBER_SAMPLES }, (_, s) => Math.max(Math.abs(r.Mmax[hover * MEMBER_SAMPLES + s]), Math.abs(r.Mmin[hover * MEMBER_SAMPLES + s])))), 'moment')}`}${
+              }${hm.hinged ? '' : ` · |M|max = ${fmt.q(Math.max(...Array.from({ length: MEMBER_SAMPLES }, (_, s) => Math.max(Math.abs(r.Mmax[hover * MEMBER_SAMPLES + s]), Math.abs(r.Mmin[hover * MEMBER_SAMPLES + s])))), 'moment')} · |V|max = ${fmt.q(Math.max(...Array.from({ length: MEMBER_SAMPLES }, (_, s) => Math.max(Math.abs(r.Vmax[hover * MEMBER_SAMPLES + s]), Math.abs(r.Vmin[hover * MEMBER_SAMPLES + s])))), 'force')}`}${
                 etas[hover] !== undefined ? ` · η = ${fmt.num(etas[hover] * 100, 1)} %` : ''
               }`}
             </bdi>
@@ -299,7 +303,7 @@ export function LatticeCard({ sx }: { sx: XScale }) {
         )}
       </div>
       <p className="text-[10px] text-slate-500">
-        {fmt.t(field === 'eta' ? 'lattice.legendEta' : field === 'M' ? 'lattice.legendM' : 'lattice.legendN')} {fmt.t(lm.bearing === 'head' ? 'lattice.legendHead' : 'lattice.legendCoupler')}
+        {fmt.t(field === 'eta' ? 'lattice.legendEta' : field === 'M' ? 'lattice.legendM' : field === 'V' ? 'lattice.legendV' : 'lattice.legendN')} {fmt.t(lm.bearing === 'head' ? 'lattice.legendHead' : 'lattice.legendCoupler')}
       </p>
     </Card>
   );

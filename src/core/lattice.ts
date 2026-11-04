@@ -590,6 +590,9 @@ export interface LatticeViewResult {
   /** M at the member samples (MEMBER_SAMPLES per member) */
   Mmax: Float64Array;
   Mmin: Float64Array;
+  /** V at the member samples (linear between the ends) */
+  Vmax: Float64Array;
+  Vmin: Float64Array;
   /** support reactions (3 per node, global, z up) */
   Rmax: Float64Array;
   Rmin: Float64Array;
@@ -606,6 +609,8 @@ function envelopeOf(rs: FrameResult[]): LatticeViewResult | null {
     Nmin: Float64Array.from(f.N),
     Mmax: Float64Array.from(f.M),
     Mmin: Float64Array.from(f.M),
+    Vmax: new Float64Array(f.M.length).fill(-Infinity),
+    Vmin: new Float64Array(f.M.length).fill(Infinity),
     Rmax: Float64Array.from(f.R),
     Rmin: Float64Array.from(f.R),
     d: Float64Array.from(f.d),
@@ -620,6 +625,14 @@ function envelopeOf(rs: FrameResult[]): LatticeViewResult | null {
       out.Mmax[i] = Math.max(out.Mmax[i], r.M[i]);
       out.Mmin[i] = Math.min(out.Mmin[i], r.M[i]);
     }
+    for (let k = 0; k < r.N.length; k++)
+      for (let s = 0; s < MEMBER_SAMPLES; s++) {
+        const t = s / (MEMBER_SAMPLES - 1);
+        const v = r.V1[k] + (r.V2[k] - r.V1[k]) * t;
+        const i = k * MEMBER_SAMPLES + s;
+        out.Vmax[i] = Math.max(out.Vmax[i], v);
+        out.Vmin[i] = Math.min(out.Vmin[i], v);
+      }
     for (let i = 0; i < r.R.length; i++) {
       out.Rmax[i] = Math.max(out.Rmax[i], r.R[i]);
       out.Rmin[i] = Math.min(out.Rmin[i], r.R[i]);

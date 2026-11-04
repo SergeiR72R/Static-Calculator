@@ -299,6 +299,8 @@ test('PERI lattice girders: member model check with diagram, ULS Flex elements',
   await expect(page.locator('[data-testid^="glyph-support-"]')).toHaveCount(before + 1);
   await expect(page.getByTestId('lattice-2d')).toBeVisible();
   await page.getByTestId('lattice-card').screenshot({ path: 'test-results/lattice-N.png' });
+  await page.getByTestId('lattice-field-V').click();
+  await page.getByTestId('lattice-card').screenshot({ path: 'test-results/lattice-V.png' });
   await page.getByTestId('lattice-field-M').click();
   await page.getByTestId('lattice-card').screenshot({ path: 'test-results/lattice-M.png' });
   await page.getByTestId('schematic').screenshot({ path: 'test-results/lattice-schematic.png' });

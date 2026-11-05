@@ -9,6 +9,7 @@ import { computeView } from './results';
 import { periMaterial } from '../sections/peri';
 import { defaultFlexElements, flexLength, latticeModel } from '../sections/lattice';
 import { applyLatticeLayout } from './latticeLayout';
+import { COUPLER_SLIP_RD, findFlexConfig, periChordCheck, periDiagCheck, standardBuckling } from './latticePeri';
 import type { Load, PeriProductId } from './types';
 
 const kN = 1e3;
@@ -120,8 +121,9 @@ describe('lattice design against the PERI tables (Tabellenbuch PERI UP, S. 50–
     const o = (L - span) / 2;
     // the PERI tables agree with centric nodes
     const eta = maxEta(p, L, [o, o + span], [pointLoad('Q', L / 2, F)], { restraint: 1, eccentric: false });
-    expect(eta).toBeGreaterThan(0.8);
-    expect(eta).toBeLessThan(1.06);
+    // ULA: EN 1999 member checks ≈ 1; ULS: cross-section checks of the PERI report, below 1
+    expect(eta).toBeGreaterThan(p.startsWith('ULA') ? 0.8 : 0.6);
+    expect(eta).toBeLessThan(p.startsWith('ULA') ? 1.06 : 1);
   });
 
   it('larger restraint spacing (out-of-plane buckling L_cr = a): on the safe side of the table', () => {
@@ -152,7 +154,7 @@ describe('lattice checks in runChecks', () => {
     const an = analyze(m);
     const c = runChecks(an, computeView(an, { type: 'envelope' })!)!;
     const p = c.peri.find((x) => x.method === 'lattice')!;
-    expect(p.items.map((i) => i.key)).toEqual(['top', 'bottom', 'diag', 'post', 'bearing', 'bearing', 'bearing', 'bearing']);
+    expect(p.items.map((i) => i.key)).toEqual(['top', 'bottom', 'diag', 'post', 'std', 'bearing', 'bearing', 'bearing', 'bearing']);
     expect(p.lattice!.members.length).toBeGreaterThan(30);
     expect(p.items.find((i) => i.key === 'bearing')!.bearing).toBe('NK');
     // support force of the two couplers of a support: half of 1.5·(2 + 8) kN (self weight off), shared by both chords
@@ -267,5 +269,58 @@ describe('PERI RSTAB model ULS 70 (8.25 m, standards at 1.625 / 6.625 m, 15 kN a
     const s = by('std');
     expect(s[0]).toBeCloseTo(6.83, 0);
     expect(s[1]).toBeCloseTo(2.88, 0);
+  });
+});
+
+describe('checks of the PERI report (Balkenrechner tests)', () => {
+  it('ULS chord: resistances and the moment check by n and v', () => {
+    expect(periChordCheck(0, 0, 1.7455 * kN).eta).toBeCloseTo(1, 3);
+    // v ≤ 1/3, n ≤ 0.1: m = M / M_Rd
+    expect(periChordCheck(10 * kN, 10 * kN, 0.5 * kN).parts).toMatchObject({ case: 1 });
+    // 1/3 < v ≤ 0.9, n ≤ 0.1: m = M / (M_Rd √(1 − v²))
+    const c2 = periChordCheck(10 * kN, 24.25 * kN, 0.5 * kN);
+    expect(c2.parts.case).toBe(2);
+    expect(c2.parts.m).toBeCloseTo(0.5 / (1.745454545 * Math.sqrt(1 - 0.25)), 4);
+    // v ≤ 1/3, 0.1 < n ≤ 1: m = M / (M_Rd cos(π n / 2))
+    const c3 = periChordCheck(65.95 * kN, 0, 0.5 * kN);
+    expect(c3.parts.case).toBe(3);
+    expect(c3.parts.m).toBeCloseTo(0.5 / (1.745454545 * Math.cos(Math.PI / 4)), 4);
+  });
+
+  it('ULS diagonal: n, v, m_N with α = 1.66 / (1 − 1.13 n²)', () => {
+    expect(periDiagCheck(45.65 * kN, 0, 0).eta).toBeCloseTo(1, 6);
+    const d = periDiagCheck(0, 0, 0.5407 * kN);
+    // m_y = 1 → m_N = 1^α = 1
+    expect(d.eta).toBeCloseTo(1, 6);
+  });
+
+  it('standard UVR: flexural buckling, curve b, L_cr = 200 cm → N_Rd = 42.58 kN (PERI sheet)', () => {
+    const b = standardBuckling(2);
+    expect(b.NRd / kN).toBeCloseTo(42.578, 2);
+    expect(b.chi).toBeCloseTo(0.3228, 3);
+  });
+
+  it('couplers: slipping 15 / 1.1 and 25 / 1.1 kN', () => {
+    expect(COUPLER_SLIP_RD.NK / kN).toBeCloseTo(13.636, 3);
+    expect(COUPLER_SLIP_RD.UNK / kN).toBeCloseTo(22.727, 3);
+  });
+
+  it('ULS Flex: configuration 15 (7 × 100, 8 m): permissible q and loads at the connectors', () => {
+    const conf = findFlexConfig([1, 1, 1, 1, 1, 1, 1])!;
+    expect(conf.span).toBe(8);
+    expect(findFlexConfig([1.5, 1, 1.5, 1.5, 1.5])!.q).toBe(1.08);
+    expect(findFlexConfig([1, 1.25])).toBeNull();
+    const m = girder('ULSFLEX', 8, [0, 8], [udl('Q', 0, 8, 1.26)], { flex: [1, 1, 1, 1, 1, 1, 1] });
+    const an = analyze(m);
+    const c = runChecks(an, computeView(an, { type: 'envelope' })!)!;
+    const it = c.peri[0].items.find((i) => i.key === 'flexTable')!;
+    // 1.5 · 1.26 / (1.5 · 1.26) = 1 (governing combination 1.5·G + 1.5·Q)
+    expect(it.eta).toBeCloseTo(1, 6);
+    // single load 8.29 kN at D (4th connector, x = 3.5 m)
+    const m2 = girder('ULSFLEX', 8, [0, 8], [pointLoad('Q', 3.5, 8.29)], { flex: [1, 1, 1, 1, 1, 1, 1] });
+    const an2 = analyze(m2);
+    const it2 = runChecks(an2, computeView(an2, { type: 'envelope' })!)!.peri[0].items.find((i) => i.key === 'flexTable')!;
+    expect(it2.flex!.loads[0].pos).toBe('D');
+    expect(it2.eta).toBeCloseTo(1, 6);
   });
 });

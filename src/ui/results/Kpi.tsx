@@ -235,12 +235,23 @@ function LatticeCheckItems({ c }: { c: PeriCheck }) {
           label = `${fmt.t('kpi.lattice.bearing')} (${it.bearing === 'head' ? fmt.t('kpi.lattice.head') : `${fmt.t('kpi.lattice.coupler')} ${it.bearing}`}${ch}):`;
           const sh = it.shares ? ` (${fmt.t('kpi.lattice.shares')} ${fmt.q(it.shares[0], 'force')} / ${fmt.q(it.shares[1], 'force')})` : '';
           txt = `x = ${fmt.q(it.x, 'length')}: |R| = ${fmt.q(it.Ed, 'force')}${sh} ≤ R_d = ${fmt.q(it.Rd, 'force')} · η = ${pct(it.eta)}`;
+        } else if (it.key === 'flexTable' && it.flex) {
+          const f = it.flex;
+          label = `${fmt.t('kpi.lattice.flexTable', { span: fmt.q(f.span, 'length'), el: f.elements.join(' + ') })}:`;
+          if (f.missing) txt = fmt.t('kpi.lattice.flexMissing');
+          else {
+            const q = f.qEd > 0 ? `q_Ed / q_Rd = ${fmt.q(f.qEd, 'lineLoad')} / ${fmt.q(f.qRd, 'lineLoad')}` : '';
+            const ls = f.loads.map((l) => `F_${l.pos} = ${fmt.q(l.F, 'force')} / ${fmt.q(l.FRd, 'force')}`).join(' + ');
+            txt = `η = ${[q, ls].filter(Boolean).join(' + ') || '0'} = ${pct(it.eta)} (${f.combo})`;
+          }
         } else {
           label = `${fmt.t(`kpi.lattice.${it.key}`)} ${it.section ?? ''}:`;
           const mode = it.mode ? fmt.t(`kpi.lattice.mode.${it.mode}`) : '';
           const buck = it.Lcr !== undefined && it.chi !== undefined ? `, L_cr = ${fmt.q(it.Lcr, 'length')}, χ = ${fmt.num(it.chi, 3)}` : '';
           const mm = it.M ? ` · M = ${fmt.q(it.M, 'moment')}` : '';
-          txt = `η = ${pct(it.eta)} (${mode}${buck}) · N = ${fmt.q(it.N ?? 0, 'force')}${mm} · x = ${fmt.q(it.x, 'length')}`;
+          const vv = it.parts2 && it.V ? ` · V = ${fmt.q(it.V, 'force')}` : '';
+          const pp = it.parts2 ? ` [n = ${fmt.num(it.parts2.n, 3)}, v = ${fmt.num(it.parts2.v, 3)}, m = ${fmt.num(it.parts2.m, 3)}]` : '';
+          txt = `η = ${pct(it.eta)} (${mode}${buck})${pp} · N = ${fmt.q(it.N ?? 0, 'force')}${vv}${mm} · x = ${fmt.q(it.x, 'length')}`;
         }
         return (
           <div key={i} className={cx(it.eta > 1 && 'text-red-600 dark:text-red-400')} data-testid={`peri-item-${it.key}`}>

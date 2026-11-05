@@ -7,7 +7,9 @@ import type { PeriProductId } from './types';
 import { X_TOL } from './types';
 import { findPeriProduct, girderSupport, periInteraction, rcsInteraction, rcsResistances } from '../sections/peri';
 import { analyzeLattice, characteristicCombination, latticeEnvelope, latticeOf, type LatticeMode } from './lattice';
-import type { MemberRole } from '../sections/lattice';
+import { flexElements, flexLength, type MemberRole } from '../sections/lattice';
+import { findFlexConfig, flexTableCheck, type FlexTableLoad, type PeriParts } from './latticePeri';
+import { flexConnectors } from './latticeLayout';
 
 export interface StressCheck {
   value: number;
@@ -63,12 +65,16 @@ export interface PeriCheckItem {
   /** lattice girder bearings: couplers 'NK/NK' …, 'head'; shares of the chords (bottom, top) */
   bearing?: string;
   shares?: [number, number];
+  /** ULS Flex: PERI configuration check */
+  flex?: { span: number; elements: number[]; qEd: number; qRd: number; loads: FlexTableLoad[]; combo: string; missing?: boolean };
+  /** PERI cross-section check: n, v, m and the case of the moment check */
+  parts2?: PeriParts;
   /** bearing at the bottom (0) or top (1) chord */
   chord?: 0 | 1;
 }
 
 /** Lattice girder items: chords, web members (diagonals, verticals, connectors), end posts, bearings */
-export type LatticeItemKey = 'top' | 'bottom' | 'diag' | 'vert' | 'conn' | 'post' | 'std' | 'bearing';
+export type LatticeItemKey = 'top' | 'bottom' | 'diag' | 'vert' | 'conn' | 'post' | 'std' | 'bearing' | 'flexTable';
 
 /** Member model of a lattice girder for the drawing */
 export interface LatticeCheckView {
@@ -386,7 +392,18 @@ function latticeChecks(an: Analysis, out: Checks, view: ViewResult) {
   const env = latticeEnvelope(an, la, ulsUsed, slsUsed, def.cfg);
   const lm = la.model;
   const items: PeriCheckItem[] = [];
-  const roles: MemberRole[] = ['top', 'bottom', 'diag', 'vert', 'conn', 'post'];
+  // ULS Flex: permissible loads of the PERI configurations (PI 550) instead of the member checks
+  let flexEta: number | null = null;
+  if (def.id === 'ULSFLEX') {
+    const el = flexElements(def.cfg, an.model.L);
+    const conf = findFlexConfig(el);
+    const fc = conf ? flexTableCheck(an.model, conf, flexConnectors(el), ulsUsed) : null;
+    if (fc) {
+      flexEta = fc.eta;
+      items.push({ key: 'flexTable', Ed: fc.eta, Rd: 1, eta: fc.eta, x: 0, flex: { span: conf!.span, elements: conf!.elements, qEd: fc.qEd, qRd: fc.qRd, loads: fc.loads, combo: fc.combo } });
+    } else items.push({ key: 'flexTable', Ed: 0, Rd: 1, eta: 0, x: 0, flex: { span: flexLength(el), elements: el.map((e) => Math.round(e * 100)), qEd: 0, qRd: 0, loads: [], combo: '', missing: true } });
+  }
+  const roles: MemberRole[] = flexEta !== null ? [] : ['top', 'bottom', 'diag', 'vert', 'conn', 'post', 'std'];
   for (const role of roles) {
     let best = -1;
     env.members.forEach((d, k) => {
@@ -394,7 +411,7 @@ function latticeChecks(an: Analysis, out: Checks, view: ViewResult) {
     });
     if (best < 0) continue;
     const d = env.members[best];
-    items.push({ key: ROLE_KEY[role], Ed: d.eta, Rd: 1, eta: d.eta, x: d.x, N: d.N, M: d.M, V: d.V, mode: d.mode, Lcr: d.Lcr, chi: d.chi, section: lm.members[best].sec.name });
+    items.push({ key: ROLE_KEY[role], Ed: d.eta, Rd: 1, eta: d.eta, x: d.x, N: d.N, M: d.M, V: d.V, mode: d.mode, Lcr: d.Lcr, chi: d.chi, section: lm.members[best].sec.name, parts2: d.parts });
   }
   for (const b of env.bearings)
     items.push({ key: 'bearing', Ed: Math.hypot(b.R, b.H), Rd: b.Rd, eta: b.eta, x: b.x, bearing: b.kind, shares: b.parts, chord: b.chord >= 0 ? (b.chord as 0 | 1) : undefined, V: b.H });
@@ -411,7 +428,7 @@ function latticeChecks(an: Analysis, out: Checks, view: ViewResult) {
       L: lm.L,
       h: lm.h,
       nodes: lm.nodes.map((n) => ({ x: n.x, z: n.z })),
-      members: lm.members.map((m, k) => ({ i: m.i, j: m.j, role: m.role, hinged: m.hinged, eta: env.members[k]?.eta ?? 0, N: env.N[k] ?? 0, section: m.sec.name })),
+      members: lm.members.map((m, k) => ({ i: m.i, j: m.j, role: m.role, hinged: m.hinged, eta: flexEta ?? env.members[k]?.eta ?? 0, N: env.N[k] ?? 0, section: m.sec.name })),
       restraints: lm.restraints[1],
       supports: la.supports.map((s) => s.x),
       variants: env.variants,

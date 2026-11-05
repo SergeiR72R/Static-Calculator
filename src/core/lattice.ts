@@ -28,12 +28,14 @@ import type { BeamModel, Combination, Id, LatticeConfig, PeriProductId } from '.
 import { G_ACC } from './types';
 import { dirCos } from './element';
 import { FrameMechanismError, MEMBER_SAMPLES, type FrameSpring, addLine, combineFrame, emptyLoad, frameSolver, type FrameLoad, type FrameResult } from './frame2d';
+import { COUPLER_SLIP_RD, STANDARD_LCR, periChordCheck, periDiagCheck, standardBuckling, type PeriParts } from './latticePeri';
 import { COUPLER_K, STANDARD, isLattice, latticeModel, type LatticeId, type LatticeMember, type LatticeModel, type MemberRole, type MemberSection } from '../sections/lattice';
 
 const kN = 1e3;
 
 /** Design resistances of the bearings (N) */
-export const COUPLER_RD = { NK: 9.1 * 1.5 * kN, UNK: 15.1 * 1.5 * kN };
+/** coupler slipping resistances (PERI: EN 74-1, F_S,k / γ_M = 15 / 1.1, 25 / 1.1 kN) */
+export const COUPLER_RD = COUPLER_SLIP_RD;
 export const HEAD_RD = { Vdown: 30.4 * kN, Vup: 13.4 * kN, N: 37.3 * kN };
 /** pattern parts enumerated explicitly up to this count (2^n variants) */
 const MAX_PATTERN_PARTS = 8;
@@ -57,6 +59,7 @@ export interface LatticeAnalysis {
   model: LatticeModel;
   supports: LatticeSupport[];
   cases: Map<Id, CaseFrame>;
+  cfg?: LatticeConfig;
   error?: 'mechanism';
 }
 
@@ -192,7 +195,7 @@ function computeLattice(an: Analysis): LatticeAnalysis | null {
     .filter(restrainsW)
     .map((s) => ({ supportId: s.id, x: s.x, nodes: [nodeAt(lm, 0, s.x), nodeAt(lm, 1, s.x)] as [number, number] }))
     .sort((a, b) => a.x - b.x);
-  const out: LatticeAnalysis = { product: def.id, model: lm, supports: sups, cases: new Map() };
+  const out: LatticeAnalysis = { product: def.id, model: lm, supports: sups, cases: new Map(), cfg: def.cfg };
   if (!sups.length) {
     out.error = 'mechanism';
     return out;
@@ -276,7 +279,7 @@ export function combinationVariants(la: LatticeAnalysis, factors: Record<Id, num
 
 // ---------------------------------------------------------------- design
 
-export type LatticeMode = 'section' | 'haz' | 'bucklingY' | 'bucklingZ' | 'shear' | 'tension' | 'compression';
+export type LatticeMode = 'section' | 'haz' | 'bucklingY' | 'bucklingZ' | 'shear' | 'tension' | 'compression' | 'periChord' | 'periDiag' | 'standard' | 'flexTable';
 
 export interface MemberDesign {
   eta: number;
@@ -290,6 +293,8 @@ export interface MemberDesign {
   chi?: number;
   /** x of the governing point */
   x: number;
+  /** PERI checks: ratios n, v, m */
+  parts?: PeriParts;
 }
 
 function chi(sec: MemberSection, Lcr: number, axis: 'y' | 'z'): { chi: number; lambda: number } {
@@ -371,6 +376,8 @@ export interface LatticeDesign {
 /** Design of all members for one result (one load arrangement) */
 export function designMembers(la: LatticeAnalysis, r: FrameResult): MemberDesign[] {
   const lm = la.model;
+  // ULS: cross-section checks of the PERI report (chords / posts, diagonals), standards: flexural buckling
+  if (la.product === 'ULS50' || la.product === 'ULS70') return designMembersPeri(la, r);
   const out: MemberDesign[] = [];
   // nodes with welded web members (HAZ of aluminium chords)
   const weldNode = new Uint8Array(lm.nodes.length);
@@ -414,6 +421,10 @@ export function designMembers(la: LatticeAnalysis, r: FrameResult): MemberDesign
     }
   }
   lm.members.forEach((m: LatticeMember, k) => {
+    if (m.role === 'std') {
+      out.push(standardDesign(la, r, k));
+      return;
+    }
     const sec = m.sec;
     const xi = lm.nodes[m.i].x;
     const xj = lm.nodes[m.j].x;
@@ -474,6 +485,41 @@ export function designMembers(la: LatticeAnalysis, r: FrameResult): MemberDesign
     out.push(best);
   });
   return out;
+}
+
+/** largest |V|, |M| and N of a member over its samples, with the governing sample */
+function memberSamples(r: FrameResult, k: number): { N: number; V: number; M: number; t: number }[] {
+  return Array.from({ length: MEMBER_SAMPLES }, (_, s) => {
+    const t = s / (MEMBER_SAMPLES - 1);
+    return { N: r.N1[k] + (r.N2[k] - r.N1[k]) * t, V: r.V1[k] + (r.V2[k] - r.V1[k]) * t, M: r.M[k * MEMBER_SAMPLES + s], t };
+  });
+}
+
+/** scaffold standard between the couplers: flexural buckling (PERI report) */
+function standardDesign(la: LatticeAnalysis, r: FrameResult, k: number): MemberDesign {
+  const lm = la.model;
+  const m = lm.members[k];
+  const Lcr = la.cfg?.standardLcr && la.cfg.standardLcr > 0 ? la.cfg.standardLcr : STANDARD_LCR;
+  const b = standardBuckling(Lcr);
+  const N = r.N[k];
+  return { eta: Math.abs(N) / b.NRd, mode: 'standard', N, M: 0, V: 0, Lcr, chi: b.chi, x: lm.nodes[m.i].x };
+}
+
+/** ULS 50 / 70 after the PERI report: cross-sections of chords, posts and diagonals (no buckling, no welds) */
+function designMembersPeri(la: LatticeAnalysis, r: FrameResult): MemberDesign[] {
+  const lm = la.model;
+  return lm.members.map((m, k) => {
+    const xi = lm.nodes[m.i].x;
+    const xj = lm.nodes[m.j].x;
+    if (m.role === 'std') return standardDesign(la, r, k);
+    let best: MemberDesign = { eta: 0, mode: 'section', N: r.N[k], M: 0, V: 0, x: (xi + xj) / 2 };
+    for (const s of memberSamples(r, k)) {
+      const c = m.role === 'diag' ? periDiagCheck(s.N, m.hinged ? 0 : s.V, m.hinged ? 0 : s.M) : periChordCheck(s.N, s.V, s.M);
+      if (c.eta > best.eta || best.eta === 0)
+        best = { eta: c.eta, mode: m.role === 'diag' ? 'periDiag' : 'periChord', N: s.N, M: s.M, V: s.V, x: xi + (xj - xi) * s.t, parts: c.parts };
+    }
+    return best;
+  });
 }
 
 export interface BearingDesign {

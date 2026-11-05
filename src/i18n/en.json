@@ -105,7 +105,7 @@
     "periEc3Note": "Checked per EN 1993-1-1 6.2.10 (N–V–M interaction, Wagenknecht) on the net section with bolt holes, γ_M1 = 1.1 (ULS). No stability check.",
     "periAtNode": "Supports under a lattice node (MULTIFLEX case 1 / 3)",
     "periAtNodeHint": "Unchecked: supports between the nodes (case 2 / 4, on the safe side: F_R,d = 19.5 / 30 kN, M_m,Rd = 6 kNm).",
-    "periLatticeNote": "Member model as in RSTAB: continuous chords, pin-ended diagonals; design of all members to EN 1993-1-1 (steel) or EN 1999-1-1 (aluminium, with heat affected zone) for all ULS combinations, flexural buckling with the spacing of the nodes or lateral restraints, bearings (couplers or ledger heads), deflection of the framework.",
+    "periLatticeNote": "Member model as the PERI RSTAB model (continuous chords, pin-ended diagonals, gap nodes, standard between elastic couplers). Checks after PERI: ULS – cross-sections of chords (n, v, m) and diagonals (n, v, m_N), without buckling and welds; standard – flexural buckling (curve b, L_cr); couplers – slipping (15 / 25 kN : 1.1); ULS Flex – permissible loads of the PERI configurations. ULA HD: EN 1999-1-1 with heat affected zone.",
     "flexElements": "ULS Flex elements (end element 50 + intermediate elements + end element 50)",
     "flexElement": "Intermediate element {n}",
     "flexRemove": "Remove element",
@@ -117,7 +117,8 @@
     "latticeEccentricHint": "Checked (default): diagonals with a gap of 65 / 79 mm at the chord as in the PERI drawings and RSTAB models – internal forces agree with RSTAB. Unchecked: centric nodes (reproduces the PERI table values).",
     "couplerKz": "Coupler C_u,z",
     "couplerKx": "Coupler C_u,x",
-    "couplerHint": "As in the PERI RSTAB model: standard between the couplers as a member, each coupler an elastic support of the chord (default 9100 / 10 kN/m)."
+    "couplerHint": "As in the PERI RSTAB model: standard between the couplers as a member, each coupler an elastic support of the chord (default 9100 / 10 kN/m).",
+    "standardLcr": "Buckling length standard"
   },
   "material": {
     "label": "Material",
@@ -342,10 +343,16 @@
         "bucklingZ": "buckling out of plane",
         "shear": "shear",
         "tension": "tension",
-        "compression": "compression"
+        "compression": "compression",
+        "periChord": "cross-section after PERI: n, v, m",
+        "periDiag": "cross-section after PERI: n, v, m_N",
+        "standard": "flexural buckling of the standard, curve b",
+        "flexTable": "PERI configuration"
       },
       "coupler": "coupler",
-      "std": "Scaffold standard"
+      "std": "Scaffold standard",
+      "flexTable": "PERI configuration ({span}: 50 + {el} + 50)",
+      "flexMissing": "no PERI configuration for these elements – no check possible, please choose a configuration of the table."
     }
   },
   "issues": {
@@ -512,11 +519,12 @@
     "upliftNote": "Pinned and roller supports transfer compression only; R_z > 0 (uplift, global z axis downwards) means the support fails.",
     "periGirder": "Check with the design values of the MULTIFLEX instructions for assembly and use: V_Ed ≤ V_Rd, M_Ed ≤ M_Rd, support force F_Ed ≤ F_R,d per support case (end/intermediate support, position to the nodes or distance from the girder end), for GT 24 the moment at the support M_Ed ≤ M_m,Rd; minimum distance of the end supports from the girder end.",
     "periEc3": "Cross-section check per EN 1993-1-1 6.2.10 with 6.2.9.1 (6.36), procedure after Wagenknecht, net section with bolt holes (PERI proof ST_kls_2016-00106).",
-    "periLattice": "Plane member model (continuous chords, pin-ended diagonals, rigid end posts); loads on the top chord, both chords supported vertically. Design to EN 1993-1-1 (γ_M = 1.1, M_Rd with α_pl ≤ 1.25, interaction 6.2.9.1, flexural buckling curve a with Annex B, C_m = 1) or EN 1999-1-1 (EN AW-6082 T5: f_0 = 230 N/mm², heat affected zone ρ_o,haz = 0.54, ρ_u,haz = 0.69, buckling class A, γ_M1 = 1.1, γ_M2 = 1.25). Buckling lengths: chords in plane = node spacing, out of plane = spacing of the lateral restraints; web members = system length. Couplers EN 74-1 class B: NK F_Rd = 1.5 · 9.1 kN, UNK F_Rd = 1.5 · 15.1 kN (both chords together); ledger heads UH Plus (Z-8.22-863): V_z,Rd = 30.4 / 13.4 kN, N_Rd = 37.3 kN.",
+    "periLattice": "Member model as the PERI RSTAB model (continuous chords, pin-ended diagonals, gap nodes, standard between elastic couplers). Checks after PERI: ULS – cross-sections of chords (n, v, m) and diagonals (n, v, m_N), without buckling and welds; standard – flexural buckling (curve b, L_cr); couplers – slipping (15 / 25 kN : 1.1); ULS Flex – permissible loads of the PERI configurations. ULA HD: EN 1999-1-1 with heat affected zone.",
     "latticeRole": "Member",
     "latticeSection": "Section",
     "latticeMode": "Check",
-    "latticeTable": "Member list: axial force of the governing load arrangement, utilisation η as envelope of all ULS load arrangements."
+    "latticeTable": "Member list: axial force of the governing load arrangement, utilisation η as envelope of all ULS load arrangements.",
+    "flexTable": "permissible loads of the PERI configuration (PI 550) ×1.5; uniform load and single loads added (on the safe side), a single load between connectors with the smaller resistance; self weight and decks included in the resistances."
   },
   "wizard": {
     "titleFirst": "Welcome – create your first project",

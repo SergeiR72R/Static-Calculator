@@ -830,6 +830,17 @@ function latticeReport(
   const rows: string[][] = [];
   for (const it of c.items) {
     if (it.key === 'bearing') continue;
+    if (it.key === 'flexTable' && it.flex) {
+      const f = it.flex;
+      const head = t('kpi.lattice.flexTable', { span: N(f.span), el: f.elements.join(' + ') });
+      if (f.missing) blocks.push({ type: 'p', text: `${head}: ${t('kpi.lattice.flexMissing')}` });
+      else {
+        const terms = [...(f.qEd > 0 ? [`\\tfrac{q_{Ed}}{q_{Rd}} = \\tfrac{${N(f.qEd)}}{${N(f.qRd)}}`] : []), ...f.loads.map((l) => `\\tfrac{F_{${l.pos}}}{F_{Rd}} = \\tfrac{${N(l.F)}}{${N(l.FRd)}}`)];
+        blocks.push({ type: 'p', text: `${head} (${f.combo}): ${t('report.flexTable')}` });
+        blocks.push({ type: 'tex', tex: `\\eta = ${terms.join(' + ') || '0'} = ${N(it.eta * 100, 4)}\\,\\%` });
+      }
+      continue;
+    }
     rows.push([
       t(`kpi.lattice.${it.key}`),
       it.section ?? '',

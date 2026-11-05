@@ -324,3 +324,24 @@ describe('checks of the PERI report (Balkenrechner tests)', () => {
     expect(it2.eta).toBeCloseTo(1, 6);
   });
 });
+
+describe('PERI RSTAB model ULS 70 (8.25 m, standards at 1.625 / 6.625 m, 10 kN at 5.125 m, self weight)', () => {
+  it('reactions, diagonals, standards and chords agree with RSTAB within 5 %', () => {
+    const m = girder('ULS70', 8.25, [1.625, 6.625], [pointLoad('G', 5.125, 10)]);
+    m.settings.selfWeight = true;
+    const an = analyze(m);
+    const la = analyzeLattice(an)!;
+    const r = latticeView(an, la, { type: 'case', id: 'G' })!;
+    const lm = la.model;
+    const close = (a: number, b: number) => expect(Math.abs(a - b)).toBeLessThan(0.05 * Math.abs(b) + 0.05);
+    // RSTAB couplers: left 1.79 (bottom) / 1.66 (top), right 3.87 / 3.58 kN
+    const R = la.supports.flatMap((s) => s.nodes.map((n) => r.Rmax[3 * n + 1] / kN));
+    [1.79, 1.66, 3.87, 3.58].forEach((v, i) => close(R[i], v));
+    const by = (role: string) => lm.members.map((mm, k) => ({ mm, k })).filter(({ mm }) => mm.role === role).sort((a, b) => lm.nodes[a.mm.i].x - lm.nodes[b.mm.i].x).map(({ k }) => r.Nmax[k] / kN);
+    [-4.26, 4.17, -4.21, 4.23, -4.22, 3.88, -3.26, -9.0, 9.31, -9.75].forEach((v, i) => close(by('diag')[3 + i], v));
+    [1.93, 4.3].forEach((v, i) => expect(Math.abs(by('std')[i] - v)).toBeLessThan(0.3));
+    expect(Math.max(...by('bottom'))).toBeCloseTo(14.74, 0);
+    // RSTAB: −14.74 kN in the top chord at the loaded node
+    expect(Math.min(...by('top'))).toBeCloseTo(-14.74, 0);
+  });
+});

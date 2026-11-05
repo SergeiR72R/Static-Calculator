@@ -23,7 +23,7 @@ export function uid(prefix = 'i'): Id {
 }
 
 export const DEFAULT_SETTINGS: AnalysisSettings = {
-  theory: 'euler',
+  theory: 'timoshenko',
   selfWeight: false,
   patternLoading: false,
   deflLimitSpan: 250,

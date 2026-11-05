@@ -22,6 +22,8 @@ export function testModel(
   m.supports = supports.map(([t, x, extra]) => makeSupport(t, x, extra ?? {}));
   m.hinges = (opts.hinges ?? []).map((x) => makeHinge(x));
   m.loads = loads;
+  // analytical reference values of the tests: Euler–Bernoulli (the app default is Timoshenko, as RSTAB)
+  m.settings.theory = 'euler';
   opts.edit?.(m);
   return m;
 }

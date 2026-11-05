@@ -347,7 +347,7 @@ function LatticeFields({
       />
       <p className="col-span-2 text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('section.couplerHint')}</p>
       <label className="col-span-2 flex items-center gap-1.5 text-xs" title={fmt.t('section.latticeEccentricHint')}>
-        <input type="checkbox" checked={!!cfg.eccentric} onChange={(e) => set({ eccentric: e.target.checked })} data-testid="lattice-eccentric" />
+        <input type="checkbox" checked={cfg.eccentric !== false} onChange={(e) => set({ eccentric: e.target.checked })} data-testid="lattice-eccentric" />
         {fmt.t('section.latticeEccentric')}
       </label>
     </div>

@@ -59,7 +59,7 @@ describe('plane frame', () => {
 
 describe('lattice geometry', () => {
   it('ULA 50/425 HD: system points 125 mm inside, nodes every 0.5 m alternating, end posts', () => {
-    const lm = latticeModel('ULA50HD', 4.25, undefined);
+    const lm = latticeModel('ULA50HD', 4.25, { eccentric: false });
     const diags = lm.members.filter((m) => m.role === 'diag');
     expect(diags).toHaveLength(8);
     expect(lm.members.filter((m) => m.role === 'post').map((m) => lm.nodes[m.i].x)).toEqual([0.04, 4.21]);
@@ -118,13 +118,14 @@ describe('lattice design against the PERI tables (Tabellenbuch PERI UP, S. 50–
   ];
   it.each(table)('%s %s m, span %s m, zul F = %s kN', (p, L, span, F) => {
     const o = (L - span) / 2;
-    const eta = maxEta(p, L, [o, o + span], [pointLoad('Q', L / 2, F)], { restraint: 1 });
+    // the PERI tables agree with centric nodes
+    const eta = maxEta(p, L, [o, o + span], [pointLoad('Q', L / 2, F)], { restraint: 1, eccentric: false });
     expect(eta).toBeGreaterThan(0.8);
     expect(eta).toBeLessThan(1.06);
   });
 
   it('larger restraint spacing (out-of-plane buckling L_cr = a): on the safe side of the table', () => {
-    expect(maxEta('ULA50HD', 6.25, [0.125, 6.125], [pointLoad('Q', 3.125, 11.5)], { restraint: 1.5 })).toBeGreaterThan(1);
+    expect(maxEta('ULA50HD', 6.25, [0.125, 6.125], [pointLoad('Q', 3.125, 11.5)], { restraint: 1.5, eccentric: false })).toBeGreaterThan(1);
   });
 
   it.each([
@@ -235,7 +236,7 @@ describe('couplers as in the PERI RSTAB model (ULS 50, 6.25 m, standards at 0.62
 
 describe('supports and loads next to a node', () => {
   it('a standard 5 mm beside the node acts at the node (no chord stub carrying the support force in shear)', () => {
-    const m = girder('ULS50', 6.25, [0.63, 4.63], [pointLoad('Q', 5.13, 10)]);
+    const m = girder('ULS50', 6.25, [0.63, 4.63], [pointLoad('Q', 5.13, 10)], { eccentric: false });
     const an = analyze(m);
     const la = analyzeLattice(an)!;
     expect(la.model.nodes.some((n) => Math.abs(n.x - 4.63) < 1e-9)).toBe(false);
@@ -246,5 +247,25 @@ describe('supports and loads next to a node', () => {
       if (mm.role === 'top' || mm.role === 'bottom') for (let s = 0; s < 5; s++) V = Math.max(V, Math.abs(r.Vmax[k * 5 + s]), Math.abs(r.Vmin[k * 5 + s]));
     });
     expect(V).toBeLessThan(1 * kN);
+  });
+});
+
+describe('PERI RSTAB model ULS 70 (8.25 m, standards at 1.625 / 6.625 m, 15 kN at 3.125 m, self weight)', () => {
+  it('diagonals, standards and chords agree with RSTAB (eccentric nodes)', () => {
+    const m = girder('ULS70', 8.25, [1.625, 6.625], [pointLoad('G', 3.125, 15)]);
+    m.settings.selfWeight = true;
+    const an = analyze(m);
+    const la = analyzeLattice(an)!;
+    const r = latticeView(an, la, { type: 'case', id: 'G' })!;
+    const lm = la.model;
+    const by = (role: string) => lm.members.map((mm, k) => ({ mm, k })).filter(({ mm }) => mm.role === role).sort((a, b) => lm.nodes[a.mm.i].x - lm.nodes[b.mm.i].x).map(({ k }) => r.Nmax[k] / kN);
+    const d = by('diag').slice(3, 13);
+    // RSTAB: −14.58, 13.95, −12.52, −4.31, 5.73, −6.23, 6.35, −6.32, 6.26, −6.37 kN
+    const rstab = [-14.58, 13.95, -12.52, -4.31, 5.73, -6.23, 6.35, -6.32, 6.26, -6.37];
+    d.forEach((v, i) => expect(Math.abs(v - rstab[i])).toBeLessThan(1.1));
+    // standards: RSTAB 6.83 / 2.88 kN
+    const s = by('std');
+    expect(s[0]).toBeCloseTo(6.83, 0);
+    expect(s[1]).toBeCloseTo(2.88, 0);
   });
 });

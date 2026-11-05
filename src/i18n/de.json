@@ -113,8 +113,8 @@
     "flexSystem": "Systemlänge (Ständer bis Ständer): {L}",
     "latticeRestraint": "Seitliche Halterung Obergurt alle",
     "latticeCouplers": "Kupplungen UG/OG",
-    "latticeEccentric": "Knoten mit Spalt g (exzentrisch, Systemlinien der Zeichnung)",
-    "latticeEccentricHint": "Ohne Haken: Diagonalen treffen sich zentrisch auf der Gurtachse (stimmt mit den PERI-Tabellen überein). Mit Haken: Spalt 65 / 79 mm wie in den PERI-Zeichnungen, zusätzliche Exzentrizitätsmomente in den Gurten.",
+    "latticeEccentric": "Knoten mit Spalt g wie im PERI-RSTAB-Modell (exzentrisch)",
+    "latticeEccentricHint": "Mit Haken (Standard): Diagonalen mit Spalt 65 / 79 mm am Gurt wie in den PERI-Zeichnungen und RSTAB-Modellen – Schnittgrößen stimmen mit RSTAB überein. Ohne Haken: zentrische Knoten (die PERI-Tabellenwerte werden damit erreicht).",
     "couplerKz": "Kupplung C_u,z",
     "couplerKx": "Kupplung C_u,x",
     "couplerHint": "Wie im PERI-RSTAB-Modell: Ständer zwischen den Kupplungen als Stab, jede Kupplung elastische Lagerung des Gurtes (Standard 9100 / 10 kN/m)."

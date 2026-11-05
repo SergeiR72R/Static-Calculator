@@ -111,7 +111,7 @@ export interface LatticeConfig {
   /** ULA / ULS: stiffness of a coupler (elastic support of each chord at the standard), N/m; default 9100 kN/m vertical, 10 kN/m horizontal (as the PERI RSTAB models) */
   couplerKz?: number;
   couplerKx?: number;
-  /** ULA / ULS: diagonals with the gap of the drawing at the chord (eccentric nodes); default centric */
+  /** ULA / ULS: diagonals with the gap of the drawing at the chord (eccentric nodes, as the PERI RSTAB models; default); false = centric nodes */
   eccentric?: boolean;
 }
 

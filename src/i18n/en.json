@@ -113,8 +113,8 @@
     "flexSystem": "System length (standard to standard): {L}",
     "latticeRestraint": "Lateral restraint of the top chord every",
     "latticeCouplers": "Couplers bottom/top",
-    "latticeEccentric": "Nodes with gap g (eccentric, system lines of the drawing)",
-    "latticeEccentricHint": "Unchecked: diagonals meet centrically on the chord axis (agrees with the PERI tables). Checked: gap 65 / 79 mm as in the PERI drawings, additional eccentricity moments in the chords.",
+    "latticeEccentric": "Nodes with gap g as in the PERI RSTAB model (eccentric)",
+    "latticeEccentricHint": "Checked (default): diagonals with a gap of 65 / 79 mm at the chord as in the PERI drawings and RSTAB models – internal forces agree with RSTAB. Unchecked: centric nodes (reproduces the PERI table values).",
     "couplerKz": "Coupler C_u,z",
     "couplerKx": "Coupler C_u,x",
     "couplerHint": "As in the PERI RSTAB model: standard between the couplers as a member, each coupler an elastic support of the chord (default 9100 / 10 kN/m)."

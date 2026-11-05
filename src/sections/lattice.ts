@@ -187,6 +187,8 @@ export interface LatticeModel {
   members: LatticeMember[];
   /** x of the connection points of web members per chord (bottom, top), sorted */
   braces: [number[], number[]];
+  /** x of the node centres (system grid; with gap nodes between the two diagonal connections) */
+  centers: number[];
   /** x of lateral restraints of the chords (bottom, top), sorted */
   restraints: [number[], number[]];
   /** welded web members (aluminium: heat affected zone at the chord nodes) */
@@ -438,7 +440,8 @@ export function latticeModel(id: LatticeId, L: number, cfg: LatticeConfig | unde
   const t = LATTICE_TYPES[id];
   const Ls = Math.round(systemLength(id, L));
   const o = t.overhang;
-  const g = cfg?.eccentric ? t.gap / 2 : 0;
+  // as the PERI RSTAB models: diagonals with the gap g at the chord (eccentric); centric only on request
+  const g = cfg?.eccentric === false ? 0 : t.gap / 2;
   // web points: node k at s = k/2 on the top chord (k even) or the bottom chord (k odd)
   const diags: [number, number, number, number][] = [];
   for (let k = 0; k < 2 * Ls; k++) {
@@ -473,6 +476,7 @@ export function latticeModel(id: LatticeId, L: number, cfg: LatticeConfig | unde
     nodes: b.nodes,
     members: b.members,
     braces: [webX(0), webX(1)],
+    centers: Array.from({ length: 2 * Ls + 1 }, (_, k) => r6(o + k / 2)),
     restraints: [[o, o + Ls].map(r6), [...new Set(top.map(r6))].sort((p, q) => p - q)],
     welded: t.welded,
     mass: latticeMass(id, L, cfg),
@@ -520,6 +524,7 @@ function flexModel(L: number, cfg: LatticeConfig | undefined, ex: number[]): Lat
     nodes: b.nodes,
     members: b.members,
     braces: [webX(0), webX(1)],
+    centers: [...new Set([...webX(0), ...webX(1)])].sort((p, q) => p - q),
     restraints: [lat, lat],
     welded: true,
     mass: latticeMass('ULSFLEX', L, { flex: elements }),

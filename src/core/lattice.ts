@@ -80,8 +80,8 @@ export function usesLattice(model: BeamModel): PeriProductId | null {
  */
 export const NODE_SNAP = 0.03;
 
-/** additional chord points for supports and loads; points next to a node are snapped to it */
-function loadPoints(model: BeamModel, nodeXs: number[]): number[] {
+/** additional chord points for supports and loads; points next to a node are snapped to it (node centre first) */
+function loadPoints(model: BeamModel, centers: number[], nodeXs: number[]): number[] {
   const raw: number[] = [];
   for (const s of model.supports) raw.push(s.x);
   for (const l of model.loads) {
@@ -89,6 +89,8 @@ function loadPoints(model: BeamModel, nodeXs: number[]): number[] {
     else raw.push(l.x);
   }
   return raw.map((x) => {
+    const c = centers.reduce((a, b) => (Math.abs(b - x) < Math.abs(a - x) ? b : a), Infinity);
+    if (Math.abs(c - x) <= NODE_SNAP) return c;
     let best = x;
     let d = NODE_SNAP + 1e-12;
     for (const n of nodeXs)
@@ -185,7 +187,7 @@ function computeLattice(an: Analysis): LatticeAnalysis | null {
   const def = latticeOf(model);
   if (!def) return null;
   const base = latticeModel(def.id, model.L, def.cfg, []);
-  const lm = latticeModel(def.id, model.L, def.cfg, loadPoints(model, [...base.braces[0], ...base.braces[1]]));
+  const lm = latticeModel(def.id, model.L, def.cfg, loadPoints(model, base.centers, [...base.braces[0], ...base.braces[1]]));
   const sups = model.supports
     .filter(restrainsW)
     .map((s) => ({ supportId: s.id, x: s.x, nodes: [nodeAt(lm, 0, s.x), nodeAt(lm, 1, s.x)] as [number, number] }))

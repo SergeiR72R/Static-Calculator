@@ -44,6 +44,12 @@ const point = (s?: string): V3 | null => {
   return v.length >= 3 && v.every(Number.isFinite) ? [v[0], v[1], v[2]] : null;
 };
 
+const centre = (e: ExportEntry): V3 => {
+  const a = point(e.fields.Min)!;
+  const b = point(e.fields.Max)!;
+  return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+};
+
 const med = (v: number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)] ?? 0;
 
 /**
@@ -53,13 +59,21 @@ const med = (v: number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 
  */
 export function mergePeriExport(doc: ScaffoldDoc, ex: ExportFile, file: string): ScaffoldDoc {
   const parts = ex.entries.filter((e) => e.type === 'PERI_AEC_DB_BAUTEIL' && point(e.fields.Min) && point(e.fields.Max));
-  const groups = ex.entries.filter((e) => /GRUPPE/i.test(e.type)).length;
-  // scale: compare the positions of the export with those of the parts of the DXF
-  const centre = (e: ExportEntry): V3 => {
-    const a = point(e.fields.Min)!;
-    const b = point(e.fields.Max)!;
-    return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+  // groups of the older kind (e.g. "UJB 38-50/30" = spindle + nut): their parts are exported as well;
+  // a group without any exported part inside its box is reported
+  const inside = (g: ExportEntry) => {
+    // the box of a group is only its symbol; its insertion point lies in the box of its parts
+    const q = point(g.fields.Location) ?? point(g.fields.Min);
+    if (!q) return false;
+    return parts.some((e) => {
+      const a = point(e.fields.Min)!;
+      const b = point(e.fields.Max)!;
+      const tol = 1e-3 * Math.max(1, ...[0, 1, 2].map((i) => b[i] - a[i]));
+      return [0, 1, 2].every((i) => q[i] >= a[i] - tol && q[i] <= b[i] + tol);
+    });
   };
+  const groups = ex.entries.filter((e) => /GRUPPE/i.test(e.type) && !inside(e)).length;
+  // scale: compare the positions of the export with those of the parts of the DXF
   let scale = ex.insunits === 4 ? 1e-3 : 1;
   if (doc.parts.length && parts.length) {
     const here = med(doc.parts.map((p) => Math.hypot(p.m[3], p.m[7], p.m[11])));
@@ -71,12 +85,48 @@ export function mergePeriExport(doc: ScaffoldDoc, ex: ExportFile, file: string):
     const s: V3 = [q[0] * scale, q[1] * scale, q[2] * scale];
     return R ? [0, 1, 2].map((i) => R[i * 3] * s[0] + R[i * 3 + 1] * s[1] + R[i * 3 + 2] * s[2]) as V3 : s;
   };
+  // a group with a catalogue article (spindle UJB 38-50/30 = spindle + nut, coupler SW 48/48, …) is one
+  // part of the catalogue: its parts (the one holding its insertion point and those inside that one)
+  // become one part with the article, name and weight of the group
+  const box = (e: ExportEntry): [V3, V3] => [point(e.fields.Min)!, point(e.fields.Max)!];
+  const within = (q: V3, [a, b]: [V3, V3]) => {
+    const tol = 1e-3 * Math.max(1, ...[0, 1, 2].map((i) => b[i] - a[i]));
+    return [0, 1, 2].every((i) => q[i] >= a[i] - tol && q[i] <= b[i] + tol);
+  };
+  const used = new Set<ExportEntry>();
+  const items: { f: Record<string, string>; a0: V3; b0: V3 }[] = [];
+  for (const g of ex.entries) {
+    if (!/GRUPPE/i.test(g.type) || !findPart(g.fields.ArtNr ?? '')) continue;
+    const q = point(g.fields.Location);
+    const main = q ? parts.find((e) => !used.has(e) && within(q, box(e))) : undefined;
+    if (!main) continue;
+    const members = [main, ...parts.filter((e) => e !== main && !used.has(e) && within(centre(e), box(main)))];
+    for (const m of members) used.add(m);
+    const bs = members.map(box);
+    items.push({
+      f: { ...g.fields, Handle: main.fields.Handle ?? g.fields.Handle ?? '' },
+      a0: [0, 1, 2].map((i) => Math.min(...bs.map((b) => b[0][i]))) as V3,
+      b0: [0, 1, 2].map((i) => Math.max(...bs.map((b) => b[1][i]))) as V3,
+    });
+  }
+  // pieces of a catalogue part ("017010_02", "zu_017010_01") outside the box of their group's main part:
+  // already counted with the group nearby
+  const groupAt = ex.entries.filter((g) => /GRUPPE/i.test(g.type) && findPart(g.fields.ArtNr ?? '') && point(g.fields.Location));
+  for (const e of parts) {
+    if (used.has(e)) continue;
+    const base = /^(?:zu_)?(\d{6})_\d+$/.exec((e.fields.ArtNr ?? '').trim())?.[1];
+    if (!base) continue;
+    const [a, b] = box(e);
+    const r = 3 * Math.max(...[0, 1, 2].map((i) => b[i] - a[i]));
+    const c = centre(e);
+    if (groupAt.some((g) => g.fields.ArtNr === base && Math.hypot(...point(g.fields.Location)!.map((v, i) => v - c[i])) <= r)) used.add(e);
+  }
+  for (const e of parts) if (!used.has(e)) items.push({ f: e.fields, a0: box(e)[0], b0: box(e)[1] });
   let guessed = 0;
   let unknown = 0;
   const added: ScaffoldPart[] = [];
-  for (const e of parts) {
-    const a0 = point(e.fields.Min)!;
-    const b0 = point(e.fields.Max)!;
+  for (const { f, a0, b0 } of items) {
+    const e = { fields: f };
     // the box turned upright: its corners
     const corners: V3[] = [];
     for (const x of [a0[0], b0[0]]) for (const y of [a0[1], b0[1]]) for (const z of [a0[2], b0[2]]) corners.push(tf([x, y, z]));

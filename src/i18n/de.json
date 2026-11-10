@@ -767,7 +767,8 @@
       "title": "3D-Modell",
       "hint": "Ziehen: drehen · rechte Maustaste: verschieben · Mausrad: zoomen · Klick: Teil oder Träger auswählen",
       "toggle": "Ein- / ausblenden",
-      "girderColors": "Träger nach η:"
+      "girderColors": "Träger nach η:",
+      "byEta": "Teile nach Ausnutzung η färben"
     },
     "kind": {
       "standard": "Stiele",
@@ -863,6 +864,67 @@
       "cancel": "Abbrechen",
       "confirm": "Standort bestätigen",
       "manual": "Koordinaten eingeben"
+    },
+    "calc": {
+      "title": "Gerüstberechnung (räumliches Stabwerk)",
+      "intro": "Das Gerüst wird als räumliches Stabwerk berechnet: durchlaufende Stiele, Riegel mit nachgiebigen Rosettenknoten, Diagonalen mit Lose, Verankerungen, Fußpunkte ohne Zug. Lasten und Kombinationen nach DIN EN 12811-1 (γF = 1,5), Steifigkeiten und Knotennachweise nach Zulassung Z-8.22-863.",
+      "run": "Berechnen",
+      "rerun": "Neu berechnen",
+      "running": "Berechnung… {done} / {total}",
+      "level": "Belastete Lage",
+      "levelAuto": "automatisch – größte Belagfläche",
+      "levelOption": "Lage {z} ({a} m²)",
+      "qMax": "Max. Wind: q_p",
+      "snowLoad": "Schnee auf dem Belag",
+      "ice": "Eisdicke",
+      "secondOrder": "Theorie II. Ordnung + Schiefstellung",
+      "combosIndoor": "Im Gebäude: G + Q auf einer Lage + horizontale Ersatzlast 2,5 % von Q, in 4 Richtungen.",
+      "combosNoMax": "Im Freien: G + Q + Arbeitswind 0,2 kN/m², in 4 Richtungen. Mit q_p > 0 kommt der Ruhebetrieb mit maximalem Wind dazu.",
+      "combosOutdoor": "Im Freien: Arbeitsbetrieb (G + Q + Wind 0,2 kN/m²) und Ruhebetrieb (G + Anteil Q + maximaler Wind q_p), je 4 Richtungen.",
+      "stale": "Die Eingaben haben sich geändert – Ergebnisse veraltet, bitte neu berechnen.",
+      "summary": "G = {g}, Q = {q} auf Lage {z} · {n} Unbekannte · {s} s",
+      "unstable": "Kombinationen {names}: System kinematisch oder instabil – Aussteifung oder Auflager fehlen.",
+      "combo": "Kombination",
+      "iter": "Iterationen",
+      "dh": "Horiz. Verschiebung",
+      "dv": "Vert. Verschiebung",
+      "mechanism": "kinematisch / instabil",
+      "notConverged": "Iteration nicht konvergiert – Näherung",
+      "noLift": "abhebende Fußpunkte zweiseitig belassen",
+      "comboLegend": "A – Arbeitsbetrieb, R – Ruhebetrieb (maximaler Wind); ±x, ±y – Richtung von Wind und Schiefstellung. Verschiebungen und ΣV sind Bemessungswerte (γF = 1,5).",
+      "allChecks": "Alle Nachweise",
+      "part": "Teil",
+      "checkCol": "Nachweis",
+      "showAll": "Alle zeigen ({n})",
+      "check": {
+        "conn": "Knoten: Riegelanschluss",
+        "node": "Knoten: Ständer + Riegel",
+        "tube": "Ständerrohr (N + M)",
+        "buckling": "Knicken Stiel",
+        "joint": "Ständerstoß",
+        "ledger": "Riegelquerschnitt",
+        "diagonal": "Diagonale",
+        "anchor": "Verankerung (Kupplung)",
+        "coupler": "Rohrverband (Kupplung)",
+        "uplift": "Abheben Fußpunkt"
+      },
+      "bases": "Fußpunkte: {n}",
+      "basesMax": "Größte Vertikalkraft {v}, Horizontalkraft {h} (Bemessungswerte).",
+      "uplift": "Abheben (Zug) an {n} Fußpunkten – Ballast oder Verankerung nötig. Zeigen.",
+      "anchors": "Verankerungen: {n} (Kraft in Rohrachse, Kupplung 13,65 kN)",
+      "notes": "Annahmen des Modells",
+      "note": {
+        "beamAssumed": "Träger SRU / RCS ohne Auflager in der Zeichnung ({n}) – an den Enden auf dem Bauwerk gelagert angenommen.",
+        "diagonalFree": "Diagonalen, deren Enden nicht an Stielen liegen ({n}) – nicht angesetzt.",
+        "diagonalType": "Diagonalen unbekannter Art ({n}: {names}) – nicht angesetzt.",
+        "tubeFree": "Rohre nicht zwischen zwei Stielen ({n}) – nicht angesetzt.",
+        "deckOneSupport": "Beläge mit nur einem Auflager ({n}) – ihre ganze Last auf dieses Auflager.",
+        "deckNoSupport": "Beläge ohne gefundenes Auflager ({n}) – Last am nächsten Knoten.",
+        "ledgerLoose": "Riegel, die nur an einem gelenkigen Ende hängen ({n}) – nicht angesetzt.",
+        "bracketFree": "Konsolen ohne Stiel ({n}) – nicht angesetzt.",
+        "columnHanging": "Stiele ohne Auflager unten ({n}) – hängen an den Riegeln."
+      },
+      "basis": "Grundlage: Zulassung Z-8.22-863 (Moment-Drehwinkel-Beziehungen, Beanspruchbarkeiten der Knoten, Diagonalen, Stöße), DIN EN 12811-1, Tabellenbuch PERI UP. Beläge wirken nicht aussteifend. Ersetzt nicht den Nachweis durch den Statiker; Abgleich mit RSTAB folgt."
     }
   }
 }

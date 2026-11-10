@@ -10,6 +10,8 @@ export interface Scaffold3DProps {
   st: ScaffoldStructure;
   /** colour of the parts of a girder by its result */
   girderColor: Record<string, string>;
+  /** colours of single parts (utilisation of the scaffold analysis); overrides the kind colours */
+  partColor?: Record<string, string> | null;
   selected: string[];
   /** parts moved by the snapping (marked) */
   moved: string[];
@@ -37,7 +39,7 @@ const MOVED = '#0ea5e9';
 const toThree = (p: number[], c: number[]) => new THREE.Vector3(p[0] - c[0], p[2] - c[2], -(p[1] - c[1]));
 
 /** Interactive 3D view of the scaffold: system lines as tubes, decks as plates, rosettes. */
-export default function Scaffold3D({ st, girderColor, selected, moved, resetKey, onPick, describe }: Scaffold3DProps) {
+export default function Scaffold3D({ st, girderColor, partColor, selected, moved, resetKey, onPick, describe }: Scaffold3DProps) {
   const fmt = useFmt();
   const theme = useStore((s) => s.theme);
   const host = useRef<HTMLDivElement>(null);
@@ -123,7 +125,7 @@ export default function Scaffold3D({ st, girderColor, selected, moved, resetKey,
     const colorOf = (id: string, kind: keyof typeof KIND_COLOR) => {
       if (sel.has(id)) return SEL;
       const g = partGirder.get(id);
-      const c = g && girderColor[g] ? girderColor[g] : mov.has(id) ? MOVED : KIND_COLOR[kind];
+      const c = g && girderColor[g] ? girderColor[g] : partColor ? (partColor[id] ?? '#cbd5e1') : mov.has(id) ? MOVED : KIND_COLOR[kind];
       return fade ? `#${new THREE.Color(c).lerp(bg, 0.75).getHexString()}` : c;
     };
 
@@ -232,7 +234,7 @@ export default function Scaffold3D({ st, girderColor, selected, moved, resetKey,
     s.content.add(grid);
     s.render();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [st, girderColor, selected, moved, theme]);
+  }, [st, girderColor, partColor, selected, moved, theme]);
 
   // camera
   useEffect(() => {

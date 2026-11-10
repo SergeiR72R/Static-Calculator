@@ -11,6 +11,7 @@ import { useFmt, type Fmt } from '../hooks';
 import { IconAlert, IconChevronRight, IconInfo, IconUpload, IconX } from '../icons';
 import { openDxfFile } from './openDxf';
 import { SiteCard } from './SiteCard';
+import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './AnalysisCard';
 
 const Scaffold3D = lazy(() => import('./Scaffold3D'));
 
@@ -144,6 +145,8 @@ export default function ScaffoldApp() {
   const sc = useScaffold();
   const [resetKey, setResetKey] = useState(0);
   const [hidden, setHidden] = useState<Set<PartKind>>(new Set());
+  const [run, setRun] = useState<ScaffoldRun | null>(null);
+  const [byEta, setByEta] = useState(true);
   const doc = sc.doc;
   const st = useMemo(() => (doc ? analyzeScaffold(doc, { tol: sc.tol }) : null), [doc, sc.tol]);
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
@@ -151,6 +154,14 @@ export default function ScaffoldApp() {
   const sums = useMemo(() => models.map(({ m }) => beamSummary(m)), [models]);
   const girderColor = useMemo(() => Object.fromEntries(models.map(({ g }, k) => [g.key, etaColor(sums[k])])), [models, sums]);
   const shown = useMemo(() => (st ? { ...st, parts: st.parts.filter((w) => !hidden.has(w.cls.kind)) } : null), [st, hidden]);
+
+  const partColor = useMemo(() => (run && byEta ? Object.fromEntries(Object.entries(run.result.eta).map(([id, e]) => [id, partEtaColor(e)])) : null), [run, byEta]);
+  // a new drawing: the results of the old one are gone
+  const docRef = useRef(doc);
+  if (docRef.current !== doc) {
+    docRef.current = doc;
+    if (run) setRun(null);
+  }
 
   if (!doc || !st || !shown) return <Welcome />;
 
@@ -168,6 +179,7 @@ export default function ScaffoldApp() {
       `${w.part.name} · ${fmt.t('scaffold.bom.article')} ${w.part.article}`,
       g ? `${g.key} ${girderDesignation(g)} · η = ${fmt.num(sums[k].eta * 100, 0)} %` : '',
       mv ? fmt.t('scaffold.movedBy', { d: fmt.num(Math.hypot(...mv.d) * 1000, 0) }) : '',
+      run && run.result.eta[id] !== undefined ? `η = ${fmt.num(run.result.eta[id] * 100, 0)} %` : '',
     ]
       .filter(Boolean)
       .join(' — ');
@@ -295,8 +307,20 @@ export default function ScaffoldApp() {
               </span>
             )}
           </div>
+          {run && (
+            <label className="mb-1 flex items-center gap-2 text-xs" data-testid="scaffold-color-eta">
+              <input type="checkbox" checked={byEta} onChange={(e) => setByEta(e.target.checked)} />
+              {fmt.t('scaffold.view.byEta')}
+              <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+                <span className="inline-block h-2 w-3 rounded-sm bg-[#16a34a]" />≤ 60 %
+                <span className="inline-block h-2 w-3 rounded-sm bg-[#84cc16]" />≤ 90 %
+                <span className="inline-block h-2 w-3 rounded-sm bg-[#f59e0b]" />≤ 100 %
+                <span className="inline-block h-2 w-3 rounded-sm bg-[#dc2626]" />&gt; 100 %
+              </span>
+            </label>
+          )}
           <Suspense fallback={<div className="h-[460px]" />}>
-            <Scaffold3D st={shown} girderColor={girderColor} selected={sc.selected} moved={moved} resetKey={resetKey} onPick={pick} describe={describe} />
+            <Scaffold3D st={shown} girderColor={girderColor} partColor={partColor} selected={sc.selected} moved={moved} resetKey={resetKey} onPick={pick} describe={describe} />
           </Suspense>
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
             <span>{fmt.t('scaffold.view.hint')}</span>
@@ -307,6 +331,8 @@ export default function ScaffoldApp() {
             )}
           </div>
         </Card>
+
+        <AnalysisCard st={st} run={run} setRun={setRun} />
 
         <Card
           title={fmt.t('scaffold.girders.title')}

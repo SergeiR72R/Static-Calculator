@@ -767,7 +767,8 @@
       "title": "3D model",
       "hint": "Drag: rotate · right button: pan · wheel: zoom · click: select a part or girder",
       "toggle": "Show / hide",
-      "girderColors": "girders by η:"
+      "girderColors": "girders by η:",
+      "byEta": "Colour the parts by utilisation η"
     },
     "kind": {
       "standard": "Standards",
@@ -863,6 +864,67 @@
       "cancel": "Cancel",
       "confirm": "Confirm the site",
       "manual": "Enter coordinates"
+    },
+    "calc": {
+      "title": "Scaffold analysis (space frame)",
+      "intro": "The scaffold is analysed as a space frame: continuous standards, ledgers with semi-rigid rosette connections, diagonals with slack, anchors, bases without tension. Loads and combinations after DIN EN 12811-1 (γF = 1.5), stiffness and node checks after the approval Z-8.22-863.",
+      "run": "Calculate",
+      "rerun": "Recalculate",
+      "running": "Calculating… {done} / {total}",
+      "level": "Loaded level",
+      "levelAuto": "automatic – largest deck area",
+      "levelOption": "level {z} ({a} m²)",
+      "qMax": "Max. wind: q_p",
+      "snowLoad": "Snow on the decks",
+      "ice": "Ice thickness",
+      "secondOrder": "Second order + sway imperfection",
+      "combosIndoor": "Indoors: G + Q on one level + notional horizontal load 2.5 % of Q, in 4 directions.",
+      "combosNoMax": "Outdoors: G + Q + working wind 0.2 kN/m², in 4 directions. With q_p > 0 the out-of-service condition with the maximum wind is added.",
+      "combosOutdoor": "Outdoors: working (G + Q + wind 0.2 kN/m²) and out of service (G + share of Q + maximum wind q_p), 4 directions each.",
+      "stale": "The input has changed – results are out of date, recalculate.",
+      "summary": "G = {g}, Q = {q} on level {z} · {n} unknowns · {s} s",
+      "unstable": "Combinations {names}: the system is a mechanism or unstable – bracing or supports are missing.",
+      "combo": "Combination",
+      "iter": "Iterations",
+      "dh": "Horiz. displacement",
+      "dv": "Vert. displacement",
+      "mechanism": "mechanism / unstable",
+      "notConverged": "iteration not converged – approximate",
+      "noLift": "lifting bases kept two-sided",
+      "comboLegend": "A – working condition, R – out of service (maximum wind); ±x, ±y – direction of wind and sway. Displacements and ΣV are design values (γF = 1.5).",
+      "allChecks": "All checks",
+      "part": "Part",
+      "checkCol": "Check",
+      "showAll": "Show all ({n})",
+      "check": {
+        "conn": "Node: ledger connection",
+        "node": "Node: standard + ledger",
+        "tube": "Standard tube (N + M)",
+        "buckling": "Buckling of the standard",
+        "joint": "Standard joint",
+        "ledger": "Ledger section",
+        "diagonal": "Diagonal",
+        "anchor": "Anchor (coupler)",
+        "coupler": "Tube brace (coupler)",
+        "uplift": "Uplift at the base"
+      },
+      "bases": "Bases: {n}",
+      "basesMax": "Largest vertical force {v}, horizontal force {h} (design values).",
+      "uplift": "Uplift (tension) at {n} bases – ballast or anchoring needed. Show.",
+      "anchors": "Anchors: {n} (force along the tube, coupler 13.65 kN)",
+      "notes": "Assumptions of the model",
+      "note": {
+        "beamAssumed": "Beams SRU / RCS without supports in the drawing ({n}) – assumed supported on the structure at their ends.",
+        "diagonalFree": "Diagonals with ends away from the standards ({n}) – not considered.",
+        "diagonalType": "Diagonals of unknown kind ({n}: {names}) – not considered.",
+        "tubeFree": "Tubes not between two standards ({n}) – not considered.",
+        "deckOneSupport": "Decks with one support only ({n}) – all their load on this support.",
+        "deckNoSupport": "Decks without a support ({n}) – load at the nearest node.",
+        "ledgerLoose": "Ledgers held at one hinged end only ({n}) – not considered.",
+        "bracketFree": "Brackets without a standard ({n}) – not considered.",
+        "columnHanging": "Standards without a support below ({n}) – hang on the ledgers."
+      },
+      "basis": "Basis: approval Z-8.22-863 (moment–rotation curves, resistances of nodes, diagonals, joints), DIN EN 12811-1, PERI UP Tabellenbuch. Decks do not brace. Does not replace the verification by the structural engineer; comparison with RSTAB will follow."
     }
   }
 }

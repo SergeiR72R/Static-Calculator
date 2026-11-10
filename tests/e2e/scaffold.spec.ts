@@ -119,3 +119,30 @@ test('scaffold mode: without internet the site can be entered by coordinates', a
   await page.getByTestId('site-confirm').click();
   await expect(page.getByTestId('site-summary')).toContainText('48,4000°, 9,9900°');
 });
+
+test('scaffold mode: space frame analysis with results in tables and in 3D', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('mode-scaffold').click();
+  await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
+  await expect(page.getByTestId('scaffold-calc')).toBeVisible();
+  await page.getByTestId('scaffold-calc-run').click();
+  await expect(page.getByTestId('scaffold-calc-result')).toBeVisible({ timeout: 20_000 });
+  const eta = Number((await page.getByTestId('scaffold-calc-max').innerText()).replace(/[^\d]/g, ''));
+  expect(eta).toBeGreaterThan(10);
+  // four working combinations, checks of nodes and standards, bases
+  await expect(page.getByTestId('scaffold-calc-result')).toContainText('A +x');
+  await expect(page.getByTestId('scaffold-calc-result')).toContainText('A −y');
+  await expect(page.getByTestId('scaffold-calc-filter-conn')).toBeVisible();
+  await expect(page.getByTestId('scaffold-calc-filter-buckling')).toBeVisible();
+  await expect(page.getByTestId('scaffold-calc-bases')).toContainText('Опоры стоек: 6');
+  await expect(page.getByTestId('scaffold-color-eta')).toBeVisible();
+  // a row selects its part
+  await page.getByTestId('scaffold-calc-row').click();
+  await expect(page.getByTestId('scaffold-selected')).toBeVisible();
+  // changed input marks the results as out of date; maximum wind adds the out-of-service combinations
+  await page.getByTestId('scaffold-calc-qmax').fill('0,8');
+  await expect(page.getByTestId('scaffold-calc-result')).toContainText('результаты устарели');
+  await page.getByTestId('scaffold-calc-run').click();
+  await expect(page.getByTestId('scaffold-calc-result')).toContainText('R +x', { timeout: 20_000 });
+  await expect(page.getByTestId('scaffold-calc-result')).not.toContainText('результаты устарели');
+});

@@ -42,9 +42,18 @@ export interface ScaffoldOpts {
   snow: boolean;
   ice: boolean;
   terrain: Terrain;
+  /** peak velocity pressure of the maximum wind, N/m² (0: not set) */
+  qMax: number;
+  /** snow load on the decks, N/m² */
+  snowLoad: number;
+  /** ice thickness on the members, m */
+  iceThickness: number;
+  /** loaded deck level (−1: the largest) */
+  level: number;
+  secondOrder: boolean;
 }
 
-export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II' };
+export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true };
 
 export interface ScaffoldState extends ScaffoldOpts {
   doc: ScaffoldDoc | null;
@@ -96,6 +105,11 @@ function save(s: ScaffoldState) {
     snow: s.snow,
     ice: s.ice,
     terrain: s.terrain,
+    qMax: s.qMax,
+    snowLoad: s.snowLoad,
+    iceThickness: s.iceThickness,
+    level: s.level,
+    secondOrder: s.secondOrder,
     batchRef: s.batchRef,
   };
   storage.set(OPT_KEY, JSON.stringify(o));

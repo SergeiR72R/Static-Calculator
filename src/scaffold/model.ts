@@ -16,9 +16,9 @@ import { latticeEquivalent } from '../sections/lattice';
 import { findPeriProduct, periSI } from '../sections/peri';
 import type { ScaffoldStructure, WorldPart } from './structure';
 import { partKg } from './weights';
-import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, VARIANT_TUBE, connKx, connKy, connKz, ubhData, ubkData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
+import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, VARIANT_TUBE, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 
-export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'tube' | 'anchor' | 'jack';
+export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'ubl' | 'tube' | 'anchor' | 'jack';
 
 export interface ModelMember {
   kind: MKind;
@@ -535,7 +535,8 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     // spindles of all kinds, base standards (on a spindle not in the drawing), the lowest level and
     // beam clamps: supported on the ground or on a beam of the structure
     const clamp = st.parts.some((w) => w.cls.kind === 'clamp' && near(w, c.x, c.y) && w.max[2] > foot - 0.6 && w.min[2] < foot + 0.05);
-    if (isBase || under.length || clamp || c.z0 <= ground + 0.4) {
+    // also a standard with nothing under it: it stands on a part of the structure (by assumption)
+    {
       let n = c.ns[0];
       if (foot < c.z0 - 0.02) {
         n = addNode([c.x, c.y, foot], k);
@@ -544,8 +545,9 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       bases.push({ node: n, sup: supports.length, part: (under[0] ?? c.parts[0].w).part.id, column: k });
       for (const dof of [0, 1, 2]) supports.push({ node: n, dof, k: Infinity });
       // above the lowest level and not on timber planks: on a beam of the structure (by assumption)
-      if (foot > ground + 0.4 && padTop({ ...c, z0: foot + 0.01 }) === null) note('baseOnStructure', c.parts[0].w.part.id);
-    } else note('columnHanging', c.parts[0].w.part.id);
+      if (!(isBase || under.length || clamp || c.z0 <= ground + 0.4)) note('columnOnStructure', c.parts[0].w.part.id);
+      else if (foot > ground + 0.4 && padTop({ ...c, z0: foot + 0.01 }) === null) note('baseOnStructure', c.parts[0].w.part.id);
+    }
   });
   // tops of standards under a beam carry it
   for (const car of carriers) {
@@ -650,10 +652,13 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
 
   // ---- diagonals
   const trussSec = (ea: number): Section3 => ({ EA: ea, EIy: 1, EIz: 1, GJ: 1 });
+  // ledger diagonals UBL: table of the approval for ledgers UH Plus or UH (by the ledgers of the drawing)
+  const ledgerParts = st.parts.filter((w) => w.cls.kind === 'ledger');
+  const plusLedgers = ledgerParts.filter((w) => ledgerType(w).head === 'PLUS').length >= ledgerParts.length / 2;
   for (const w of st.parts) {
     if (w.cls.kind !== 'diagonal') continue;
     const name = `${w.part.name} ${w.part.desc}`;
-    const kind: MKind | null = /UBK/i.test(name) ? 'ubk' : /UBH/i.test(name) ? 'ubh' : /UBS/i.test(name) ? 'ubs' : null;
+    const kind: MKind | null = /UBK/i.test(name) ? 'ubk' : /UBH/i.test(name) ? 'ubh' : /UBL/i.test(name) ? 'ubl' : /UBS/i.test(name) ? 'ubs' : null;
     const ml = longestLine(w);
     if (!kind || !ml) {
       note('diagonalType', w.part.id, { names: w.part.name });
@@ -677,6 +682,10 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     if (kind === 'ubh') {
       const dims = /(\d{2,3})\s*[x/]\s*(\d{2,3})/.exec(w.part.name);
       d = dims ? ubhData(Number(dims[1]) / 100, Number(dims[2]) / 100) : ubhData(Lh / Math.SQRT2, Lh / Math.SQRT2);
+    } else if (kind === 'ubl') {
+      // field L × H from the name ("UBL-2 100/100"), else from the nodes
+      const dims = /(\d{2,3})\s*\/\s*(\d{2,3})/.exec(w.part.name) ?? /(\d{2,3})\s*\/\s*(\d{2,3})/.exec(w.part.desc);
+      d = ublData(dims ? Number(dims[1]) / 100 : Lh, dims ? Number(dims[2]) / 100 : Math.abs(zb - za), plusLedgers, len3(nodes[na], nodes[nb]));
     } else d = kind === 'ubk' ? ubkData(Lh, Math.abs(zb - za), r6) : ubsData(Lh, Math.abs(zb - za), r6);
     const L = len3(nodes[na], nodes[nb]);
     fm.push({ i: na, j: nb, sec: trussSec(d.eaT), truss: true });

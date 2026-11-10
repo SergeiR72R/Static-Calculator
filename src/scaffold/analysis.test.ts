@@ -3,7 +3,7 @@ import { aecPartCount, parsePeriCadDxf } from './pericad';
 import { analyzeScaffold } from './structure';
 import { buildScaffoldModel } from './model';
 import { DEFAULT_ANALYSIS, GAMMA_F, analyzeScaffoldModel, buildLoadCases, mergeResults, prepareAnalysis, weakDofs } from './analysis';
-import { connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData } from './upflex';
+import { connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData, ublData } from './upflex';
 import { periDxf, towerParts, type TestPart } from './testDxf';
 
 const tower = (edit?: (p: TestPart[]) => void) => {
@@ -41,6 +41,21 @@ describe('PERI UP Flex approval data', () => {
     expect(b.eta).toBeCloseTo(0.5 + 0.5, 6);
     const c = connInteraction('UH', '1a', { N: 2470, My: 0, Vz: 0, Vy: 1130, Mz: 0, Mx: 0 });
     expect(c.eta).toBeCloseTo(0.1 + 0.06, 6);
+  });
+
+  it('ledger diagonals UBL / UBL-2 (tables 16, 17): springs C_d and resistances', () => {
+    // 1.00 × 1.00 at UH Plus: C_d+ = 25.2 kN/cm, C_d− = 21.8 kN/cm, N−Rd = 11.4 kN, N+Rd = 12.3 kN
+    const d = ublData(1, 1, true, Math.SQRT2);
+    expect(d.eaT / Math.SQRT2 / 1e5).toBeCloseTo(25.2, 6);
+    expect(d.eaC / Math.SQRT2 / 1e5).toBeCloseTo(21.8, 6);
+    expect(d.nT).toBe(12300);
+    expect(d.nC).toBe(11400);
+    expect(d.slack).toBe(0.002);
+    // at UH: N+Rd = 9.64 kN; 3.00 × 2.00: N−Rd = 5.49 kN
+    expect(ublData(3, 2, false, 3.6).nT).toBe(9640);
+    expect(ublData(3, 2, false, 3.6).nC).toBe(5490);
+    // a field between the rows: the next larger one
+    expect(ublData(1.4, 0.9, false, 1.7).nC).toBe(ublData(1.5, 1.0, false, 1.7).nC);
   });
 
   it('cosine interaction of the tube and diagonal tables', () => {
@@ -165,14 +180,14 @@ describe('supports, mechanisms, parallel runs', () => {
     expect(r.checks.some((c) => c.check === 'jack' && (c.N ?? 0) < 0)).toBe(true);
   });
 
-  it('a part without any connection is left out; a mechanism is held by a weak spring and reported', () => {
+  it('a standard without anything under it stands on the structure; a mechanism is held by a weak spring and reported', () => {
     const st = tower((p) => {
       braced(p);
       p.push({ art: 'UVR', rot: 'y', t: [20.08, 19.92, 10] });
     });
     const m = buildScaffoldModel(st);
-    expect(m.notes.find((n) => n.key === 'floating')?.parts.length).toBe(1);
-    expect(new Set(m.members.filter((x) => x.floating).map((x) => x.part)).size).toBe(1);
+    // a standard with nothing under it stands on the structure (by assumption, noted)
+    expect(m.notes.find((n) => n.key === 'columnOnStructure')?.parts.length).toBe(1);
     const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false });
     expect(r.combos.every((c) => c.ok)).toBe(true);
     expect(r.unstable).toHaveLength(0);

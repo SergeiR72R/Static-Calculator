@@ -102,7 +102,18 @@ export interface ScaffoldStructure {
   moves: PartMove[];
   min: V3;
   max: V3;
+  /** timber planks and blocks under the scaffold (block references): insertion point and thickness, m */
+  pads: { name: string; p: V3; t: number }[];
 }
+
+/** thickness of a plank / block from its name ("Holzdiele 45x240x1000": the smallest dimension, mm) */
+function padThickness(name: string): number | null {
+  const m = /(\d+(?:[.,]\d+)?)\s*x\s*(\d+(?:[.,]\d+)?)(?:\s*x\s*(\d+(?:[.,]\d+)?))?/i.exec(name);
+  if (!m) return null;
+  const d = [m[1], m[2], m[3]].filter(Boolean).map((v) => Number(v!.replace(',', '.')));
+  return Math.min(...d) / 1000;
+}
+const PAD = /holzdiele|bohle|kantholz|diele|unterleg|block|klotz|schwelle|plank|timber/i;
 
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
 const isVert = (a: V3, b: V3) => Math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-3 && Math.abs(b[2] - a[2]) > 1e-3;
@@ -450,7 +461,11 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
   const all = parts.flatMap((w) => [w.min, w.max]);
   const min: V3 = [0, 1, 2].map((i) => Math.min(...all.map((p) => p[i]))) as V3;
   const max: V3 = [0, 1, 2].map((i) => Math.max(...all.map((p) => p[i]))) as V3;
-  return { parts, columns, anchors, girders, bom, issues, moves, min, max };
+  const pads = (doc.blocks ?? []).flatMap((b) => {
+    const t = PAD.test(b.name) ? padThickness(b.name) : null;
+    return t ? [{ name: b.name, p: b.p, t }] : [];
+  });
+  return { parts, columns, anchors, girders, bom, issues, moves, min, max, pads };
 }
 
 /**

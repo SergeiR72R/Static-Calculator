@@ -41,6 +41,8 @@ export interface ScaffoldDoc {
   geom: Record<string, PartGeom>;
   /** parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL) in the drawing: AutoCAD does not write them to DXF */
   aecParts?: number;
+  /** other block references of the drawing (timber planks, blocks …): name and insertion point, m */
+  blocks?: { name: string; p: V3 }[];
 }
 
 /** number of instances of the older PERI CAD parts (class PERI_AEC_DB_BAUTEIL) from the CLASSES section */
@@ -334,12 +336,13 @@ export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
   }
   // exploded parts: the display blocks are in metres; the drawing unit follows from the parts above,
   // or else from the size of the placed parts
+  let unit = ext > 50 ? 1e-3 : 1;
   if (inserted.length) {
-    let u = ext > 50 ? 1e-3 : 1;
     if (!raws.length) {
       const sizes = inserted.map((q) => q.size).sort((a, b) => a - b);
-      u = sizes[Math.floor(sizes.length / 2)] > 50 ? 1e-3 : 1;
+      unit = sizes[Math.floor(sizes.length / 2)] > 50 ? 1e-3 : 1;
     }
+    const u = unit;
     for (const q of inserted) {
       const key = q.part.article;
       if (!geom[key]) {
@@ -363,11 +366,28 @@ export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
     else ups.set(k, { v, n: 1 });
   }
   const up = [...ups.values()].sort((a, b) => b.n - a.n)[0]?.v;
+  // other block references (planks under the spindles …) in metres
+  let others: { name: string; p: V3 }[] = [];
+  for (const r of secs.get('ENTITIES') ?? []) {
+    const name = r.type === 'INSERT' ? (first(r, 2) ?? '') : '';
+    if (!name || DISPLAY_BLOCK.test(name) || name.startsWith('*')) continue;
+    const M = insertMatrix([num(first(r, 10)), num(first(r, 20)), num(first(r, 30))], [1, 1, 1], 0, [num(first(r, 210)), num(first(r, 220)), num(first(r, 230), 1)]);
+    others.push({ name, p: [M[3] * unit, M[7] * unit, M[11] * unit] });
+  }
+  // PERI parts may be placed in metres in a drawing in millimetres (and the ordinary blocks in mm):
+  // the blocks are scaled to the parts when their positions are about a thousand times larger
+  if (others.length && raws.length) {
+    const med = (v: number[]) => v.sort((a, b) => a - b)[Math.floor(v.length / 2)];
+    const parts = med(raws.map((r) => Math.hypot(r.part.m[3], r.part.m[7])));
+    const blocksAt = med(others.map((o) => Math.hypot(o.p[0], o.p[1])));
+    if (parts > 1 && blocksAt / parts > 300) others = others.map((o) => ({ name: o.name, p: o.p.map((v) => v * 1e-3) as V3 }));
+  }
   if (up && up[2] < 0.999) {
     const R = rotationTo(up, [0, 0, 1]);
     for (const r of raws) r.part.m = mulRT(R, r.part.m);
+    others = others.map((o) => ({ name: o.name, p: [0, 1, 2].map((i) => R[i * 3] * o.p[0] + R[i * 3 + 1] * o.p[1] + R[i * 3 + 2] * o.p[2]) as V3 }));
   }
-  return { fileName, parts: raws.map((r) => r.part), geom, ...(aecParts ? { aecParts } : {}) };
+  return { fileName, parts: raws.map((r) => r.part), geom, ...(aecParts ? { aecParts } : {}), ...(others.length ? { blocks: others } : {}) };
 }
 
 /** rotation matrix (row major 3 × 3) turning the unit vector a onto the unit vector b */

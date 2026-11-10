@@ -122,6 +122,9 @@ function ledgerType(w: WorldPart): { head: LedgerHead; sec: keyof typeof LEDGERS
 const HINGE = [Infinity, Infinity, Infinity, Infinity, 0, 0];
 /** horizontal offset of a spindle from the standard above / below it, m */
 const JACK_XY = 0.045;
+/** largest extension of a spindle (approval: 60 cm), m; weight of an added base jack UJB 38-50/30, kg */
+const JACK_MAX_EXT = 0.6;
+const JACK_KG = 3.39;
 /** largest distance between the standards of a spindle pair through a platform, m */
 const JACK_GAP = 1.5;
 /** scaffold spindle UJB / UJS (approval 3.2.9.5: A = 4.36 cm², I = 4.96 cm⁴), clamped in the standard */
@@ -464,11 +467,39 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
   // ground: the lowest standard or spindle (not the lowest part: a part may lie far off by mistake)
   const ground = Math.min(...cols.map((c) => c.z0), ...jacks.map((w) => w.min[2]));
   const links: { lower: number; upper: number; part: string }[] = [];
-  /** spindles under base supports: foot below the bottom of the standard */
-  const feet: { col: number; foot: number; part: string }[] = [];
+  /** spindles under base supports: foot below the bottom of the standard (virtual: added by the program) */
+  const feet: { col: number; foot: number; part: string; virtual?: boolean }[] = [];
+  /**
+   * Top of the timber planks / blocks under a standard (the spindle stands on them): planks with
+   * their insertion point within 1.05 m of the axis (a plank is 1 m long, inserted at a corner) and
+   * their top up to 1.2 m below the bottom of the standard; the highest one (top of the stack).
+   */
+  const padTop = (c: Col): number | null => {
+    let top: number | null = null;
+    for (const p of st.pads ?? []) {
+      if (Math.hypot(p.p[0] - c.x, p.p[1] - c.y) > 1.05) continue;
+      const t = p.p[2] + p.t;
+      if (t > c.z0 + 0.01 || t < c.z0 - 1.2) continue;
+      if (top === null || t > top) top = t;
+    }
+    return top;
+  };
   cols.forEach((c, k) => {
     const isBase = c.parts[0].w.cls.kind === 'base';
     const under = jackUnder(c);
+    // a base standard without a spindle in the drawing (older PERI CAD parts are not written to DXF)
+    // on timber planks: the spindle is added, from the planks up into the standard
+    const pad = isBase && !under.length ? padTop(c) : null;
+    if (pad !== null) {
+      const n = addNode([c.x, c.y, pad], k);
+      feet.push({ col: k, foot: n, part: c.parts[0].w.part.id, virtual: true });
+      bases.push({ node: n, sup: supports.length, part: c.parts[0].w.part.id, column: k });
+      for (const dof of [0, 1, 2]) supports.push({ node: n, dof, k: Infinity });
+      note('jackAdded', c.parts[0].w.part.id);
+      // approval: spindles extended by at most 60 cm
+      if (c.z0 - pad > JACK_MAX_EXT + 0.005) note('jackLong', c.parts[0].w.part.id);
+      return;
+    }
     const foot = Math.min(c.z0, ...under.map((w) => w.min[2]));
     // a base standard (on a spindle) or a spindle right above a standard below, through a platform:
     // the load goes on to that standard (directly under it or 1…3 cm off)
@@ -708,7 +739,8 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     const c = cols[f.col];
     const L = Math.max(c.z0 - nodes[f.foot][2], 0.05);
     fm.push({ i: c.ns[0], j: f.foot, sec: JACK_SEC, ends: [undefined, { offset: [0, 0, 0], k: [Infinity, Infinity, Infinity, Infinity, 0, 0] }] });
-    mm.push({ kind: 'jack', part: f.part, g: jackKg(f.part) / L });
+    // an added spindle: weight of the base jack UJB 38-50/30
+    mm.push({ kind: 'jack', part: f.part, g: (f.virtual ? JACK_KG : jackKg(f.part)) / L });
   }
   // standard on the standard below through a platform (base jack on head jack)
   for (const l of links) {

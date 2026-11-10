@@ -16,7 +16,7 @@ import { latticeEquivalent } from '../sections/lattice';
 import { findPeriProduct, periSI } from '../sections/peri';
 import type { ScaffoldStructure, WorldPart } from './structure';
 import { partKg } from './weights';
-import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, VARIANT_TUBE, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
+import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 
 export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'ubl' | 'tube' | 'anchor' | 'jack';
 
@@ -183,6 +183,9 @@ interface Carrier {
   inter: Attach[];
 }
 
+/** eccentricity of a ledger diagonal UBL beside the axis of its ledger (annex A, page 22), m */
+const UBL_EY = 0.014;
+
 export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
   const nodes: V3[] = [];
   const nodeCol: number[] = [];
@@ -283,7 +286,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     }
     const v = variantAt(k, zr);
     // ledgers of 25 cm: vertical spring c_z of the connection (annex A pages 9, 10 and 16), initial stiffness in tension
-    const cz = dist2(P, Q) <= 0.3 ? (v[0] === '2' ? 8e6 : 31.5e6) : Infinity;
+    const cz = dist2(P, Q) <= 0.3 ? connCz(v, 0) : Infinity;
     return {
       node: colNode(k, zr, 0.006),
       offset: [u[0] * 0.025, u[1] * 0.025, 0.035],
@@ -560,6 +563,37 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     });
   }
 
+  // ---- ledger diagonals UBL / UBL-2 (annex A, pages 22 and 23): fixed to the ledgers 12.5 cm from the
+  // standards, 1.4 cm beside the ledger axis; all connections of these ledgers get the vertical
+  // spring c_z (flexibility of the rosettes)
+  const ublEnds = new Map<string, [{ node: number; c: Carrier }, { node: number; c: Carrier }]>();
+  for (const w of st.parts) {
+    if (w.cls.kind !== 'diagonal' || !/UBL/i.test(`${w.part.name} ${w.part.desc}`)) continue;
+    const ml = longestLine(w);
+    if (!ml) continue;
+    const found = ml.map((P) => {
+      let best: { c: Carrier; pr: ReturnType<typeof project> } | null = null;
+      for (const c of carriers) {
+        if (c.kind !== 'ledger') continue;
+        const pr = project(c, P);
+        if (pr.t < 0 || pr.t > 1 || pr.dh > 0.15 || Math.abs(pr.dz) > 0.1) continue;
+        if (!best || pr.dh + Math.abs(pr.dz) < best.pr.dh + Math.abs(best.pr.dz)) best = { c, pr };
+      }
+      return best ? { ...best, P } : null;
+    });
+    if (!found[0] || !found[1] || found[0].c === found[1].c) continue;
+    const ends = found.map((f) => {
+      const { c, pr, P } = f!;
+      const d = dist2(P, pr.q);
+      const n: [number, number] = d > 1e-6 ? [(P[0] - pr.q[0]) / d, (P[1] - pr.q[1]) / d] : [0, 0];
+      const node = addNode([pr.q[0] + n[0] * UBL_EY, pr.q[1] + n[1] * UBL_EY, pr.q[2]]);
+      c.inter.push({ node, offset: [-n[0] * UBL_EY, -n[1] * UBL_EY, 0], t: pr.t });
+      for (const e of c.end) if (e?.conn && e.k) e.k[2] = connCz(e.conn, 0);
+      return { node, c };
+    });
+    ublEnds.set(w.part.id, [ends[0], ends[1]]);
+  }
+
   // ---- frame members
   const fm: Member3[] = [];
   const mm: ModelMember[] = [];
@@ -652,9 +686,11 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
 
   // ---- diagonals
   const trussSec = (ea: number): Section3 => ({ EA: ea, EIy: 1, EIz: 1, GJ: 1 });
-  // ledger diagonals UBL: table of the approval for ledgers UH Plus or UH (by the ledgers of the drawing)
+  // ledger diagonals UBL not found on two ledgers: table by the ledgers of the drawing
   const ledgerParts = st.parts.filter((w) => w.cls.kind === 'ledger');
   const plusLedgers = ledgerParts.filter((w) => ledgerType(w).head === 'PLUS').length >= ledgerParts.length / 2;
+  // field L × H of a UBL from its name ("UBL-2 100/100")
+  const ublDims = (w: WorldPart) => /(\d{2,3})\s*\/\s*(\d{2,3})/.exec(w.part.name) ?? /(\d{2,3})\s*\/\s*(\d{2,3})/.exec(w.part.desc);
   for (const w of st.parts) {
     if (w.cls.kind !== 'diagonal') continue;
     const name = `${w.part.name} ${w.part.desc}`;
@@ -664,6 +700,19 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       note('diagonalType', w.part.id, { names: w.part.name });
       continue;
     }
+    // UBL between its two ledgers: table 17 only if both are UH Plus / UH-2, else table 16 (UH)
+    const ue = kind === 'ubl' ? ublEnds.get(w.part.id) : undefined;
+    if (ue) {
+      const [A, B] = ue;
+      const L = len3(nodes[A.node], nodes[B.node]);
+      const dims = ublDims(w);
+      const plus = A.c.head === 'PLUS' && B.c.head === 'PLUS';
+      const d = ublData(dims ? Number(dims[1]) / 100 : dist2(nodes[A.node], nodes[B.node]), dims ? Number(dims[2]) / 100 : Math.abs(nodes[B.node][2] - nodes[A.node][2]), plus, L);
+      fm.push({ i: A.node, j: B.node, sec: trussSec(d.eaT), truss: true });
+      mm.push({ kind, part: w.part.id, diag: d, g: (partKg(w.part) ?? 3.5 * L) / L });
+      continue;
+    }
+    if (kind === 'ubl') note('ublNoLedger', w.part.id);
     const ka = colAt(ml[0], 0.3, 0.15);
     const kb = colAt(ml[1], 0.3, 0.15);
     // an end without a standard: at a bracket tip or the end of a cantilevering ledger
@@ -683,8 +732,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       const dims = /(\d{2,3})\s*[x/]\s*(\d{2,3})/.exec(w.part.name);
       d = dims ? ubhData(Number(dims[1]) / 100, Number(dims[2]) / 100) : ubhData(Lh / Math.SQRT2, Lh / Math.SQRT2);
     } else if (kind === 'ubl') {
-      // field L × H from the name ("UBL-2 100/100"), else from the nodes
-      const dims = /(\d{2,3})\s*\/\s*(\d{2,3})/.exec(w.part.name) ?? /(\d{2,3})\s*\/\s*(\d{2,3})/.exec(w.part.desc);
+      const dims = ublDims(w);
       d = ublData(dims ? Number(dims[1]) / 100 : Lh, dims ? Number(dims[2]) / 100 : Math.abs(zb - za), plusLedgers, len3(nodes[na], nodes[nb]));
     } else d = kind === 'ubk' ? ubkData(Lh, Math.abs(zb - za), r6) : ubsData(Lh, Math.abs(zb - za), r6);
     const L = len3(nodes[na], nodes[nb]);

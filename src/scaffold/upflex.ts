@@ -119,6 +119,24 @@ function secant(c: Curve, M: number): number {
 }
 export const connKy = (h: LedgerHead, v: Variant, My: number) => secant(My >= 0 ? MY[h][v].pos : MY[h][v].neg, My);
 export const connKz = (h: LedgerHead, v: Variant, Mz: number) => secant(mzCurve(h, v), Mz);
+
+/**
+ * Vertical spring c_z of the ledger connection (flexibility of the rosette; annex A pages 9, 10; for
+ * ledgers of 25 cm and all ledgers with a ledger diagonal UBL): secant stiffness [N/m] for the force
+ * Fz in the spring [N], tension positive (the ledger lifts), compression negative (it bears on the rosette).
+ *  - rosette 8 mm (variants 1): tension δ = Fz/(31.5 − 1.89·Fz), compression δ = Fz/60 up to 5 kN,
+ *    then δ = Fz/10 + 0.4167 [kN, mm];
+ *  - rosette 6 mm (variants 2): tension δ = Fz/(8 − 0.39·Fz), compression δ = Fz/(36 + 0.96·Fz).
+ */
+export function connCz(v: Variant, Fz: number): number {
+  const f = Fz / kN;
+  const r6 = v[0] === '2';
+  const k0 = r6 ? (f >= 0 ? 8 : 36) : f >= 0 ? 31.5 : 60;
+  let k: number;
+  if (r6) k = f >= 0 ? 8 - 0.39 * Math.min(f, 15) : 36 + 0.96 * Math.max(f, -33);
+  else k = f >= 0 ? 31.5 - 1.89 * Math.min(f, 15) : f >= -5 ? 60 : f / (f / 10 + 0.4167);
+  return Math.max(k, 0.05 * k0) * 1e6;
+}
 export const connKx = (h: LedgerHead, Mx: number) => secant(mxCurve(h), Mx);
 
 export interface ConnResistance {
@@ -476,8 +494,8 @@ const UBL_PLUS: number[][] = [
 
 /**
  * Ledger diagonal UBL / UBL-2 (tables 16 / 17) for the field L × H at ledgers UH or UH Plus; slack
- * 0.2 cm. The approval gives springs C_d [kN/cm]: EA = C_d · length of the diagonal. The additional
- * flexibility of the rosettes (annex A, page 23) is not included.
+ * 0.2 cm. The approval gives springs C_d [kN/cm]: EA = C_d · length of the diagonal. The flexibility
+ * of the rosettes comes from the springs c_z of the ledgers the diagonal is fixed to (`connCz`).
  */
 export function ublData(L: number, H: number, plus: boolean, length: number): DiagonalData {
   const t = plus ? UBL_PLUS : UBL_UH;

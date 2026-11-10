@@ -56,6 +56,13 @@ Torsion, Mx/φ (Tabelle 10, alle Varianten): φ = Mx / (a − b·|Mx|)
 
 ## Statisches System der Anschlüsse (Anlage A S. 16–26)
 
+- Riegeldiagonale UBL / UBL-2 / ST100 (S. 22, 23): Diagonale E_d·A_eff = ∞ mit Feder c_d (Tabellen 16 /
+  17) und Lose f_o = 0,2 cm; Anschluss am Riegel im Abstand X_u = X_o = 12,5 cm von der Ständerachse
+  (UH-2: 8,5 / 12,5 / 16,5 cm), Exzentrizität e_y = 1,4 cm neben der Riegelachse (M_T = 1,4·N_V·sin α,
+  M_z = 1,4·N_V·cos α). Alle vier Riegelanschlüsse (A_o, A_u, B_o, B_u) mit Wegfeder c_z nach der
+  F_z/δ-Beziehung (S. 9: Rosette 8 mm, S. 10: Rosette 6 mm); F_z < 0: Druck in der Feder (Riegel drückt
+  auf die Rosette).
+
 - Riegelanschluss UH / UH Plus / UH-2 (S. 16): Drehfeder cφ in der Riegelachse, e_x = 2,5 cm vor der
   Ständerachse und e_z = 3,5 cm über der Rosettenebene; das kurze Stück Ständerachse → Feder starr
   (E·I ≈ ∞, E·A ≈ ∞). UHD: e_z = 4,5 cm. Wegfeder cz nur für Riegel L ≤ 25 cm (und Riegel mit UBL).

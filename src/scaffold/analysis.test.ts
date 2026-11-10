@@ -3,7 +3,7 @@ import { aecPartCount, parsePeriCadDxf } from './pericad';
 import { analyzeScaffold } from './structure';
 import { buildScaffoldModel } from './model';
 import { DEFAULT_ANALYSIS, GAMMA_F, analyzeScaffoldModel, buildLoadCases, mergeResults, prepareAnalysis, weakDofs } from './analysis';
-import { connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData, ublData } from './upflex';
+import { connCz, connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData, ublData } from './upflex';
 import { periDxf, towerParts, type TestPart } from './testDxf';
 
 const tower = (edit?: (p: TestPart[]) => void) => {
@@ -56,6 +56,18 @@ describe('PERI UP Flex approval data', () => {
     expect(ublData(3, 2, false, 3.6).nC).toBe(5490);
     // a field between the rows: the next larger one
     expect(ublData(1.4, 0.9, false, 1.7).nC).toBe(ublData(1.5, 1.0, false, 1.7).nC);
+  });
+
+  it('vertical spring c_z of the connection (annex A pages 9, 10): secant stiffness', () => {
+    // rosette 8 mm: tension δ = Fz/(31.5 − 1.89·Fz), compression 60 kN/mm up to 5 kN, then δ = Fz/10 + 0.4167
+    expect(connCz('1a', 0)).toBeCloseTo(31.5e6, 3);
+    expect(connCz('1a', 10e3)).toBeCloseTo((31.5 - 18.9) * 1e6, 3);
+    expect(connCz('1b', -3e3)).toBeCloseTo(60e6, 3);
+    expect(connCz('1a', -20e3)).toBeCloseTo((20 / (2 - 0.4167)) * 1e6, 0);
+    // rosette 6 mm: tension δ = Fz/(8 − 0.39·Fz), compression δ = Fz/(36 + 0.96·Fz)
+    expect(connCz('2c', 0)).toBeCloseTo(8e6, 3);
+    expect(connCz('2a', 5e3)).toBeCloseTo((8 - 1.95) * 1e6, 3);
+    expect(connCz('2b', -10e3)).toBeCloseTo((36 - 9.6) * 1e6, 3);
   });
 
   it('cosine interaction of the tube and diagonal tables', () => {
@@ -159,6 +171,73 @@ describe('scaffold analysis', () => {
     const free = analyzeScaffoldModel(buildScaffoldModel(tower()), { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 });
     const dx = (r: typeof res) => r.combos.find((c) => c.name === 'R +x')!.dh;
     expect(dx(res)).toBeLessThan(dx(free));
+  });
+});
+
+describe('ledger diagonals UBL', () => {
+  // UBL-2 200/200 in both bays of the planes y = 0 and y = 2, from the lower to the upper ledgers
+  const ubl = (p: TestPart[]) => {
+    for (const ay of [0, 2]) for (const ax of [0, 2]) p.push({ art: 'UBL', rot: 'x', t: [ax + 0.125, ay, 0.25] });
+  };
+
+  it('fixed to the two ledgers 12.5 cm from the standards; their connections get the spring c_z', () => {
+    const m = buildScaffoldModel(tower(ubl));
+    const ks = m.members.map((x, k) => (x.kind === 'ubl' ? k : -1)).filter((k) => k >= 0);
+    expect(ks).toHaveLength(4);
+    expect(m.notes.find((n) => n.key === 'ublNoLedger')).toBeUndefined();
+    for (const k of ks) {
+      const f = m.frame.members[k];
+      // nodes on the ledgers, not on the standards: 12.5 cm from the axes, 1.4 cm beside the ledger axis
+      expect(m.nodeColumn[f.i]).toBe(-1);
+      expect(m.nodeColumn[f.j]).toBe(-1);
+      const [a, b] = [m.frame.nodes[f.i], m.frame.nodes[f.j]].sort((p, q) => p[2] - q[2]);
+      expect(a[0] % 2).toBeCloseTo(0.125, 6);
+      expect(b[0] % 2).toBeCloseTo(1.875, 6);
+      expect(Math.abs(a[1] - Math.round(a[1]))).toBeCloseTo(0.014, 6);
+      expect(a[2]).toBeCloseTo(0.25, 6);
+      expect(b[2]).toBeCloseTo(2.25, 6);
+      // ledgers UH Plus on both sides: table 17, 2.00 × 2.00
+      expect(m.members[k].diag!.nT).toBe(12300);
+      expect(m.members[k].diag!.nC).toBe(8100);
+      expect(m.members[k].diag!.slack).toBe(0.002);
+    }
+    // ledgers with a diagonal: c_z at their rosette connections; the other ledgers of 2 m: rigid
+    const withUbl = new Set(ks.flatMap((k) => [m.frame.members[k].i, m.frame.members[k].j]));
+    const carriers = m.carriers.filter((c) => c.kind === 'ledger');
+    let soft = 0;
+    let rigid = 0;
+    for (const c of carriers) {
+      const has = c.members.some((k) => withUbl.has(m.frame.members[k].i) || withUbl.has(m.frame.members[k].j));
+      for (const k of c.members)
+        m.members[k].conn?.forEach((v, e) => {
+          if (!v) return;
+          const cz = m.frame.members[k].ends![e]!.k![2];
+          if (has) {
+            expect(cz).toBeCloseTo(31.5e6, 0);
+            soft++;
+          } else {
+            expect(cz).toBe(Infinity);
+            rigid++;
+          }
+        });
+    }
+    // 4 lower + 4 upper ledgers along x carry a diagonal: 16 connections
+    expect(soft).toBe(16);
+    expect(rigid).toBeGreaterThan(0);
+  });
+
+  it('brace the tower: less sway than without, checked against table 17', () => {
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: false };
+    const free = analyzeScaffoldModel(buildScaffoldModel(tower()), opt);
+    const r = analyzeScaffoldModel(buildScaffoldModel(tower(ubl)), opt);
+    expect(r.combos.every((c) => c.ok && c.converged)).toBe(true);
+    const sway = (x: typeof r, n: string) => x.combos.find((c) => c.name === n)!.dh;
+    expect(sway(r, 'A +x')).toBeLessThan(0.7 * sway(free, 'A +x'));
+    const d = r.checks.filter((c) => c.check === 'diagonal');
+    expect(d.length).toBe(4);
+    expect(d.every((c) => c.eta < 1)).toBe(true);
+    // equilibrium is kept with the springs
+    expect(r.combos[0].sumV).toBeCloseTo(GAMMA_F * (r.totalG + r.totalQ), -1);
   });
 });
 

@@ -938,7 +938,8 @@
         "floating": "Parts not connected to the scaffold ({n}) – left out (their weight is not carried).",
         "jackAdded": "Base jacks under the base standards added by the program ({n}): not in the DXF (older PERI CAD parts), foot on the planks under the standard, length from the planks to the bottom of the standard.",
         "jackLong": "Spindle extended more than 60 cm ({n}) – not allowed by the approval, check the packing.",
-        "columnOnStructure": "Standards with nothing under them ({n}) – assumed to stand on the structure below; check the bearing."
+        "columnOnStructure": "Standards with nothing under them ({n}) – assumed to stand on the structure below; check the bearing.",
+        "ublNoLedger": "UBL diagonals without two ledgers found ({n}) – connected to the nodes of the standards, table by the prevailing ledger type."
       },
       "basis": "Basis: approval Z-8.22-863 (moment–rotation curves, resistances of nodes, diagonals, joints), DIN EN 12811-1, PERI UP Tabellenbuch. Decks do not brace. Does not replace the verification by the structural engineer; comparison with RSTAB will follow.",
       "mechanismParts": "{n} parts are not held (mechanism) – kept in place by weak springs in the analysis. Check in the drawing. Show."

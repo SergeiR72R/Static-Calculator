@@ -117,6 +117,9 @@ export const ARTS: Record<string, Art> = {
       [[0.075, 0.075, 0], [0.075, 0.075, 0.505]],
     ],
   },
+  // ledger diagonal for a bay of 2 m × 2 m: from 12.5 cm beside one standard on the lower ledger to
+  // 12.5 cm beside the other one on the upper ledger, drawn 5 cm beside the ledger axis
+  UBL: { article: '132795', name: 'UBL-2 200/200', desc: 'Riegeldiagonale UBL-2 200/200', layer: '0', lines: [[[0, 0.05, 0], [1.75, 0.05, 2]]] },
   TUBE: { article: '026411', name: 'TUBE 1m', desc: 'Gerüstrohr 48,3x3,2mm 1m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [1, 0, 0]]] },
   TUBE2: { article: '026412', name: 'TUBE 2m', desc: 'Gerüstrohr 48,3x3,2mm 2m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [2, 0, 0]]] },
   RA: { article: '017020', name: 'RA 48/48', desc: 'Normalkupplung RA Ø48/48mm vz', layer: 'PERI_Coupler', lines: [], circles: [[0.076, 0.05, 0.05]] },

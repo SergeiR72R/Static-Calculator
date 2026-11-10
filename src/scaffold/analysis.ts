@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { COUPLER_RD, JACK, JOINT, LEDGERS, TUBES, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
+import { COUPLER_RD, JACK, JOINT, LEDGERS, TUBES, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
 
 const G = 9.81;
 
@@ -328,9 +328,12 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
   const { frame, members } = model;
   const nM = frame.members.length;
   const states: (MemberState | undefined)[] = new Array(nM).fill(undefined);
-  // connection stiffness [i, j] as [kx, ky, kz] rotational; diagonals: −1, 0, +1
+  // connection stiffness [i, j] as [kx, ky, kz] rotational and the vertical spring c_z (Infinity: none);
+  // diagonals: −1, 0, +1
   const kc: (number[] | null)[][] = members.map((m, k) =>
-    m.conn ? [0, 1].map((e) => (m.conn![e] ? [frame.members[k].ends![e]!.k![3], frame.members[k].ends![e]!.k![4], frame.members[k].ends![e]!.k![5]] : null)) : [null, null],
+    m.conn
+      ? [0, 1].map((e) => (m.conn![e] ? [frame.members[k].ends![e]!.k![3], frame.members[k].ends![e]!.k![4], frame.members[k].ends![e]!.k![5], frame.members[k].ends![e]!.k![2]] : null))
+      : [null, null],
   );
   const dstate = new Int8Array(nM);
   const flips = new Uint8Array(nM);
@@ -358,7 +361,7 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
         if (secondOrder && Ns) st.N = Ns[k];
         if (m.conn && (kc[k][0] || kc[k][1])) {
           const e = frame.members[k].ends!;
-          st.k = [0, 1].map((i) => (kc[k][i] ? [Infinity, Infinity, e[i]!.k![2], kc[k][i]![0], kc[k][i]![1], kc[k][i]![2]] : e[i]?.k)) as MemberState['k'];
+          st.k = [0, 1].map((i) => (kc[k][i] ? [Infinity, Infinity, kc[k][i]![3], kc[k][i]![0], kc[k][i]![1], kc[k][i]![2]] : e[i]?.k)) as MemberState['k'];
         }
       }
       states[k] = st;
@@ -418,7 +421,10 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
         const sf = sectionForces(mr, e === 0 ? 0 : mr.L);
         // approval: My positive = tension at the bottom; ours: positive = tension on top
         const target = [connKx(m.head!, sf.Mx), connKy(m.head!, v, -sf.My), connKz(m.head!, v, sf.Mz)];
-        for (let c = 0; c < 3; c++) {
+        // vertical spring: the ledger pushing the rosette down (end force on the member upwards) is
+        // compression in the spring
+        if (Number.isFinite(cur[3])) target.push(connCz(v, -(e === 0 ? mr.fi[2] : mr.fj[2])));
+        for (let c = 0; c < target.length; c++) {
           const nk = 0.5 * (cur[c] + target[c]);
           dk = Math.max(dk, Math.abs(nk - cur[c]) / cur[c]);
           cur[c] = nk;

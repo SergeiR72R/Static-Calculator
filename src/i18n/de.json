@@ -760,7 +760,8 @@
       "noDiagonals": "Keine Vertikaldiagonalen in der Zeichnung – Aussteifung des Gerüsts prüfen.",
       "flexChain": "ULS-Flex-Teile, die keinen vollständigen Träger bilden.",
       "healed": "{n} Teile an ihren Anschlusspunkt gesetzt (bis {d} mm).",
-      "anchors": "{n} Verankerungen (Rohr mit Kupplung am Stiel, am anderen Ende Flanschkupplung am Träger des Bauwerks oder nichts)."
+      "anchors": "{n} Verankerungen (Rohr mit Kupplung am Stiel, am anderen Ende Flanschkupplung am Träger des Bauwerks oder nichts).",
+      "healCheck": "{name}: ungenau gesetzt, aber mit ihm müssten {n} verbundene Teile verschoben werden – nicht automatisch korrigiert, bitte in der Zeichnung prüfen."
     },
     "view": {
       "title": "3D-Modell",

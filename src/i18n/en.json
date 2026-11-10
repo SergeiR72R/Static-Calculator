@@ -760,7 +760,8 @@
       "noDiagonals": "No vertical diagonals in the drawing – check the bracing of the scaffold.",
       "flexChain": "ULS Flex parts that do not form a complete girder.",
       "healed": "{n} parts set onto their connection points (up to {d} mm).",
-      "anchors": "{n} anchors (tube with a coupler at the standard, a flange coupler on the steel beam of the structure or nothing at the other end)."
+      "anchors": "{n} anchors (tube with a coupler at the standard, a flange coupler on the steel beam of the structure or nothing at the other end).",
+      "healCheck": "{name}: placed imprecisely, but {n} connected parts would have to move with it – not corrected automatically, please check the drawing."
     },
     "view": {
       "title": "3D model",

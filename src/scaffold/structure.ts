@@ -354,6 +354,8 @@ function findLoads(g: Girder, parts: WorldPart[]) {
 export interface StructureOptions {
   /** snapping tolerance of imprecisely placed parts, m (0: off) */
   tol: number;
+  /** at most this many parts may follow a moved part (default 10) */
+  maxFollow?: number;
 }
 
 export const DEFAULT_TOL = 0.05;
@@ -378,7 +380,11 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
   const unknown = parts.filter((w) => w.cls.kind === 'other');
   if (unknown.length) issues.push({ key: 'unknownParts', params: { n: unknown.length, names: [...new Set(unknown.map((w) => w.part.name))].join(', ') }, parts: unknown.map((w) => w.part.id), severity: 'info' });
 
-  const moves = healParts(parts, opt.tol);
+  const { moves, checks: healChecks } = healParts(parts, opt.tol, opt.maxFollow);
+  for (const c of healChecks) {
+    const w = parts.find((q) => q.part.id === c.root)!;
+    issues.push({ key: 'healCheck', params: { name: w.part.name, n: c.parts.length - 1 }, parts: c.parts, severity: 'warning' });
+  }
   if (moves.length) {
     const dmax = Math.max(...moves.map((m) => Math.hypot(...m.d)));
     issues.push({ key: 'healed', params: { n: moves.length, d: Math.round(dmax * 1000) }, parts: moves.map((m) => m.id), severity: 'info' });

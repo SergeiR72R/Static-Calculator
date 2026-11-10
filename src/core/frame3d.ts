@@ -348,6 +348,13 @@ export class Frame3 {
       const e = this.elems[mi];
       const st = states?.[mi];
       if (st?.active === false) {
+        // a member that does not act still weighs: its load goes to its nodes
+        const qg0 = qByMember.get(mi);
+        if (qg0)
+          for (let d = 0; d < 3; d++) {
+            f[m.i * 6 + d] += (qg0[d] * e.L) / 2;
+            f[m.j * 6 + d] += (qg0[d] * e.L) / 2;
+          }
         rec.push(null);
         continue;
       }

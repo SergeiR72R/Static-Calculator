@@ -64,6 +64,8 @@ export interface DeckShare {
 export interface ScaffoldModel {
   frame: FrameModel3;
   members: ModelMember[];
+  /** member lengths between the connection points, m */
+  lengths: number[];
   /** column index of a node on a standard, −1 otherwise */
   nodeColumn: Int32Array;
   bases: BaseSupport[];
@@ -463,6 +465,12 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
   // ---- frame members
   const fm: Member3[] = [];
   const mm: ModelMember[] = [];
+  /** length of a member between its connection points (the rigid arms excluded) */
+  const memberLength = (m: Member3): number => {
+    const oi = m.ends?.[0]?.offset ?? [0, 0, 0];
+    const oj = m.ends?.[1]?.offset ?? [0, 0, 0];
+    return Math.hypot(nodes[m.j][0] + oj[0] - nodes[m.i][0] - oi[0], nodes[m.j][1] + oj[1] - nodes[m.i][1] - oi[1], nodes[m.j][2] + oj[2] - nodes[m.i][2] - oi[2]);
+  };
   const carrierOut: ScaffoldModel['carriers'] = [];
   const assumedSupports: ScaffoldModel['assumedSupports'] = [];
   const carrierIndex = new Map<Carrier, number>();
@@ -526,7 +534,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       });
     }
     carrierIndex.set(c, carrierOut.length);
-    carrierOut.push({ part: c.part, kind: c.kind, members, length: members.reduce((s, m) => s + len3(nodes[fm[m].i], nodes[fm[m].j]), 0) });
+    carrierOut.push({ part: c.part, kind: c.kind, members, length: members.reduce((s, m) => s + memberLength(fm[m]), 0) });
   }
 
   const nearestNodeOf = (p: V3, r: number): number => {
@@ -697,6 +705,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
   return {
     frame: { nodes, members: fm, supports },
     members: mm,
+    lengths: fm.map(memberLength),
     nodeColumn: Int32Array.from(nodeCol),
     bases,
     anchors,

@@ -211,6 +211,48 @@ describe('snapping of imprecisely placed parts', () => {
     expect(s.issues.map((i) => i.key)).toContain('ledgerFree');
   });
 
+  // three brackets at the rosettes +2.22 m, each with a standard on its tip
+  const withBrackets = (p: TestPart[]) => {
+    p.push({ art: 'UCM', rot: 'x', t: [4, -0.015, 2.22] }, { art: 'UVR', rot: 'y', t: [4.5 + 0.08, -0.08, 2.34] });
+    p.push({ art: 'UCM', rot: 'x', t: [4, 2 - 0.015, 2.22] }, { art: 'UVR', rot: 'y', t: [4.5 + 0.08, 2 - 0.08, 2.34] });
+    p.push({ art: 'UCM', rot: 'nx', t: [0, 0.015, 2.22] }, { art: 'UVR', rot: 'y', t: [-0.5 + 0.08, -0.08, 2.34] });
+  };
+
+  it('a moved bracket takes the standard on its tip with it', () => {
+    const base = analyzeScaffold(tower(withBrackets), { tol: 0 });
+    let kb = -1;
+    const s = analyzeScaffold(
+      tower((p) => {
+        withBrackets(p);
+        kb = p.findIndex((x) => x.art === 'UCM');
+        // bracket and its standard drawn 2.5 cm beside the rosette
+        shift(p[kb], [0.015, 0.02, -0.01]);
+        shift(p[kb + 1], [0.015, 0.02, -0.01]);
+      }),
+    );
+    expect(s.moves.map((m) => m.reason).sort()).toEqual(['end', 'follow']);
+    for (const k of [kb, kb + 1]) pos(s, k).forEach((v, i) => expect(v).toBeCloseTo(pos(base, k)[i], 6));
+    expect(s.issues.map((i) => i.key)).not.toContain('healCheck');
+  });
+
+  it('too many parts would have to follow: nothing is moved, the group is reported', () => {
+    let kb = -1;
+    const edit = (p: TestPart[]) => {
+      withBrackets(p);
+      kb = p.findIndex((x) => x.art === 'UCM');
+      shift(p[kb], [0.015, 0.02, -0.01]);
+      shift(p[kb + 1], [0.015, 0.02, -0.01]);
+    };
+    const raw = analyzeScaffold(tower(edit), { tol: 0 });
+    const s = analyzeScaffold(tower(edit), { tol: 0.05, maxFollow: 0 });
+    expect(s.moves).toHaveLength(0);
+    const c = s.issues.find((i) => i.key === 'healCheck')!;
+    expect(c.severity).toBe('warning');
+    expect(c.parts).toHaveLength(2);
+    expect(c.params).toMatchObject({ name: 'UCM 50 mit Zapfen', n: 1 });
+    for (const k of [kb, kb + 1]) pos(s, k).forEach((v, i) => expect(v).toBeCloseTo(pos(raw, k)[i], 9));
+  });
+
   it('tolerance 0 switches the snapping off', () => {
     const s = analyzeScaffold(tower((p) => shift(p.find((x) => x.art === 'UVR')!, [0.02, 0, 0])), { tol: 0 });
     expect(s.moves).toHaveLength(0);

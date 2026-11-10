@@ -8,6 +8,9 @@
  *     in the drawing (most frequent value), ledgers fall back to the PERI UP geometry;
  *  3. decks: onto their supporting ledgers / girder chords (height learned from the drawing),
  *     centred between them.
+ * What stands or lies on a moved bracket or ledger (standards, ledgers on ledger receivers) moves
+ * with it; ledgers, diagonals and decks at moved standards are snapped afterwards. If more than a
+ * few parts would have to follow, nothing is moved and the group is reported for checking.
  */
 import type { V3 } from './pericad';
 import type { WorldPart } from './structure';
@@ -15,8 +18,17 @@ import type { WorldPart } from './structure';
 export interface PartMove {
   id: string;
   d: V3;
-  reason: 'column' | 'grid' | 'end' | 'deck';
+  reason: 'column' | 'grid' | 'end' | 'deck' | 'follow';
 }
+
+/** a group that would have to be moved as a whole: left as drawn, to be checked by the user */
+export interface HealCheck {
+  root: string;
+  parts: string[];
+}
+
+/** more followers than this: no automatic move */
+export const MAX_FOLLOW = 10;
 
 /** rosette pitch of PERI UP standards, m */
 const PITCH = 0.5;
@@ -61,9 +73,12 @@ function vertAxis(w: WorldPart): [V3, V3] | null {
 }
 
 function mainLine(w: WorldPart): [V3, V3] | null {
+  // brackets and ledgers: their horizontal bar (the strut of a bracket is longer than its bar)
+  const horizontal = w.cls.kind === 'bracket' || w.cls.kind === 'ledger';
   let best: [V3, V3] | null = null;
   let l = 0;
   for (const [a, b] of w.lines) {
+    if (horizontal && Math.abs(b[2] - a[2]) > 1e-3) continue;
     const d = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
     if (d > l) {
       l = d;
@@ -85,9 +100,10 @@ const ENDS = new Set(['ledger', 'diagonal', 'bracket']);
 /** PERI UP: ledger heads 42 mm from the standard axis, system line 30 mm above the rosette */
 const DEFAULT_END: Record<string, { d: number; dz: number }> = { ledger: { d: 0.042, dz: 0.03 } };
 
-export function healParts(parts: WorldPart[], tol: number): PartMove[] {
+export function healParts(parts: WorldPart[], tol: number, maxFollow = MAX_FOLLOW): { moves: PartMove[]; checks: HealCheck[] } {
   const moves: PartMove[] = [];
-  if (!(tol > 0)) return moves;
+  const checks: HealCheck[] = [];
+  if (!(tol > 0)) return { moves, checks };
   const move = (w: WorldPart, d: V3, reason: PartMove['reason']) => {
     if (norm(d) < EPS || norm(d) > tol * Math.SQRT2 + 1e-9) return;
     translatePart(w, d);
@@ -129,7 +145,9 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
     }
   }
   const cols: Col[] = [];
+  const colParts: WorldPart[][] = [];
   for (const c of clusters) {
+    colParts.push(c.items.map((i) => i.w));
     const ax = c.items.map((i) => vertAxis(i.w)!);
     cols.push({
       x: ax[0][0][0],
@@ -140,7 +158,7 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
     });
   }
 
-  // 2. parts connected at their ends to the rosettes
+  // 2. parts connected at their ends to the rosettes; what stands or lies on a moved part follows it
   interface EndHit {
     w: WorldPart;
     k: number;
@@ -152,17 +170,18 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
     perp: number;
     dir: [number, number];
   }
-  const hits: EndHit[] = [];
-  for (const w of parts) {
-    if (!ENDS.has(w.cls.kind)) continue;
+  const hitsOf = (w: WorldPart): EndHit[] => {
+    const out: EndHit[] = [];
     const ml = mainLine(w);
-    if (!ml) continue;
+    if (!ml) return out;
     const ends = [...ml].sort((a, b) => a[2] - b[2] || a[0] - b[0] || a[1] - b[1]);
     ends.forEach((p, k) => {
       let best: { col: Col; r: number } | null = null;
       for (const col of cols) {
         const r = Math.hypot(p[0] - col.x, p[1] - col.y);
         if (r > 0.25 + tol || p[2] < col.z0 - tol || p[2] > col.z1 + tol) continue;
+        // a standard on the tip of a bracket is carried by it, it does not hold it
+        if (w.cls.kind === 'bracket' && col.z0 > p[2] - 0.2) continue;
         if (!best || r < best.r) best = { col, r };
       }
       if (!best || !best.col.rosettes.length) return;
@@ -178,9 +197,13 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
       }
       const ox = p[0] - best.col.x;
       const oy = p[1] - best.col.y;
-      hits.push({ w, k, p, col: best.col, rz, par: ox * dir[0] + oy * dir[1], perp: -ox * dir[1] + oy * dir[0], dir });
+      // a bracket has one end at a standard: one set of learned offsets whatever its direction
+      out.push({ w, k: w.cls.kind === 'bracket' ? 0 : k, p, col: best.col, rz, par: ox * dir[0] + oy * dir[1], perp: -ox * dir[1] + oy * dir[0], dir });
     });
-  }
+    return out;
+  };
+  const endParts = parts.filter((w) => ENDS.has(w.cls.kind));
+  const hits: EndHit[] = endParts.flatMap(hitsOf);
   const learned = new Map<string, { par: number; perp: number; dz: number } | null>();
   const learn = (h: EndHit) => {
     const key = `${h.w.part.article}|${h.k}`;
@@ -194,11 +217,53 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
     }
     return learned.get(key)!;
   };
-  for (const w of parts) {
-    const hs = hits.filter((h) => h.w === w);
-    if (!hs.length) continue;
+
+  /** standards (column index) and ledgers that stand or lie on the bracket / ledger w */
+  const carried = (w: WorldPart): { cols: number[]; ledgers: WorldPart[] } => {
+    const res = { cols: [] as number[], ledgers: [] as WorldPart[] };
+    const ml = mainLine(w);
+    if (!ml || Math.abs(ml[1][2] - ml[0][2]) > 0.05) return res;
+    const L = len2(ml[0], ml[1]);
+    if (L < 0.05) return res;
+    const u = [(ml[1][0] - ml[0][0]) / L, (ml[1][1] - ml[0][1]) / L];
+    const near = (p: number[], dzMin: number, dzMax: number) => {
+      const t = ((p[0] - ml[0][0]) * u[0] + (p[1] - ml[0][1]) * u[1]) / L;
+      if (t < -0.05 || t > 1.05) return false;
+      const dh = Math.abs(-(p[0] - ml[0][0]) * u[1] + (p[1] - ml[0][1]) * u[0]);
+      const dz = p[2] - ml[0][2];
+      return dh <= 0.12 + tol && dz >= dzMin && dz <= dzMax;
+    };
+    // a standard stands on the part if it starts there (the standards the part hangs on run on below it)
+    cols.forEach((c, k) => {
+      if (near([c.x, c.y, c.z0], -tol, 0.8)) res.cols.push(k);
+    });
+    for (const l of endParts) {
+      if (l === w || l.cls.kind !== 'ledger') continue;
+      const lm = mainLine(l);
+      if (!lm) continue;
+      for (const p of lm) {
+        const atCol = cols.some((c) => Math.hypot(p[0] - c.x, p[1] - c.y) <= 0.25 && p[2] >= c.z0 - tol && p[2] <= c.z1 + tol);
+        if (!atCol && near(p, -0.06 - tol, 0.4)) {
+          res.ledgers.push(l);
+          break;
+        }
+      }
+    }
+    return res;
+  };
+  const moveColumn = (k: number, d: V3) => {
+    for (const w of colParts[k]) move(w, d, 'follow');
+    const c = cols[k];
+    c.x += d[0];
+    c.y += d[1];
+    c.z0 += d[2];
+    c.z1 += d[2];
+    c.rosettes = c.rosettes.map((z) => z + d[2]);
+  };
+  const order = ['bracket', 'ledger', 'diagonal'];
+  for (const w of [...endParts].sort((a, b) => order.indexOf(a.cls.kind) - order.indexOf(b.cls.kind))) {
     const ds: V3[] = [];
-    for (const h of hs) {
+    for (const h of hitsOf(w)) {
       const t = learn(h);
       if (!t) continue;
       // across the part: the side of the drawing is kept (diagonals may sit on either side of the rosette)
@@ -209,7 +274,31 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
     }
     if (!ds.length) continue;
     const avg: V3 = [0, 1, 2].map((i) => ds.reduce((a, d) => a + d[i], 0) / ds.length) as V3;
+    if (norm(avg) < EPS) continue;
+    // everything standing or lying on this part (and on what follows it) moves with it
+    const fCols = new Set<number>();
+    const fLedgers = new Set<WorldPart>();
+    if (w.cls.kind !== 'diagonal') {
+      const queue: WorldPart[] = [w];
+      while (queue.length && fLedgers.size + fCols.size <= maxFollow) {
+        const c = carried(queue.pop()!);
+        for (const k of c.cols) fCols.add(k);
+        for (const l of c.ledgers)
+          if (!fLedgers.has(l) && l !== w) {
+            fLedgers.add(l);
+            queue.push(l);
+          }
+      }
+    }
+    const followers = [...fLedgers, ...[...fCols].flatMap((k) => colParts[k])];
+    if (followers.length > maxFollow) {
+      // too much would have to be rebuilt: leave it to the user
+      checks.push({ root: w.part.id, parts: [w.part.id, ...followers.map((f) => f.part.id)] });
+      continue;
+    }
     move(w, avg, 'end');
+    for (const l of fLedgers) move(l, avg, 'follow');
+    for (const k of fCols) moveColumn(k, avg);
   }
 
   // 3. decks on ledgers / girder chords
@@ -267,5 +356,5 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
     if (Number.isFinite(d.lo) && Number.isFinite(d.hi)) v[d.long] = (d.lo + d.hi) / 2 - d.c;
     if (Math.abs(v[0]) <= tol && Math.abs(v[1]) <= tol && Math.abs(v[2]) <= tol) move(d.w, v, 'deck');
   }
-  return moves;
+  return { moves, checks };
 }

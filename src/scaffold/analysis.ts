@@ -65,6 +65,8 @@ export interface ComboResult {
   /** largest horizontal and vertical displacement, m */
   dh: number;
   dv: number;
+  /** sum of the vertical support forces, N */
+  sumV: number;
 }
 
 export interface BaseResult {
@@ -139,11 +141,7 @@ function swayOf(src: Loads3, psi: number, d: V3, model: ScaffoldModel): Loads3 {
 
 export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
   const { frame, members } = model;
-  const mlen = frame.members.map((m) => {
-    const a = frame.nodes[m.i];
-    const b = frame.nodes[m.j];
-    return Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
-  });
+  const mlen = model.lengths;
   const level = opt.level >= 0 && opt.level < model.levels.length ? opt.level : model.levels.reduce((best, l, k) => (l.area > (model.levels[best]?.area ?? -1) ? k : best), 0);
 
   // G: self weight of members, decks and other parts (+ ice)
@@ -406,8 +404,8 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
   return { r, iterations: Math.min(it, MAX), converged, noLift };
 }
 
-/** Run all combinations and checks. `progress` is called before every combination. */
-export function analyzeScaffoldModel(model: ScaffoldModel, opt: AnalysisOptions, progress?: (done: number, total: number) => void): ScaffoldResult {
+/** set-up of the analysis: solver, combinations, check data; the combinations are run one by one */
+function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions) {
   const { frame, members } = model;
   const fr = new Frame3(frame);
   const { combos, level, totalG, totalQ } = buildCombos(model, opt);
@@ -469,14 +467,13 @@ export function analyzeScaffoldModel(model: ScaffoldModel, opt: AnalysisOptions,
     for (const n of [m.i, m.j]) (stdAt.get(n) ?? stdAt.set(n, []).get(n)!).push(k);
   });
 
-  combos.forEach((cb, ci) => {
-    progress?.(ci, combos.length);
+  const runCombo = (cb: Combo) => {
     let sol: Solved;
     try {
       sol = solveCombo(fr, model, cb.loads, opt.secondOrder);
     } catch (e) {
       if (e instanceof FrameError3) {
-        out.push({ name: cb.name, ok: false, iterations: 0, converged: false, errorNode: e.node, dh: 0, dv: 0 });
+        out.push({ name: cb.name, ok: false, iterations: 0, converged: false, errorNode: e.node, dh: 0, dv: 0, sumV: 0 });
         return;
       }
       throw e;
@@ -488,7 +485,11 @@ export function analyzeScaffoldModel(model: ScaffoldModel, opt: AnalysisOptions,
       dh = Math.max(dh, Math.hypot(r.u[n * 6], r.u[n * 6 + 1]));
       dv = Math.max(dv, Math.abs(r.u[n * 6 + 2]));
     }
-    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, dh, dv });
+    let sumV = 0;
+    frame.supports.forEach((sp, k) => {
+      if (sp.dof === 2) sumV += r.reactions[k];
+    });
+    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, dh, dv, sumV });
 
     // utilisation of the standard tube at both ends of a member
     const tubeEta = (k: number, x: number) => {
@@ -613,21 +614,44 @@ export function analyzeScaffoldModel(model: ScaffoldModel, opt: AnalysisOptions,
       const o = beamSup.get(s.node);
       if (!o || V > o.V) beamSup.set(s.node, { part: s.part, node: s.node, V });
     }
-  });
-  progress?.(combos.length, combos.length);
-
-  const eta: Record<string, number> = {};
-  for (const c of best.values()) eta[c.part] = Math.max(eta[c.part] ?? 0, c.eta);
-  return {
-    combos: out,
-    checks: [...best.values()].sort((a, b) => b.eta - a.eta),
-    eta,
-    bases: [...baseRes.values()],
-    anchors: [...anchorRes.values()],
-    beamSupports: [...beamSup.values()],
-    level,
-    totalG,
-    totalQ,
-    unknowns: fr.unknowns,
   };
+  const finish = (): ScaffoldResult => {
+    const eta: Record<string, number> = {};
+    for (const c of best.values()) eta[c.part] = Math.max(eta[c.part] ?? 0, c.eta);
+    return {
+      combos: out,
+      checks: [...best.values()].sort((a, b) => b.eta - a.eta),
+      eta,
+      bases: [...baseRes.values()],
+      anchors: [...anchorRes.values()],
+      beamSupports: [...beamSup.values()],
+      level,
+      totalG,
+      totalQ,
+      unknowns: fr.unknowns,
+    };
+  };
+  return { combos, runCombo, finish };
+}
+
+/** Run all combinations and checks. `progress` is called before every combination. */
+export function analyzeScaffoldModel(model: ScaffoldModel, opt: AnalysisOptions, progress?: (done: number, total: number) => void): ScaffoldResult {
+  const a = prepareAnalysis(model, opt);
+  a.combos.forEach((cb, k) => {
+    progress?.(k, a.combos.length);
+    a.runCombo(cb);
+  });
+  return a.finish();
+}
+
+/** The same, yielding to the browser between the combinations (progress display) */
+export async function analyzeScaffoldModelAsync(model: ScaffoldModel, opt: AnalysisOptions, progress: (done: number, total: number) => void): Promise<ScaffoldResult> {
+  const a = prepareAnalysis(model, opt);
+  for (let k = 0; k < a.combos.length; k++) {
+    progress(k, a.combos.length);
+    await new Promise((r) => setTimeout(r, 15));
+    a.runCombo(a.combos[k]);
+  }
+  progress(a.combos.length, a.combos.length);
+  return a.finish();
 }

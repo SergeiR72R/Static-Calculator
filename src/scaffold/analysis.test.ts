@@ -1,0 +1,148 @@
+import { describe, expect, it } from 'vitest';
+import { parsePeriCadDxf } from './pericad';
+import { analyzeScaffold } from './structure';
+import { buildScaffoldModel } from './model';
+import { DEFAULT_ANALYSIS, GAMMA_F, analyzeScaffoldModel, buildLoadCases } from './analysis';
+import { connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData } from './upflex';
+import { periDxf, towerParts, type TestPart } from './testDxf';
+
+const tower = (edit?: (p: TestPart[]) => void) => {
+  const parts = towerParts();
+  edit?.(parts);
+  return analyzeScaffold(parsePeriCadDxf(periDxf(parts), 'tower.dxf'));
+};
+/** node diagonals 200/200 in both bays of the plane y = 0 and y = 2, bottom lift (rosettes 0.22 → 2.22) */
+const braced = (p: TestPart[]) => {
+  for (const ay of [0, 2]) for (const ax of [0, 2]) p.push({ art: 'UBK', rot: 'x', t: [ax + 0.083, ay - 0.05, 0.22] });
+};
+
+describe('PERI UP Flex approval data', () => {
+  it('moment / rotation curves: secant stiffness of the ledger connection', () => {
+    // UH Plus at Ø48.3×3.2 with 8 mm rosette: φ = M/(17100 − 65.6·M) [kNcm]
+    expect(connKy('PLUS', '1a', 0)).toBeCloseTo(171000, 0);
+    expect(connKy('PLUS', '1a', 1000)).toBeCloseTo((17100 - 65.6 * 100) * 10, 0);
+    expect(connKy('PLUS', '1a', -1000)).toBeCloseTo((13150 - 66.6 * 100) * 10, 0);
+    expect(connKy('UH', '2c', 500)).toBeCloseTo((8040 - 45.9 * 50) * 10, 0);
+  });
+
+  it('resistances and interaction of the connection (tables 11, 12; Gl. 7–8)', () => {
+    const R = connResistance('PLUS', '1a');
+    expect(R.MyPos).toBe(1610);
+    expect(R.MyNeg).toBe(1360);
+    expect(R.NPos).toBe(37300);
+    expect(R.VzPos).toBe(30400);
+    expect(R.alphaPos).toBe(0.2);
+    // hogging moment with a vertical load on the rosette: Gl. 8c governs with tension, 7c without
+    const a = connInteraction('PLUS', '1a', { N: 0, My: -680, Vz: 15200, Vy: 0, Mz: 0, Mx: 0 });
+    expect(a.eq).toBe('8a');
+    expect(a.eta).toBeCloseTo(0.97 * 0.5 + 0.23 * 0.5, 6);
+    const b = connInteraction('PLUS', '1a', { N: 0, My: 805, Vz: 15200, Vy: 0, Mz: 0, Mx: 0 });
+    expect(b.eq).toBe('7a');
+    expect(b.eta).toBeCloseTo(0.5 + 0.5, 6);
+    const c = connInteraction('UH', '1a', { N: 2470, My: 0, Vz: 0, Vy: 1130, Mz: 0, Mx: 0 });
+    expect(c.eta).toBeCloseTo(0.1 + 0.06, 6);
+  });
+
+  it('cosine interaction of the tube and diagonal tables', () => {
+    expect(tubeUtilisation(0.5, 0)).toBeCloseTo(0.5, 6);
+    expect(tubeUtilisation(0, 0.5)).toBeCloseTo(0.5, 6);
+    // on the curve m = cos(π/2·n)
+    expect(tubeUtilisation(0.5, Math.cos(Math.PI / 4))).toBeCloseTo(1, 6);
+    expect(ubkData(2, 2, false)).toMatchObject({ eaT: 4100e3, nT: 13200, eaC: 1970e3, nC: 7480, slack: 0.01 });
+    expect(ubkData(1.5, 1, true)).toMatchObject({ eaT: 2250e3, nT: 12600, eaC: 850e3, nC: 9750, slack: 0.012 });
+    expect(ubhData(1.5, 1)).toMatchObject({ eaT: 7920e3, nT: 11200, slack: 0.002 });
+  });
+});
+
+describe('structural model of the scaffold', () => {
+  const st = tower(braced);
+  const m = buildScaffoldModel(st);
+
+  it('standards with nodes at the rosettes, bases, ledgers with rosette connections', () => {
+    expect(m.bases).toHaveLength(6);
+    expect(m.notes).toEqual([]);
+    const kinds = m.members.reduce<Record<string, number>>((a, x) => ((a[x.kind] = (a[x.kind] ?? 0) + 1), a), {});
+    expect(kinds.ledger).toBe(16);
+    expect(kinds.girder).toBe(2);
+    expect(kinds.ubk).toBe(4);
+    // ledgers at the base standard UVB 24 (Ø48.3×3.6, rosette 8 mm): variant 1b, above: 1a
+    const conns = m.members.filter((x) => x.kind === 'ledger').map((x) => x.conn!.join());
+    expect(conns.filter((c) => c === '1b,1b')).toHaveLength(7);
+    expect(conns.filter((c) => c === '1a,1a')).toHaveLength(9);
+    // standard joints with the rotational spring
+    expect(m.members.filter((x) => x.joint).length).toBe(10);
+    expect(m.levels.map((l) => +l.area.toFixed(2))).toEqual([7.64, 7.64]);
+  });
+
+  it('loads: self weight from the parts list, service load on one level', () => {
+    const lc = buildLoadCases(m, { ...DEFAULT_ANALYSIS, p: 2000 });
+    // 10 UVR 200 (10 kg), 6 UVB 24 (2.47), 16 UH 200 Plus (6.04), 32 UDG 25×200 (12.2);
+    // girders and diagonals without a weight in the parts list: estimated
+    const kg = 10 * 10 + 6 * 2.47 + 16 * 6.04 + 32 * 12.2;
+    expect(lc.totalG / 9.81).toBeGreaterThan(kg);
+    expect(lc.totalG / 9.81).toBeLessThan(kg + 160);
+    expect(lc.totalQ).toBeCloseTo(7.644 * 2000, -1);
+  });
+});
+
+describe('scaffold analysis', () => {
+  it('braced tower indoors: equilibrium, convergence, checks', () => {
+    const m = buildScaffoldModel(tower(braced));
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: false };
+    const res = analyzeScaffoldModel(m, opt);
+    expect(res.combos).toHaveLength(4);
+    for (const c of res.combos) {
+      expect(c.ok).toBe(true);
+      expect(c.converged).toBe(true);
+      expect(c.sumV).toBeCloseTo(GAMMA_F * (res.totalG + res.totalQ), -2);
+      expect(c.dh).toBeLessThan(0.05);
+    }
+    const kinds = new Set(res.checks.map((c) => c.check));
+    // the node diagonals stay within their slack of 1 cm at this load
+    for (const k of ['conn', 'node', 'tube', 'buckling', 'joint', 'ledger']) expect(kinds.has(k as never)).toBe(true);
+    for (const c of res.checks) expect(Number.isFinite(c.eta)).toBe(true);
+    expect(Math.max(...res.bases.map((b) => b.Vmax))).toBeGreaterThan((GAMMA_F * (res.totalG + res.totalQ)) / 6);
+    expect(res.bases.every((b) => b.Vmin > 0)).toBe(true);
+  });
+
+  it('more load → higher utilisation; the service class scales the load', () => {
+    const m = buildScaffoldModel(tower(braced));
+    const a = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, p: 2000 });
+    const b = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, p: 6000 });
+    const max = (r: typeof a, k: string) => Math.max(...r.checks.filter((c) => c.check === k).map((c) => c.eta));
+    expect(max(b, 'conn')).toBeGreaterThan(max(a, 'conn') * 1.5);
+    expect(max(b, 'buckling')).toBeGreaterThan(max(a, 'buckling') * 1.5);
+  });
+
+  it('wind outdoors: larger sway than indoors; maximum wind adds the out-of-service combinations', () => {
+    const m = buildScaffoldModel(tower(braced));
+    const indoor = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false });
+    const out = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 });
+    expect(out.combos).toHaveLength(8);
+    expect(out.combos.filter((c) => c.name.startsWith('R'))).toHaveLength(4);
+    expect(Math.max(...out.combos.map((c) => c.dh))).toBeGreaterThan(Math.max(...indoor.combos.map((c) => c.dh)));
+  });
+
+  it('second order increases the sway of the unbraced tower', () => {
+    const m = buildScaffoldModel(tower());
+    const first = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, secondOrder: false });
+    const second = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, secondOrder: true });
+    expect(Math.max(...second.combos.map((c) => c.dh))).toBeGreaterThan(Math.max(...first.combos.map((c) => c.dh)) * 1.05);
+  });
+
+  it('anchor: tube to the structure takes horizontal load, checked against the coupler', () => {
+    const st = tower((p) => {
+      p.push({ art: 'TUBE', rot: 'nx', t: [-0.06, 0, 4.2] });
+      p.push({ art: 'RA', rot: 'x', t: [-0.06, 0, 4.2] });
+      p.push({ art: 'UEC', rot: 'x', t: [-1.06, 0, 4.2] });
+    });
+    const m = buildScaffoldModel(st);
+    expect(m.anchors).toHaveLength(1);
+    const res = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 });
+    expect(res.anchors).toHaveLength(1);
+    expect(Math.max(Math.abs(res.anchors[0].Nmax), Math.abs(res.anchors[0].Nmin))).toBeGreaterThan(100);
+    const free = analyzeScaffoldModel(buildScaffoldModel(tower()), { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 });
+    const dx = (r: typeof res) => r.combos.find((c) => c.name === 'R +x')!.dh;
+    expect(dx(res)).toBeLessThan(dx(free));
+  });
+});

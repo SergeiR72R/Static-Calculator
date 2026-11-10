@@ -764,7 +764,7 @@
       "healed": "{n} רכיבים הוצבו בנקודות החיבור (עד {d} מ\"מ).",
       "anchors": "{n} עיגונים (צינור עם צמד בעמוד, ובקצה השני צמד אוגן לקורת המבנה או כלום).",
       "healCheck": "{name}: הוצב לא במדויק, אך יחד איתו היה צורך להזיז {n} רכיבים מחוברים – לא תוקן אוטומטית, יש לבדוק בשרטוט.",
-      "aecParts": "בשרטוט {n} רכיבים מהסוג הישן של PERI CAD (PERI_AEC_DB_BAUTEIL, למשל ספינדלים) – AutoCAD לא כתב אותם ל-DXF והם חסרים במודל. בעותק של השרטוט יש לבחור אותם (QSELECT, סוג אובייקט PERI_AEC_DB_BAUTEIL), לפרק פעם אחת (EXPLODE) ולשמור DXF מחדש – התוכנה תקרא אותם מבלוקי PERI."
+      "aecParts": "בשרטוט עד {n} רכיבים מהסוג הישן של PERI CAD (PERI_AEC_DB_BAUTEIL: למשל ספינדלים, אלכסונים, מסבכים) – AutoCAD לא כתב אותם ל-DXF והם חסרים במודל. בעותק: QSELECT ← סוג PERI_AEC_DB_BAUTEIL_GRUPPE ← EXPLODE; אחר כך QSELECT ← סוג PERI_AEC_DB_BAUTEIL ← EXPLODE; לשמור DXF – התוכנה תקרא אותם מבלוקי PERI."
     },
     "view": {
       "title": "מודל תלת-ממדי",
@@ -830,7 +830,7 @@
       "noParts": "ב-DXF אין רכיבי PERI CAD.",
       "proxy": "רכיבי PERI נשמרו כאובייקטי Proxy – שמרו את ה-DXF כאשר PERI CAD טעון.",
       "read": "לא ניתן היה לקרוא את ה-DXF.",
-      "aec": "ב-DXF אין רכיבים קריאים: כל רכיבי השרטוט מהסוג הישן של PERI CAD (PERI_AEC_DB_BAUTEIL), ש-AutoCAD אינו כותב ל-DXF. בעותק של השרטוט יש לבחור אותם (QSELECT, סוג אובייקט PERI_AEC_DB_BAUTEIL), לפרק פעם אחת (EXPLODE) ולשמור DXF מחדש."
+      "aec": "ב-DXF אין רכיבים קריאים: כל רכיבי השרטוט מהסוג הישן של PERI CAD (PERI_AEC_DB_BAUTEIL), ש-AutoCAD אינו כותב ל-DXF. בעותק: QSELECT ← סוג PERI_AEC_DB_BAUTEIL_GRUPPE ← EXPLODE; אחר כך QSELECT ← סוג PERI_AEC_DB_BAUTEIL ← EXPLODE; לשמור DXF."
     },
     "site": {
       "title": "מיקום ותנאים",

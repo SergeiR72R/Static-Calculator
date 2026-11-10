@@ -764,7 +764,7 @@
       "healed": "{n} Teile an ihren Anschlusspunkt gesetzt (bis {d} mm).",
       "anchors": "{n} Verankerungen (Rohr mit Kupplung am Stiel, am anderen Ende Flanschkupplung am Träger des Bauwerks oder nichts).",
       "healCheck": "{name}: ungenau gesetzt, aber mit ihm müssten {n} verbundene Teile verschoben werden – nicht automatisch korrigiert, bitte in der Zeichnung prüfen.",
-      "aecParts": "Die Zeichnung enthält {n} Teile des älteren PERI-CAD-Typs (PERI_AEC_DB_BAUTEIL, z. B. Spindeln) – AutoCAD hat sie nicht in die DXF geschrieben, sie fehlen im Modell. In einer Kopie der Zeichnung auswählen (SSCHNELL, Objekttyp PERI_AEC_DB_BAUTEIL), einmal auflösen (URSPRUNG / _EXPLODE) und die DXF erneut speichern – das Programm liest sie dann über die PERI-Blöcke."
+      "aecParts": "Die Zeichnung enthält bis zu {n} Teile des älteren PERI-CAD-Typs (PERI_AEC_DB_BAUTEIL: z. B. Spindeln, Diagonalen, Träger) – AutoCAD hat sie nicht in die DXF geschrieben, sie fehlen im Modell. In einer Kopie: SSCHNELL → Typ PERI_AEC_DB_BAUTEIL_GRUPPE → URSPRUNG; dann SSCHNELL → Typ PERI_AEC_DB_BAUTEIL → URSPRUNG; DXF speichern – das Programm liest sie dann über die PERI-Blöcke."
     },
     "view": {
       "title": "3D-Modell",
@@ -830,7 +830,7 @@
       "noParts": "Die DXF enthält keine PERI-CAD-Teile.",
       "proxy": "PERI-Teile wurden als Proxy-Objekte gespeichert – DXF mit geladenem PERI CAD speichern.",
       "read": "Die DXF konnte nicht gelesen werden.",
-      "aec": "Die DXF enthält keine lesbaren Teile: alle Teile der Zeichnung sind vom älteren PERI-CAD-Typ (PERI_AEC_DB_BAUTEIL), AutoCAD schreibt sie nicht in die DXF. In einer Kopie der Zeichnung auswählen (SSCHNELL, Objekttyp PERI_AEC_DB_BAUTEIL), einmal auflösen (URSPRUNG / _EXPLODE) und die DXF erneut speichern."
+      "aec": "Die DXF enthält keine lesbaren Teile: alle Teile der Zeichnung sind vom älteren PERI-CAD-Typ (PERI_AEC_DB_BAUTEIL), AutoCAD schreibt sie nicht in die DXF. In einer Kopie: SSCHNELL → Typ PERI_AEC_DB_BAUTEIL_GRUPPE → URSPRUNG; dann SSCHNELL → Typ PERI_AEC_DB_BAUTEIL → URSPRUNG; DXF speichern."
     },
     "site": {
       "title": "Standort und Bedingungen",

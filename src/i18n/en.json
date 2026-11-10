@@ -764,7 +764,7 @@
       "healed": "{n} parts set onto their connection points (up to {d} mm).",
       "anchors": "{n} anchors (tube with a coupler at the standard, a flange coupler on the steel beam of the structure or nothing at the other end).",
       "healCheck": "{name}: placed imprecisely, but {n} connected parts would have to move with it – not corrected automatically, please check the drawing.",
-      "aecParts": "The drawing has {n} parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL, e.g. spindles) – AutoCAD did not write them to the DXF, they are missing from the model. In a copy of the drawing select them (QSELECT, object type PERI_AEC_DB_BAUTEIL), explode them once (EXPLODE) and save the DXF again – the program then reads them from the PERI blocks."
+      "aecParts": "The drawing has up to {n} parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL: e.g. spindles, diagonals, girders) – AutoCAD did not write them to the DXF, they are missing from the model. In a copy: QSELECT → type PERI_AEC_DB_BAUTEIL_GRUPPE → EXPLODE; then QSELECT → type PERI_AEC_DB_BAUTEIL → EXPLODE; save the DXF – the program then reads them from the PERI blocks."
     },
     "view": {
       "title": "3D model",
@@ -830,7 +830,7 @@
       "noParts": "The DXF contains no PERI CAD parts.",
       "proxy": "The PERI parts were saved as proxy objects – save the DXF with PERI CAD loaded.",
       "read": "The DXF could not be read.",
-      "aec": "The DXF contains no readable parts: all parts of the drawing are of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL), which AutoCAD does not write to DXF. In a copy of the drawing select them (QSELECT, object type PERI_AEC_DB_BAUTEIL), explode them once (EXPLODE) and save the DXF again."
+      "aec": "The DXF contains no readable parts: all parts of the drawing are of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL), which AutoCAD does not write to DXF. In a copy: QSELECT → type PERI_AEC_DB_BAUTEIL_GRUPPE → EXPLODE; then QSELECT → type PERI_AEC_DB_BAUTEIL → EXPLODE; save the DXF."
     },
     "site": {
       "title": "Site and conditions",

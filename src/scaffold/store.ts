@@ -18,7 +18,7 @@ export interface ScaffoldOpts {
   tol: number;
 }
 
-export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 200, tol: 0.05 };
+export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05 };
 
 export interface ScaffoldState extends ScaffoldOpts {
   doc: ScaffoldDoc | null;
@@ -48,7 +48,11 @@ function loadDoc(): ScaffoldDoc | null {
 function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef'] } {
   const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null };
   try {
-    Object.assign(o, JSON.parse(storage.get(OPT_KEY) ?? '{}'));
+    const saved = JSON.parse(storage.get(OPT_KEY) ?? '{}');
+    // options of version 1: deck self weight was the old default 0.20 kN/m² → new default
+    if (!saved.v) delete saved.g;
+    delete saved.v;
+    Object.assign(o, saved);
   } catch {
     /* ignore */
   }
@@ -56,7 +60,7 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef'] } {
 }
 
 function save(s: ScaffoldState) {
-  storage.set(OPT_KEY, JSON.stringify({ loadClass: s.loadClass, g: s.g, tol: s.tol, batchRef: s.batchRef }));
+  storage.set(OPT_KEY, JSON.stringify({ v: 2, loadClass: s.loadClass, g: s.g, tol: s.tol, batchRef: s.batchRef }));
 }
 
 export const useScaffold = create<ScaffoldState>()((set, get) => ({

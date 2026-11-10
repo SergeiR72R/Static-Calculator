@@ -141,7 +141,8 @@ export default function Scaffold3D({ st, girderColor, selected, moved, resetKey,
         const r = w.cls.kind.startsWith('flex') || w.cls.kind === 'girder' ? (len > 0.6 ? 0.026 : 0.016) : 0.024;
         segs.push({ a: toThree(a, center), b: toThree(b, center), r, color, id: w.part.id });
       }
-      for (const p of w.rosettes) ros.push({ p: toThree(p, center), id: w.part.id });
+      // rosettes only on standards (circles of other parts' line blocks, e.g. the ULS Flex connector, are no nodes)
+      if (w.cls.kind === 'standard' || w.cls.kind === 'base') for (const p of w.rosettes) ros.push({ p: toThree(p, center), id: w.part.id });
     }
     const m4 = new THREE.Matrix4();
     const q = new THREE.Quaternion();

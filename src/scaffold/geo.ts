@@ -16,6 +16,7 @@ export interface Place {
 }
 
 interface NominatimAddress {
+  [key: string]: string | undefined;
   country_code?: string;
   state?: string;
   state_district?: string;
@@ -26,7 +27,15 @@ interface NominatimAddress {
   municipality?: string;
 }
 
-const adminOf = (a: NominatimAddress | undefined): Admin => ({ state: a?.state ?? a?.city, district: a?.state_district, county: a?.county, town: a?.city ?? a?.town ?? a?.village ?? a?.municipality });
+const adminOf = (a: NominatimAddress | undefined): Admin => ({
+  state: a?.state ?? a?.city,
+  district: a?.state_district ?? a?.province,
+  county: a?.county ?? a?.province,
+  town: a?.city ?? a?.town ?? a?.village ?? a?.municipality,
+  municipality: a?.municipality,
+  village: a?.village ?? a?.town,
+  iso: a ? Object.entries(a).filter(([k, v]) => k.startsWith('ISO3166-2') && v).map(([, v]) => v!) : undefined,
+});
 
 export const REVERSE = 'https://nominatim.openstreetmap.org/reverse';
 

@@ -58,7 +58,8 @@ function SiteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const confirm = () => {
     if (!pick) return;
-    sc.setOpts({ site: { ...pick, confirmed: true } });
+    // a new site: the zone is found again for it
+    sc.setOpts({ site: { ...pick, confirmed: true }, windZone: 0 });
     onClose();
   };
 
@@ -155,7 +156,25 @@ function WindBlock({ height }: { height: number }) {
   const fmt = useFmt();
   const sc = useScaffold();
   const w = siteWind(sc, height);
-  const de = sc.site?.country === 'de';
+  const country = sc.site?.country;
+  const de = country === 'de';
+  const nl = country === 'nl';
+  const bl = country === 'be' || country === 'lu';
+  const ROMAN = ['', 'I', 'II', 'III'];
+  const rules =
+    w.rows && w.rows.length > 0 ? (
+      <ul className={cx('space-y-0.5 text-[11px]', w.sure !== false ? 'text-slate-500' : 'text-amber-800 dark:text-amber-300')} dir="ltr" data-testid="wind-rows">
+        {w.rows.slice(0, 5).map((r, k) => (
+          <li key={k}>{r}</li>
+        ))}
+      </ul>
+    ) : null;
+  const confirmHint =
+    w.sure === false && !sc.windZone ? (
+      <p className="flex items-start gap-1 font-medium text-amber-700 dark:text-amber-300" data-testid="wind-check">
+        <IconAlert className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t(nl ? 'scaffold.wind.confirmNL' : 'scaffold.wind.confirmBE')}
+      </p>
+    ) : null;
   return (
     <div className="rounded border border-slate-200 p-2 text-xs dark:border-slate-700" data-testid="site-wind">
       <p className="mb-1 font-semibold">{fmt.t('scaffold.wind.title')}</p>
@@ -198,6 +217,40 @@ function WindBlock({ height }: { height: number }) {
             </p>
           )}
           {!w.zone && <p className="text-amber-700 dark:text-amber-300">{fmt.t('scaffold.wind.notFound')}</p>}
+        </div>
+      ) : nl ? (
+        <div className="space-y-1.5">
+          <SelectField
+            label={fmt.t('scaffold.wind.areaNL')}
+            value={String(sc.windZone >= 1 && sc.windZone <= 3 ? sc.windZone : 0)}
+            testId="wind-zone"
+            options={[
+              { value: '0', label: w.zone && !sc.windZone ? fmt.t('scaffold.wind.areaAuto', { n: ROMAN[w.zone], v: fmt.num(w.vb0 ?? 0, 1) }) : fmt.t('scaffold.wind.zoneNone') },
+              ...[1, 2, 3].map((n) => ({ value: String(n), label: fmt.t('scaffold.wind.areaN', { n: ROMAN[n], v: fmt.num([0, 29.5, 27, 24.5][n], 1) }) })),
+            ]}
+            onChange={(v) => sc.setOpts({ windZone: Number(v) })}
+          />
+          {rules}
+          {confirmHint}
+          {!w.zone && <p className="text-amber-700 dark:text-amber-300">{fmt.t('scaffold.wind.notFound')}</p>}
+          <p className="text-[11px] text-slate-500">{fmt.t('scaffold.wind.nlHint')}</p>
+        </div>
+      ) : bl ? (
+        <div className="space-y-1.5">
+          <SelectField
+            label={fmt.t('scaffold.wind.vb0')}
+            value={String(sc.windZone >= 20 ? sc.windZone : 0)}
+            testId="wind-vb0-select"
+            options={[
+              { value: '0', label: w.vb0 && !sc.windZone ? fmt.t('scaffold.wind.vb0Auto', { v: w.vb0 }) : fmt.t('scaffold.wind.zoneNone') },
+              ...[23, 24, 25, 26].map((v) => ({ value: String(v), label: `${v} m/s` })),
+            ]}
+            onChange={(v) => sc.setOpts({ windZone: Number(v) })}
+          />
+          {rules}
+          {confirmHint}
+          {!w.vb0 && <p className="text-amber-700 dark:text-amber-300">{fmt.t('scaffold.wind.notFound')}</p>}
+          <p className="text-[11px] text-slate-500">{fmt.t(country === 'be' ? 'scaffold.wind.beHint' : 'scaffold.wind.luHint')}</p>
         </div>
       ) : (
         <div>

@@ -103,7 +103,7 @@ export function classifyPart(article: string, name: string, desc = ''): PartClas
   if (/zapfen|riegelaufnahme|\bUHA\b|passbolzen|federstecker|kreuzverbinder|eckblech|abdeckblech|\bUD[BC]\b|\bUC ?\d/i.test(text)) return { kind: 'accessory' };
   if (/\bUH\b|\bUHV\b|riegel|ledger|transom/i.test(text)) return { kind: 'ledger' };
   if (/\bUD[AGI]\b|\bUDS\b|belag|tafel|deck/i.test(text)) return { kind: 'deck' };
-  if (/spindel|\bUJB\b|jack/i.test(text)) return { kind: 'jack' };
+  if (/spindel|\bUJ[A-Z]{0,2}\b|jack/i.test(text)) return { kind: 'jack' };
   return { kind: 'other' };
 }
 

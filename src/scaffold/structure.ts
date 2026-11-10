@@ -377,6 +377,7 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
     }
   const noGeom = parts.filter((w) => !w.lines.length && !w.rosettes.length && w.cls.kind !== 'coupler');
   if (noGeom.length) issues.push({ key: 'noGeometry', params: { n: noGeom.length, names: [...new Set(noGeom.map((w) => w.part.name))].join(', ') }, parts: noGeom.map((w) => w.part.id), severity: 'warning' });
+  if (doc.aecParts) issues.push({ key: 'aecParts', params: { n: doc.aecParts }, parts: [], severity: 'warning' });
   const unknown = parts.filter((w) => w.cls.kind === 'other');
   if (unknown.length) issues.push({ key: 'unknownParts', params: { n: unknown.length, names: [...new Set(unknown.map((w) => w.part.name))].join(', ') }, parts: unknown.map((w) => w.part.id), severity: 'info' });
 

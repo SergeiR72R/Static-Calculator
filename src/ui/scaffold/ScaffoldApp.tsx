@@ -1,4 +1,5 @@
-import { lazy, Suspense, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { useStore } from '../../state/store';
 import { useScaffold } from '../../scaffold/store';
 import { analyzeScaffold, girderBeamModel, girderDesignation, type Girder, type ScaffoldIssue, type ScaffoldStructure } from '../../scaffold/structure';
@@ -8,10 +9,11 @@ import { beamSummary, type BeamSummary } from '../batch/summary';
 import { warningText } from '../batch/BatchPanel';
 import { Button, Card, NumberField, SelectField, cx } from '../common';
 import { useFmt, type Fmt } from '../hooks';
-import { IconAlert, IconChevronRight, IconInfo, IconUpload, IconX } from '../icons';
+import { IconAlert, IconChevronRight, IconInfo, IconPrint, IconUpload, IconX } from '../icons';
 import { openDxfFile } from './openDxf';
 import { SiteCard } from './SiteCard';
 import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './AnalysisCard';
+import { ScaffoldReport } from './ScaffoldReport';
 
 const Scaffold3D = lazy(() => import('./Scaffold3D'));
 
@@ -147,6 +149,18 @@ export default function ScaffoldApp() {
   const [hidden, setHidden] = useState<Set<PartKind>>(new Set());
   const [run, setRun] = useState<ScaffoldRun | null>(null);
   const [byEta, setByEta] = useState(true);
+  // the report is only rendered while printing
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    const before = () => flushSync(() => setPrinting(true));
+    const after = () => setPrinting(false);
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+    };
+  }, []);
   const doc = sc.doc;
   const st = useMemo(() => (doc ? analyzeScaffold(doc, { tol: sc.tol }) : null), [doc, sc.tol]);
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
@@ -195,6 +209,7 @@ export default function ScaffoldApp() {
   const warnings = st.issues.filter((i) => i.severity === 'warning').length;
 
   return (
+    <>
     <main className="no-print grid flex-1 grid-cols-1 md:grid-cols-[minmax(300px,380px)_1fr]" data-testid="scaffold-app">
       <aside className="space-y-3 border-e border-slate-200 bg-slate-100/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
         <Card
@@ -221,6 +236,10 @@ export default function ScaffoldApp() {
           <div className="mt-2">
             <DropZone />
           </div>
+          <Button size="sm" className="mt-2 w-full justify-center" onClick={() => setTimeout(() => window.print(), 50)} data-testid="scaffold-print">
+            <IconPrint /> {fmt.t('scaffold.report.button')}
+          </Button>
+          <p className="mt-1 text-[11px] text-slate-500">{fmt.t(run ? 'scaffold.report.hint' : 'scaffold.report.hintNoRun')}</p>
         </Card>
 
         <SiteCard height={Math.max(st.max[2] - st.min[2], 1)} />
@@ -456,5 +475,7 @@ export default function ScaffoldApp() {
         </Card>
       </section>
     </main>
+      {printing && <ScaffoldReport st={st} run={run} />}
+    </>
   );
 }

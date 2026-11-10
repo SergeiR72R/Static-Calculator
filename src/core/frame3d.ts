@@ -276,6 +276,10 @@ export class Frame3 {
   /** positions of the 144 element entries in the sparse matrix */
   private pos: Int32Array[];
   private supPos: Int32Array;
+  /** the factorisation in K belongs to a matrix of this model (usable as preconditioner) */
+  private factored = false;
+  /** number of factorisations so far (statistics) */
+  factorisations = 0;
 
   constructor(model: FrameModel3) {
     this.model = model;
@@ -319,12 +323,24 @@ export class Frame3 {
     return this.K.fill;
   }
 
+  /** statistics of the conjugate gradients: calls, steps */
+  get pcgStats(): [number, number] {
+    return [this.K.pcgCalls, this.K.pcgSteps];
+  }
+
   /**
    * One linear step.
    * @param states per member (undefined: default)
    * @param supportActive per support (undefined: all active)
    */
-  solve(loads: Loads3, states?: (MemberState | undefined)[], supportActive?: boolean[]): Result3 {
+  /**
+   * @param opt.spc collects the unknowns without stiffness (fixed during the factorisation instead
+   *   of failing); used to find mechanisms, the displacements are not meaningful then
+   * @param opt.reuse the matrix differs little from the last factorised one (steps of a non-linear
+   *   iteration): conjugate gradients with that factorisation first, a new one only if needed
+   */
+  solve(loads: Loads3, states?: (MemberState | undefined)[], supportActive?: boolean[], opt?: { spc?: number[]; reuse?: boolean }): Result3 {
+    const spc = opt?.spc;
     const { model, K } = this;
     const n = model.nodes.length;
     K.clear();
@@ -474,18 +490,25 @@ export class Frame3 {
       if (supportActive && supportActive[k] === false) return;
       K.cx[this.supPos[k]] += Number.isFinite(s.k) ? s.k : s.dof < 3 ? RIGID : RIGID_ROT;
     });
-    // degrees of freedom without any stiffness (rotations of nodes with pin-ended members only)
+    // degrees of freedom without any stiffness (rotations of nodes with pin-ended members only; the
+    // condensation of the end springs leaves round-off there, far below any real stiffness)
     for (let d = 0; d < n * 6; d++) {
       const p = K.diag(d);
-      if (!(Math.abs(K.cx[p]) > 1e-9)) {
+      if (!(Math.abs(K.cx[p]) > 1)) {
         K.cx[p] = 1;
         f[d] = 0;
       }
     }
 
-    const bad = K.factor();
-    if (bad >= 0) throw new FrameError3(Math.floor(bad / 6), bad % 6);
-    const u = K.solve(f);
+    let u = opt?.reuse && this.factored && !spc ? K.pcg(f) : null;
+    if (!u) {
+      this.factored = false;
+      const bad = K.factor(spc);
+      if (bad >= 0) throw new FrameError3(Math.floor(bad / 6), bad % 6);
+      this.factored = !spc;
+      this.factorisations++;
+      u = K.solve(f);
+    }
     // displacements beyond any structure: a mechanism that slipped through the factorisation
     for (let d = 0; d < u.length; d++) if (!(Math.abs(u[d]) < 100)) throw new FrameError3(Math.floor(d / 6), d % 6);
 

@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import { storage } from '../state/persist';
 import type { ScaffoldDoc } from './pericad';
 import { STANDING_FACTOR, germanWindZone, qpEN, qpGermany, type Admin, type ExposureDE } from './wind';
+import { VB0_LU, VB0_NL, belgianVb0, dutchTerrain, dutchWindArea, qpNetherlands } from './windBenelux';
 
 const KEY = 'balken.scaffold';
 const OPT_KEY = 'balken.scaffoldOpts';
@@ -70,11 +71,13 @@ export interface SiteWind {
   qp: number;
   /** value for the analysis (with the standing factor), N/m² */
   qMax: number;
-  /** German wind zone and whether the table is unambiguous */
+  /** wind zone (Germany 1…4, Netherlands wind area 1…3) and whether the rule is unambiguous */
   zone?: number;
+  /** basic wind velocity used, m/s (Belgium, Luxembourg, other countries) */
+  vb0?: number;
   sure?: boolean;
   rows?: string[];
-  source: 'manual' | 'de' | 'en' | 'none';
+  source: 'manual' | 'de' | 'nl' | 'be' | 'lu' | 'en' | 'none';
 }
 
 /** Maximum wind for the site: by hand, from the German wind zone table or from v_b,0 (EN 1991-1-4) */
@@ -89,9 +92,24 @@ export function siteWind(o: ScaffoldOpts, height: number): SiteWind {
     const qp = qpGermany(zone, o.windExposure, height, o.site.elevation ?? 0);
     return { qp, qMax: qp * f, zone, sure: o.windZone ? true : z?.sure, rows: z?.rows, source: 'de' };
   }
+  if (o.site?.country === 'nl') {
+    const z = o.site.admin ? dutchWindArea(o.site.admin) : null;
+    const zone = o.windZone >= 1 && o.windZone <= 3 ? o.windZone : z?.zone;
+    if (!zone) return { qp: 0, qMax: 0, source: 'none' };
+    const qp = qpNetherlands(zone, dutchTerrain(o.terrain), height);
+    return { qp, qMax: qp * f, zone, vb0: VB0_NL[zone], sure: o.windZone ? true : z?.sure, rows: z?.rows, source: 'nl' };
+  }
+  if (o.site?.country === 'be' || o.site?.country === 'lu') {
+    const be = o.site.country === 'be';
+    const z = be ? (o.site.admin ? belgianVb0(o.site.admin) : null) : { vb0: VB0_LU, sure: true, rows: [`Luxembourg: v_b,0 = ${VB0_LU} m/s`] };
+    const vb0 = o.windZone >= 20 ? o.windZone : z?.vb0;
+    if (!vb0) return { qp: 0, qMax: 0, source: 'none' };
+    const qp = qpEN(vb0, o.terrain, height);
+    return { qp, qMax: qp * f, vb0, sure: o.windZone ? true : z?.sure, rows: z?.rows, source: be ? 'be' : 'lu' };
+  }
   if (o.site && o.vb0 > 0) {
     const qp = qpEN(o.vb0, o.terrain, height);
-    return { qp, qMax: qp * f, source: 'en' };
+    return { qp, qMax: qp * f, vb0: o.vb0, source: 'en' };
   }
   return { qp: 0, qMax: 0, source: 'none' };
 }

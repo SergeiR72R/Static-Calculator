@@ -39,6 +39,15 @@ export interface ScaffoldDoc {
   parts: ScaffoldPart[];
   /** system geometry by article number */
   geom: Record<string, PartGeom>;
+  /** parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL) in the drawing: AutoCAD does not write them to DXF */
+  aecParts?: number;
+}
+
+/** number of instances of the older PERI CAD parts (class PERI_AEC_DB_BAUTEIL) from the CLASSES section */
+export function aecPartCount(text: string): number {
+  const head = text.slice(0, 4_000_000);
+  const m = /\n\s*1\r?\nPERI_AEC_DB_BAUTEIL\r?\n(?:\s*\d+\r?\n[^\n]*\n){0,6}?\s*91\r?\n\s*(\d+)/.exec(head);
+  return m ? Number(m[1]) : 0;
 }
 
 export class ScaffoldImportError extends Error {
@@ -227,9 +236,10 @@ export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
       lineBlock,
     });
   }
+  const aecParts = aecPartCount(text);
   if (!raws.length) {
     const proxies = (secs.get('ENTITIES') ?? []).some((r) => r.type === 'ACAD_PROXY_ENTITY');
-    throw new ScaffoldImportError(proxies ? 'scaffold.err.proxy' : 'scaffold.err.noParts');
+    throw new ScaffoldImportError(aecParts ? 'scaffold.err.aec' : proxies ? 'scaffold.err.proxy' : 'scaffold.err.noParts');
   }
 
   const geom: Record<string, PartGeom> = {};
@@ -262,7 +272,7 @@ export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
     const R = rotationTo(up, [0, 0, 1]);
     for (const r of raws) r.part.m = mulRT(R, r.part.m);
   }
-  return { fileName, parts: raws.map((r) => r.part), geom };
+  return { fileName, parts: raws.map((r) => r.part), geom, ...(aecParts ? { aecParts } : {}) };
 }
 
 /** rotation matrix (row major 3 × 3) turning the unit vector a onto the unit vector b */

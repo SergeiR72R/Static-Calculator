@@ -16,9 +16,9 @@ import { latticeEquivalent } from '../sections/lattice';
 import { findPeriProduct, periSI } from '../sections/peri';
 import type { ScaffoldStructure, WorldPart } from './structure';
 import { partKg } from './weights';
-import { E_STEEL, G_STEEL, JOINT, LEDGERS, TUBES, VARIANT_TUBE, connKx, connKy, connKz, ubhData, ubkData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
+import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, VARIANT_TUBE, connKx, connKy, connKz, ubhData, ubkData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 
-export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'tube' | 'anchor';
+export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'tube' | 'anchor' | 'jack';
 
 export interface ModelMember {
   kind: MKind;
@@ -36,6 +36,10 @@ export interface ModelMember {
   g: number;
   /** carrier (ledger, beam …) this segment belongs to */
   carrier?: number;
+  /** spindle pair from a standard to the standard above it through a platform (compression only) */
+  link?: boolean;
+  /** part of a group without any support (not connected to the scaffold): left out */
+  floating?: boolean;
 }
 
 /** point of a beam (SRU / RCS) where something stands on it or where it is supported */
@@ -116,6 +120,12 @@ function ledgerType(w: WorldPart): { head: LedgerHead; sec: keyof typeof LEDGERS
 }
 
 const HINGE = [Infinity, Infinity, Infinity, Infinity, 0, 0];
+/** horizontal offset of a spindle from the standard above / below it, m */
+const JACK_XY = 0.045;
+/** largest distance between the standards of a spindle pair through a platform, m */
+const JACK_GAP = 1.5;
+/** scaffold spindle UJB / UJS (approval 3.2.9.5: A = 4.36 cm², I = 4.96 cm⁴), clamped in the standard */
+const JACK_SEC: Section3 = { EA: E_STEEL * JACK.A, EIy: E_STEEL * JACK.I, EIz: E_STEEL * JACK.I, GJ: G_STEEL * 2 * JACK.I };
 const dist2 = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 const len3 = (a: V3, b: V3) => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
 
@@ -442,21 +452,65 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     }
   }
 
-  // standards on or under beams / ledgers; base supports
+  // standards on spindles, on beams / ledgers, on the standard below; base supports
   const supports: FrameModel3['supports'] = [];
   const bases: BaseSupport[] = [];
+  const jacks = st.parts.filter((w) => w.cls.kind === 'jack');
+  const near = (w: WorldPart, x: number, y: number) => w.min[0] <= x + JACK_XY && w.max[0] >= x - JACK_XY && w.min[1] <= y + JACK_XY && w.max[1] >= y - JACK_XY;
+  /** spindle (base jack, base plate …) under the bottom of a standard: the lowest point is its foot */
+  const jackUnder = (c: Col) => jacks.filter((w) => near(w, c.x, c.y) && w.min[2] < c.z0 + 0.02 && w.max[2] > c.z0 - 0.15);
+  /** head jack on the top of a standard (pointing up) */
+  const jackOver = (c: Col) => jacks.filter((w) => near(w, c.x, c.y) && w.max[2] > c.z1 - 0.02 && w.min[2] < c.z1 + 0.15);
+  const links: { lower: number; upper: number; part: string }[] = [];
+  /** spindles under base supports: foot below the bottom of the standard */
+  const feet: { col: number; foot: number; part: string }[] = [];
   cols.forEach((c, k) => {
-    const bottom: V3 = [c.x, c.y, c.z0];
-    const under = carrierUnder(bottom, null, -0.1, 0.75, ['beam', 'ledger', 'girder', 'bracket']);
-    if (under) {
-      under.c.inter.push({ node: c.ns[0], offset: [under.pr.q[0] - c.x, under.pr.q[1] - c.y, under.pr.q[2] - c.z0], t: Math.min(Math.max(under.pr.t, 0), 1) });
+    const isBase = c.parts[0].w.cls.kind === 'base';
+    const under = jackUnder(c);
+    const foot = Math.min(c.z0, ...under.map((w) => w.min[2]));
+    // a base standard (on a spindle) or a spindle right above a standard below, through a platform:
+    // the load goes on to that standard (directly under it or 1…3 cm off)
+    if (isBase || under.length) {
+      let best = -1;
+      let bd = Infinity;
+      cols.forEach((d, j) => {
+        if (j === k) return;
+        const dxy = Math.hypot(d.x - c.x, d.y - c.y);
+        if (dxy > JACK_XY) return;
+        const top = Math.max(d.z1, ...jackOver(d).map((w) => w.max[2]));
+        const gap = foot - top;
+        if (gap < -0.05 || gap > 0.6 || c.z0 - d.z1 > JACK_GAP) return;
+        if (dxy + Math.abs(gap) < bd) {
+          bd = dxy + Math.abs(gap);
+          best = j;
+        }
+      });
+      if (best >= 0) {
+        links.push({ lower: best, upper: k, part: under[0]?.part.id ?? c.parts[0].w.part.id });
+        c.onCarrier = true;
+        note('columnOnColumn', c.parts[0].w.part.id);
+        return;
+      }
+    }
+    const bottom: V3 = [c.x, c.y, foot];
+    const carried = carrierUnder(bottom, null, -0.1, 0.75, ['beam', 'ledger', 'girder', 'bracket']);
+    if (carried) {
+      carried.c.inter.push({ node: c.ns[0], offset: [carried.pr.q[0] - c.x, carried.pr.q[1] - c.y, carried.pr.q[2] - c.z0], t: Math.min(Math.max(carried.pr.t, 0), 1) });
       c.onCarrier = true;
       return;
     }
-    const isBase = c.parts[0].w.cls.kind === 'base';
-    if (isBase || c.z0 <= st.min[2] + 0.4) {
-      bases.push({ node: c.ns[0], sup: supports.length, part: c.parts[0].w.part.id, column: k });
-      for (const dof of [0, 1, 2]) supports.push({ node: c.ns[0], dof, k: Infinity });
+    // spindles of all kinds, base standards (on a spindle not in the drawing), the lowest level and
+    // beam clamps: supported on the ground or on a beam of the structure
+    const clamp = st.parts.some((w) => w.cls.kind === 'clamp' && near(w, c.x, c.y) && w.max[2] > foot - 0.6 && w.min[2] < foot + 0.05);
+    if (isBase || under.length || clamp || c.z0 <= st.min[2] + 0.4) {
+      let n = c.ns[0];
+      if (foot < c.z0 - 0.02) {
+        n = addNode([c.x, c.y, foot], k);
+        feet.push({ col: k, foot: n, part: under[0].part.id });
+      }
+      bases.push({ node: n, sup: supports.length, part: (under[0] ?? c.parts[0].w).part.id, column: k });
+      for (const dof of [0, 1, 2]) supports.push({ node: n, dof, k: Infinity });
+      if (foot > st.min[2] + 0.4) note('baseOnStructure', c.parts[0].w.part.id);
     } else note('columnHanging', c.parts[0].w.part.id);
   });
   // tops of standards under a beam carry it
@@ -643,6 +697,27 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       mm.push({ kind: 'standard', part: p.w.part.id, tube: t, joint, g: (partKg(p.w.part) ?? TUBES[t].g * nominal) / nominal });
     }
   });
+  // spindles: clamped in the standard, hinged on the base plate / platform
+  const jackKg = (id: string) => {
+    const w = byId.get(id);
+    return w && w.cls.kind === 'jack' ? (partKg(w.part) ?? 0) : 0;
+  };
+  for (const f of feet) {
+    const c = cols[f.col];
+    const L = Math.max(c.z0 - nodes[f.foot][2], 0.05);
+    fm.push({ i: c.ns[0], j: f.foot, sec: JACK_SEC, ends: [undefined, { offset: [0, 0, 0], k: [Infinity, Infinity, Infinity, Infinity, 0, 0] }] });
+    mm.push({ kind: 'jack', part: f.part, g: jackKg(f.part) / L });
+  }
+  // standard on the standard below through a platform (base jack on head jack)
+  for (const l of links) {
+    const lo = cols[l.lower];
+    const up = cols[l.upper];
+    const a = lo.ns[lo.ns.length - 1];
+    const b = up.ns[0];
+    const L = Math.max(len3(nodes[a], nodes[b]), 0.05);
+    fm.push({ i: a, j: b, sec: JACK_SEC, ends: [undefined, { offset: [0, 0, 0], k: [Infinity, Infinity, Infinity, Infinity, 0, 0] }] });
+    mm.push({ kind: 'jack', part: l.part, g: jackKg(l.part) / L, link: true });
+  }
 
 
   // ---- decks
@@ -710,6 +785,25 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     const n = nearestNode([(w.min[0] + w.max[0]) / 2, (w.min[1] + w.max[1]) / 2, (w.min[2] + w.max[2]) / 2], 1.5);
     if (n >= 0) masses.push({ node: n, kg });
     else lostKg += kg;
+  }
+
+  // groups of members without any support (not connected to the scaffold): left out, reported
+  const root = Int32Array.from(nodes, (_, i) => i);
+  const find = (a: number): number => {
+    while (root[a] !== a) a = root[a] = root[root[a]];
+    return a;
+  };
+  for (const m of fm) root[find(m.i)] = find(m.j);
+  const held = new Set(supports.map((q) => find(q.node)));
+  const floating = new Set<string>();
+  fm.forEach((m, k) => {
+    if (held.has(find(m.i))) return;
+    mm[k].floating = true;
+    floating.add(mm[k].part);
+  });
+  for (const id of floating) {
+    note('floating', id);
+    lostKg += partKg(byId.get(id)!.part) ?? 0;
   }
 
   return {

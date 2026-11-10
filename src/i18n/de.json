@@ -763,7 +763,8 @@
       "flexChain": "ULS-Flex-Teile, die keinen vollständigen Träger bilden.",
       "healed": "{n} Teile an ihren Anschlusspunkt gesetzt (bis {d} mm).",
       "anchors": "{n} Verankerungen (Rohr mit Kupplung am Stiel, am anderen Ende Flanschkupplung am Träger des Bauwerks oder nichts).",
-      "healCheck": "{name}: ungenau gesetzt, aber mit ihm müssten {n} verbundene Teile verschoben werden – nicht automatisch korrigiert, bitte in der Zeichnung prüfen."
+      "healCheck": "{name}: ungenau gesetzt, aber mit ihm müssten {n} verbundene Teile verschoben werden – nicht automatisch korrigiert, bitte in der Zeichnung prüfen.",
+      "aecParts": "Die Zeichnung enthält {n} Teile des älteren PERI-CAD-Typs (PERI_AEC_DB_BAUTEIL, z. B. Spindeln) – AutoCAD hat sie nicht in die DXF geschrieben, sie fehlen im Modell. In den PERI-CAD-24-Typ umwandeln und die DXF erneut speichern."
     },
     "view": {
       "title": "3D-Modell",
@@ -828,7 +829,8 @@
       "format": "Die Datei ist keine DXF.",
       "noParts": "Die DXF enthält keine PERI-CAD-Teile.",
       "proxy": "PERI-Teile wurden als Proxy-Objekte gespeichert – DXF mit geladenem PERI CAD speichern.",
-      "read": "Die DXF konnte nicht gelesen werden."
+      "read": "Die DXF konnte nicht gelesen werden.",
+      "aec": "Die DXF enthält keine lesbaren PERI-CAD-Teile: alle Teile der Zeichnung sind vom älteren Typ (PERI_AEC_DB_BAUTEIL), AutoCAD schreibt sie nicht in die DXF. Teile in den PERI-CAD-24-Typ umwandeln (wie Stiele und Riegel) und die DXF erneut speichern."
     },
     "site": {
       "title": "Standort und Bedingungen",
@@ -909,7 +911,9 @@
         "diagonal": "Diagonale",
         "anchor": "Verankerung (Kupplung)",
         "coupler": "Rohrverband (Kupplung)",
-        "uplift": "Abheben Fußpunkt"
+        "uplift": "Abheben Fußpunkt",
+        "jack": "Spindel (N + M)",
+        "unstable": "Nicht gehalten (Mechanismus)"
       },
       "bases": "Fußpunkte: {n}",
       "basesMax": "Größte Vertikalkraft {v}, Horizontalkraft {h} (Bemessungswerte).",
@@ -925,9 +929,13 @@
         "deckNoSupport": "Beläge ohne gefundenes Auflager ({n}) – Last am nächsten Knoten.",
         "ledgerLoose": "Riegel, die nur an einem gelenkigen Ende hängen ({n}) – nicht angesetzt.",
         "bracketFree": "Konsolen ohne Stiel ({n}) – nicht angesetzt.",
-        "columnHanging": "Stiele ohne Auflager unten ({n}) – hängen an den Riegeln."
+        "columnHanging": "Stiele ohne Auflager unten ({n}) – hängen an den Riegeln.",
+        "columnOnColumn": "Stiele auf dem Stiel darunter über eine Plattform (Spindelpaar, {n}) – Last auf den unteren Stiel, nur Druck.",
+        "baseOnStructure": "Stielauflager über der untersten Ebene ({n}) – auf einem Träger des Bauwerks angenommen; Auflagerung prüfen.",
+        "floating": "Teile ohne Verbindung zum Gerüst ({n}) – nicht berücksichtigt (ihr Gewicht wird nicht abgetragen)."
       },
-      "basis": "Grundlage: Zulassung Z-8.22-863 (Moment-Drehwinkel-Beziehungen, Beanspruchbarkeiten der Knoten, Diagonalen, Stöße), DIN EN 12811-1, Tabellenbuch PERI UP. Beläge wirken nicht aussteifend. Ersetzt nicht den Nachweis durch den Statiker; Abgleich mit RSTAB folgt."
+      "basis": "Grundlage: Zulassung Z-8.22-863 (Moment-Drehwinkel-Beziehungen, Beanspruchbarkeiten der Knoten, Diagonalen, Stöße), DIN EN 12811-1, Tabellenbuch PERI UP. Beläge wirken nicht aussteifend. Ersetzt nicht den Nachweis durch den Statiker; Abgleich mit RSTAB folgt.",
+      "mechanismParts": "{n} Teile sind nicht gehalten (Mechanismus) – in der Berechnung durch weiche Federn gehalten. Bitte in der Zeichnung prüfen. Anzeigen."
     },
     "wind": {
       "title": "Maximaler Wind",
@@ -949,7 +957,16 @@
       "vb0Hint": "Außerhalb Deutschlands: v_b,0 aus dem nationalen Anhang zu EN 1991-1-4 für den Standort; q_p nach EN 1991-1-4 und Geländekategorie.",
       "standing": "Standzeitfaktor 0,7 (EN 12811-1)",
       "result": "q_p = {qp} in {h} Höhe → Ansatz {q}",
-      "none": "Kein maximaler Wind – nur der Arbeitsbetrieb wird berechnet."
+      "none": "Kein maximaler Wind – nur der Arbeitsbetrieb wird berechnet.",
+      "areaNL": "Windgebiet (NEN-EN 1991-1-4/NB)",
+      "areaAuto": "nach NB: {n} (v_b,0 = {v} m/s)",
+      "areaN": "Gebiet {n} (v_b,0 = {v} m/s)",
+      "confirmNL": "Die Gebietsgrenze verläuft durch diese Gemeinde – nach der Regel oben prüfen und das Gebiet wählen.",
+      "confirmBE": "In dieser Provinz gibt es zwei Werte v_b,0 – der größere ist angesetzt; nach Tabelle 4.2 ANB für die Gemeinde prüfen und den Wert wählen.",
+      "nlHint": "q_p nach Tabelle NB.4 (Höhe aufgerundet). Gelände: Kategorie 0 → „kust“, I–II → „onbebouwd“, III–IV → „bebouwd“.",
+      "vb0Auto": "nach ANB-Karte: {v} m/s",
+      "beHint": "Belgien: v_b,0 je Provinz nach Bild 4.3 ANB (genau: je Gemeinde, Tabelle 4.2 ANB, nicht im Programm). q_p nach EN 1991-1-4 mit c_dir = c_season = 1, k_I = 1.",
+      "luHint": "Luxemburg: v_b,0 = 24 m/s für das ganze Land – aus einer Sekundärquelle; mit AN-LU (ILNAS) abgleichen. q_p nach EN 1991-1-4."
     },
     "beams": {
       "title": "Träger SRU / RCS: {n}",
@@ -959,6 +976,29 @@
       "opened": "Träger der Zeichnung im Trägerrechner geöffnet: {n}",
       "replaceConfirm": "Das aktuelle Projekt im Trägerrechner wird durch die Träger SRU / RCS der Zeichnung ersetzt. Fortfahren?",
       "hint": "Lasten: größte Bemessungskräfte der Stiele und Riegel auf dem Träger (Umhüllende der Kombinationen). In den Trägerrechner gehen sie als Q = F_d / 1,5; die Kombination 1,5·G + 1,5·Q ergibt wieder F_d, das Eigengewicht des Trägers kommt dazu. Auflager: Stiele unter dem Träger oder – wenn in der Zeichnung keine sind – die Trägerenden (gekennzeichnet)."
+    },
+    "report": {
+      "button": "Bericht / PDF",
+      "hint": "Bericht: Bedingungen, Ergebnisse der Berechnung und Stückliste. Drucken oder „Als PDF speichern“.",
+      "hintNoRun": "Bericht: Bedingungen und Stückliste; Ergebnisse nach der Berechnung.",
+      "title": "Gerüstberechnung PERI UP Flex",
+      "software": "Balkenrechner · Gerüstmodus (räumliches Modell)",
+      "conditions": "Ort, Bedingungen, Lasten",
+      "snowIce": "Schnee / Vereisung",
+      "loadClass": "Lastklasse",
+      "deckG": "Eigengewicht Belag",
+      "size": "Abmessungen (x × y × Höhe)",
+      "results": "Ergebnisse der Berechnung",
+      "notRun": "Keine Berechnung – der Bericht enthält nur die Eingaben und die Stückliste.",
+      "unstable": "{n} Teile sind nicht gehalten (Mechanismus) – in der Zeichnung prüfen.",
+      "checks": "Nachweise: die {n} größten von {all}",
+      "uplift": "Abheben an {n} Auflagern – Ballast oder Verankerung nötig.",
+      "beamLoads": "Lasten (Bemessungswerte)",
+      "beamSupports": "Auflager (Bemessungswerte)",
+      "unitKg": "Gewicht je Stk., kg",
+      "total": "Summe",
+      "noWeight": "Ohne Gewicht in der Teiledatenbank: {n} Stk. – nicht in der Summe.",
+      "failed": "Nachweise mit η > 100 %: {n} – alle im Programm sichtbar (Filter je Nachweis, Einfärbung in 3D)."
     }
   }
 }

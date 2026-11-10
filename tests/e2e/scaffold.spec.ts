@@ -158,4 +158,16 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await page.getByTestId('scaffold-calc-run').click();
   await expect(page.getByTestId('scaffold-calc-result')).toContainText('R +x', { timeout: 20_000 });
   await expect(page.getByTestId('scaffold-calc-result')).not.toContainText('результаты устарели');
+  // print report: conditions, results and the specification with weights
+  await page.emulateMedia({ media: 'print' });
+  await page.evaluate("window.dispatchEvent(new Event('beforeprint'))");
+  const report = page.getByTestId('scaffold-report');
+  await expect(report).toBeVisible();
+  await expect(report).toContainText('Расчёт лесов PERI UP Flex');
+  await expect(report).toContainText('max η');
+  await expect(report).toContainText('R +x');
+  await expect(page.getByTestId('scaffold-report-bom')).toContainText('Vertikalstiel UVR 200');
+  await expect(page.getByTestId('scaffold-report-bom')).toContainText('Итого');
+  await page.evaluate("window.dispatchEvent(new Event('afterprint'))");
+  await expect(report).toHaveCount(0);
 });

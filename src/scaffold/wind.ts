@@ -15,6 +15,11 @@ export interface Admin {
   district?: string;
   county?: string;
   town?: string;
+  /** municipality and village (Netherlands: gemeente, former municipalities) */
+  municipality?: string;
+  village?: string;
+  /** ISO 3166-2 codes of the administrative units (e.g. NL-NH, BE-VWV) */
+  iso?: string[];
 }
 
 type Row = [string, number, string, [number, string][]];

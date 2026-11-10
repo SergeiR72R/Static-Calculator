@@ -3,7 +3,8 @@ import { siteWind, useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import { LOAD_CLASSES } from '../../scaffold/catalog';
 import { buildScaffoldModel, type ModelNote } from '../../scaffold/model';
-import { analyzeScaffoldModelAsync, type CheckKind, type ScaffoldResult } from '../../scaffold/analysis';
+import { type CheckKind, type ScaffoldResult } from '../../scaffold/analysis';
+import { analyzeScaffoldParallel } from '../../scaffold/parallel';
 import { Button, Card, NumberField, SelectField, cx } from '../common';
 import { useFmt } from '../hooks';
 import { useStore } from '../../state/store';
@@ -28,7 +29,7 @@ export function etaColor(eta: number): string {
   return '#16a34a';
 }
 
-const CHECKS: CheckKind[] = ['conn', 'node', 'tube', 'buckling', 'joint', 'ledger', 'diagonal', 'anchor', 'coupler', 'uplift'];
+const CHECKS: CheckKind[] = ['unstable', 'conn', 'node', 'tube', 'buckling', 'joint', 'ledger', 'diagonal', 'jack', 'anchor', 'coupler', 'uplift'];
 
 /** Options, start and results of the space frame analysis of the scaffold */
 export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: ScaffoldRun | null; setRun: (r: ScaffoldRun | null) => void }) {
@@ -64,7 +65,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
     try {
       const t0 = performance.now();
       const model = buildScaffoldModel(st);
-      const result = await analyzeScaffoldModelAsync(
+      const result = await analyzeScaffoldParallel(
         model,
         {
           p,
@@ -171,6 +172,16 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
             <p className="flex items-start gap-1 text-xs font-medium text-red-600 dark:text-red-400" data-testid="scaffold-calc-failed">
               <IconAlert className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t('scaffold.calc.unstable', { names: failed.map((c) => c.name).join(', ') })}
             </p>
+          )}
+          {res.unstable.length > 0 && (
+            <button
+              type="button"
+              className="flex items-start gap-1 text-start text-xs font-medium text-red-600 underline dark:text-red-400"
+              onClick={() => sc.select(res.unstable)}
+              data-testid="scaffold-calc-mechanism"
+            >
+              <IconAlert className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t('scaffold.calc.mechanismParts', { n: res.unstable.length })}
+            </button>
           )}
           <div className="overflow-x-auto">
             <table className="w-full text-xs">

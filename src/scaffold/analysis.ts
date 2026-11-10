@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { COUPLER_RD, JOINT, LEDGERS, TUBES, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
+import { COUPLER_RD, JACK, JOINT, LEDGERS, TUBES, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
 
 const G = 9.81;
 
@@ -38,7 +38,7 @@ export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level:
 /** partial factor for all actions (EN 12811-1, 10.3.2) */
 export const GAMMA_F = 1.5;
 
-export type CheckKind = 'conn' | 'node' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'diagonal' | 'anchor' | 'coupler' | 'uplift';
+export type CheckKind = 'conn' | 'node' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable';
 
 export interface PartCheck {
   part: string;
@@ -62,9 +62,11 @@ export interface ComboResult {
   noLift?: boolean;
   /** node of a mechanism / instability */
   errorNode?: number;
-  /** largest horizontal and vertical displacement, m */
+  /** largest horizontal and vertical displacement, m, and their nodes */
   dh: number;
   dv: number;
+  dhNode?: number;
+  dvNode?: number;
   /** sum of the vertical support forces, N */
   sumV: number;
 }
@@ -119,6 +121,34 @@ export interface ScaffoldResult {
   totalQ: number;
   /** number of unknowns */
   unknowns: number;
+  /** degrees of freedom without stiffness held by a weak spring (mechanisms) */
+  weak: number;
+  /** factorisations of the stiffness matrix, calls and steps of the conjugate gradients (statistics) */
+  factorisations: number;
+  pcg: [number, number];
+  /** parts of a mechanism: their weak spring takes a noticeable force */
+  unstable: string[];
+}
+
+/** weak springs on degrees of freedom without stiffness (N/m, N·m/rad) and the force that counts */
+const SOFT_T = 1e6;
+const SOFT_R = 1e4;
+const SOFT_F = 50;
+const SOFT_M = 20;
+
+/**
+ * Degrees of freedom without stiffness (mechanisms), found by a factorisation with all diagonals
+ * out: every zero pivot is fixed and listed (as AUTOSPC in other programs).
+ */
+export function weakDofs(model: ScaffoldModel): number[] {
+  const spc: number[] = [];
+  const states = model.members.map((m) => (m.diag || m.floating ? { active: false } : undefined));
+  try {
+    new Frame3(model.frame).solve(emptyLoads3(model.frame), states, undefined, { spc });
+  } catch (e) {
+    if (!(e instanceof FrameError3)) throw e;
+  }
+  return spc;
 }
 
 interface Combo {
@@ -316,7 +346,8 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
     for (let k = 0; k < nM; k++) {
       const m = members[k];
       const st: MemberState = {};
-      if (m.diag) {
+      if (m.floating) st.active = false;
+      else if (m.diag) {
         if (dstate[k] === 0) st.active = false;
         else {
           // first step: linear, without slack
@@ -343,7 +374,7 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
   for (it = 1; it <= MAX; it++) {
     makeStates(Ns, it === 1);
     try {
-      r = fr.solve(loads, states, supActive);
+      r = fr.solve(loads, states, supActive, { reuse: true });
     } catch (e) {
       // bases that lifted off left a mechanism: keep all bases two-sided (the uplift is reported)
       if (e instanceof FrameError3 && !noLift && supActive.some((x) => !x)) {
@@ -420,9 +451,17 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
 }
 
 /** set-up of the analysis: solver, combinations, check data; the combinations are run one by one */
-function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions) {
+export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weakIn?: number[]) {
   const { frame, members } = model;
-  const fr = new Frame3(frame);
+  // mechanisms: weak springs keep the analysis going; their forces show what is not held
+  const weak = weakIn ?? weakDofs(model);
+  const soft = weak.map((d) => ({ node: Math.floor(d / 6), dof: d % 6, k: d % 6 < 3 ? SOFT_T : SOFT_R }));
+  const fr = new Frame3({ ...frame, supports: [...frame.supports, ...soft] });
+  const partsAt = new Map<number, Set<string>>();
+  frame.members.forEach((m, k) => {
+    for (const n of [m.i, m.j]) (partsAt.get(n) ?? partsAt.set(n, new Set()).get(n)!).add(members[k].part);
+  });
+  const unstable = new Set<string>();
   const { combos, level, totalG, totalQ } = buildCombos(model, opt);
   const best = new Map<string, PartCheck>();
   const put = (c: PartCheck) => {
@@ -514,15 +553,19 @@ function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions) {
     const { r } = sol;
     let dh = 0;
     let dv = 0;
+    let dhNode = -1;
+    let dvNode = -1;
     for (let n = 0; n < frame.nodes.length; n++) {
-      dh = Math.max(dh, Math.hypot(r.u[n * 6], r.u[n * 6 + 1]));
-      dv = Math.max(dv, Math.abs(r.u[n * 6 + 2]));
+      const h = Math.hypot(r.u[n * 6], r.u[n * 6 + 1]);
+      const v = Math.abs(r.u[n * 6 + 2]);
+      if (h > dh) [dh, dhNode] = [h, n];
+      if (v > dv) [dv, dvNode] = [v, n];
     }
     let sumV = 0;
     frame.supports.forEach((sp, k) => {
       if (sp.dof === 2) sumV += r.reactions[k];
     });
-    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, dh, dv, sumV });
+    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, dh, dv, dhNode, dvNode, sumV });
 
     // utilisation of the standard tube at both ends of a member
     const tubeEta = (k: number, x: number) => {
@@ -578,6 +621,15 @@ function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions) {
         }
         const mid = sectionForces(mr, mr.L / 2);
         put({ part: m.part, check: 'ledger', eta: Math.abs(mid.My) / sec.w.My + Math.abs(mid.N) / sec.w.N, combo: cb.name, N: mid.N, M: mid.My, V: mid.Vz });
+      } else if (m.kind === 'jack') {
+        // spindle: cosine interaction (DIN 4425, 7.1) at the clamped end; a spindle pair through a
+        // platform carries compression only
+        for (const x of [0, mr.L]) {
+          const sf = sectionForces(mr, x);
+          const M = Math.hypot(sf.My, sf.Mz);
+          put({ part: m.part, check: 'jack', eta: tubeUtilisation(sf.N / JACK.NRd, M / JACK.MRd), combo: cb.name, N: sf.N, M, V: Math.hypot(sf.Vy, sf.Vz) });
+        }
+        if (m.link && mr.N > 100) put({ part: m.part, check: 'uplift', eta: 1.01, combo: cb.name, N: mr.N });
       } else if (m.diag) {
         const N = mr.N;
         put({ part: m.part, check: 'diagonal', eta: N >= 0 ? N / m.diag.nT : -N / m.diag.nC, combo: cb.name, N });
@@ -668,6 +720,16 @@ function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions) {
       const o = beamSup.get(s.node);
       if (!o || V > o.V) beamSup.set(s.node, { part: s.part, node: s.node, V });
     }
+    // weak springs of mechanisms that carry something: the parts there are not held
+    soft.forEach((sp, i) => {
+      const F = Math.abs(r.reactions[frame.supports.length + i]);
+      const lim = sp.dof < 3 ? SOFT_F : SOFT_M;
+      if (!(F > lim)) return;
+      for (const part of partsAt.get(sp.node) ?? []) {
+        unstable.add(part);
+        put({ part, check: 'unstable', eta: Math.max(1.01, F / lim / 10), combo: cb.name, detail: `${'xyz'[sp.dof % 3]}${sp.dof < 3 ? '' : ' (rot)'}`, ...(sp.dof < 3 ? { V: F } : { M: F }) });
+      }
+    });
   };
   const finish = (): ScaffoldResult => {
     const eta: Record<string, number> = {};
@@ -679,11 +741,15 @@ function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions) {
       bases: [...baseRes.values()],
       anchors: [...anchorRes.values()],
       beamSupports: [...beamSup.values()],
-    beams: beamRes,
+      beams: beamRes,
       level,
       totalG,
       totalQ,
       unknowns: fr.unknowns,
+      weak: weak.length,
+      factorisations: fr.factorisations,
+      pcg: fr.pcgStats,
+      unstable: [...unstable],
     };
   };
   return { combos, runCombo, finish };
@@ -709,4 +775,76 @@ export async function analyzeScaffoldModelAsync(model: ScaffoldModel, opt: Analy
   }
   progress(a.combos.length, a.combos.length);
   return a.finish();
+}
+
+/**
+ * Results of parts of the combinations (e.g. from several workers) combined into one: the largest
+ * utilisation of every part and check, envelopes of the support and member forces.
+ */
+export function mergeResults(parts: ScaffoldResult[], order: string[]): ScaffoldResult {
+  const [first] = parts;
+  const best = new Map<string, PartCheck>();
+  const bases = new Map<number, BaseResult>();
+  const anchors = new Map<string, ForceResult>();
+  const beamSup = new Map<number, { part: string; node: number; V: number }>();
+  const beams: BeamResult[] = first.beams.map((b) => ({ ...b, points: b.points.map((p) => ({ ...p, F: -Infinity })) }));
+  const unstable = new Set<string>();
+  let factorisations = 0;
+  const pcg: [number, number] = [0, 0];
+  for (const r of parts) {
+    for (const c of r.checks) {
+      const key = `${c.part}|${c.check}`;
+      const o = best.get(key);
+      if (!o || c.eta > o.eta) best.set(key, c);
+    }
+    for (const b of r.bases) {
+      const o = bases.get(b.node);
+      if (!o) bases.set(b.node, { ...b });
+      else {
+        if (b.Vmax > o.Vmax) [o.Vmax, o.combo] = [b.Vmax, b.combo];
+        o.Vmin = Math.min(o.Vmin, b.Vmin);
+        o.H = Math.max(o.H, b.H);
+      }
+    }
+    for (const a of r.anchors) {
+      const o = anchors.get(a.part);
+      if (!o) anchors.set(a.part, { ...a });
+      else {
+        o.Nmax = Math.max(o.Nmax, a.Nmax);
+        o.Nmin = Math.min(o.Nmin, a.Nmin);
+        if (a.eta > o.eta) [o.eta, o.combo] = [a.eta, a.combo];
+      }
+    }
+    for (const s of r.beamSupports) {
+      const o = beamSup.get(s.node);
+      if (!o || s.V > o.V) beamSup.set(s.node, s);
+    }
+    r.beams.forEach((b, k) =>
+      b.points.forEach((p, i) => {
+        const q = beams[k].points[i];
+        if (p.F > q.F) [q.F, q.combo] = [p.F, p.combo];
+      }),
+    );
+    for (const u of r.unstable) unstable.add(u);
+    factorisations += r.factorisations;
+    pcg[0] += r.pcg[0];
+    pcg[1] += r.pcg[1];
+  }
+  for (const b of beams) for (const p of b.points) if (!Number.isFinite(p.F)) p.F = 0;
+  const eta: Record<string, number> = {};
+  for (const c of best.values()) eta[c.part] = Math.max(eta[c.part] ?? 0, c.eta);
+  const combos = parts.flatMap((r) => r.combos).sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
+  return {
+    ...first,
+    combos,
+    checks: [...best.values()].sort((a, b) => b.eta - a.eta),
+    eta,
+    bases: [...bases.values()],
+    anchors: [...anchors.values()],
+    beamSupports: [...beamSup.values()],
+    beams,
+    unstable: [...unstable],
+    factorisations,
+    pcg,
+  };
 }

@@ -358,3 +358,15 @@ export function chi(lambdaBar: number, alpha: number): number {
   const phi = 0.5 * (1 + alpha * (lambdaBar - 0.2) + lambdaBar * lambdaBar);
   return Math.min(1, 1 / (phi + Math.sqrt(phi * phi - lambdaBar * lambdaBar)));
 }
+
+/**
+ * Scaffold spindles UJB / UJS (approval 3.2.9.5): equivalent cross-section after DIN 4425,
+ * W_pl = 1.25 · W_el; steel S235 assumed, f_y,d = 235 / 1.1 N/mm² (the approval gives no grade).
+ */
+export const JACK = (() => {
+  const A = 4.36e-4;
+  const I = 4.96e-8;
+  const Wpl = 4.04e-6;
+  const fyd = 235e6 / 1.1;
+  return { A, I, Wpl, NRd: A * fyd, MRd: Wpl * fyd };
+})();

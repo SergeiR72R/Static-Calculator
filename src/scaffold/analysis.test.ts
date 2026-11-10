@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { parsePeriCadDxf } from './pericad';
+import { aecPartCount, parsePeriCadDxf } from './pericad';
 import { analyzeScaffold } from './structure';
 import { buildScaffoldModel } from './model';
-import { DEFAULT_ANALYSIS, GAMMA_F, analyzeScaffoldModel, buildLoadCases } from './analysis';
+import { DEFAULT_ANALYSIS, GAMMA_F, analyzeScaffoldModel, buildLoadCases, mergeResults, prepareAnalysis, weakDofs } from './analysis';
 import { connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData } from './upflex';
 import { periDxf, towerParts, type TestPart } from './testDxf';
 
@@ -144,6 +144,81 @@ describe('scaffold analysis', () => {
     const free = analyzeScaffoldModel(buildScaffoldModel(tower()), { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 });
     const dx = (r: typeof res) => r.combos.find((c) => c.name === 'R +x')!.dh;
     expect(dx(res)).toBeLessThan(dx(free));
+  });
+});
+
+describe('supports, mechanisms, parallel runs', () => {
+  it('base standard over a standard below (spindle pair through a platform): load goes on to it', () => {
+    // standard of the tower at (0, 0) ends at 4.5 m; base standard 0.4 m above it, 1.5 cm off
+    const st = tower((p) => {
+      p.push({ art: 'UVB', rot: 'y', t: [0.08 + 0.015, -0.08, 4.9] });
+      p.push({ art: 'UVR', rot: 'y', t: [0.08 + 0.015, -0.08, 5.14] });
+    });
+    const m = buildScaffoldModel(st);
+    expect(m.notes.find((n) => n.key === 'columnOnColumn')?.parts.length).toBe(1);
+    const links = m.members.filter((x) => x.link);
+    expect(links).toHaveLength(1);
+    expect(m.bases).toHaveLength(6);
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false });
+    expect(r.combos.every((c) => c.ok)).toBe(true);
+    // the spindle pair carries the weight of the standards above it in compression
+    expect(r.checks.some((c) => c.check === 'jack' && (c.N ?? 0) < 0)).toBe(true);
+  });
+
+  it('a part without any connection is left out; a mechanism is held by a weak spring and reported', () => {
+    const st = tower((p) => {
+      braced(p);
+      p.push({ art: 'UVR', rot: 'y', t: [20.08, 19.92, 10] });
+    });
+    const m = buildScaffoldModel(st);
+    expect(m.notes.find((n) => n.key === 'floating')?.parts.length).toBe(1);
+    expect(new Set(m.members.filter((x) => x.floating).map((x) => x.part)).size).toBe(1);
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false });
+    expect(r.combos.every((c) => c.ok)).toBe(true);
+    expect(r.unstable).toHaveLength(0);
+    // a single standard on a pinned base, without any ledger: falls over under wind (mechanism),
+    // held by a weak spring, reported; the rest of the analysis runs
+    const m2 = buildScaffoldModel(
+      tower((p) => {
+        braced(p);
+        p.push({ art: 'UVB', rot: 'y', t: [10.08, 9.92, 0.1] });
+        p.push({ art: 'UVR', rot: 'y', t: [10.08, 9.92, 0.34] });
+      }),
+    );
+    expect(weakDofs(m2).length).toBeGreaterThan(0);
+    const r2 = analyzeScaffoldModel(m2, { ...DEFAULT_ANALYSIS, qMax: 800 });
+    expect(r2.combos.every((c) => c.ok)).toBe(true);
+    expect(r2.unstable.length).toBeGreaterThan(0);
+    expect(r2.checks.some((c) => c.check === 'unstable')).toBe(true);
+  });
+
+  it('combinations run in parts and merged give the same result as one run', () => {
+    const m = buildScaffoldModel(tower(braced));
+    const opt = { ...DEFAULT_ANALYSIS, qMax: 800 };
+    const whole = analyzeScaffoldModel(m, opt);
+    const names = whole.combos.map((c) => c.name);
+    const parts = [0, 1].map((w) => {
+      const a = prepareAnalysis(m, opt);
+      a.combos.forEach((cb, i) => i % 2 === w && a.runCombo(cb));
+      return a.finish();
+    });
+    const merged = mergeResults(parts, names);
+    expect(merged.combos.map((c) => c.name)).toEqual(names);
+    expect(merged.checks.length).toBe(whole.checks.length);
+    // the same up to the tolerance of the iterative solution
+    expect(Math.max(...merged.checks.map((c) => c.eta))).toBeCloseTo(Math.max(...whole.checks.map((c) => c.eta)), 5);
+    for (const b of whole.bases) {
+      const o = merged.bases.find((x) => x.node === b.node)!;
+      expect(o.Vmax).toBeCloseTo(b.Vmax, 1);
+      expect(o.Vmin).toBeCloseTo(b.Vmin, 1);
+    }
+    whole.beams.forEach((b, k) => b.points.forEach((p, i) => expect(merged.beams[k].points[i].F).toBeCloseTo(p.F, 1)));
+  });
+
+  it('older PERI CAD parts (AEC) are counted from the CLASSES section', () => {
+    const t = '  0\nSECTION\n  2\nCLASSES\n  0\nCLASS\n  1\nPERI_AEC_DB_BAUTEIL\n  2\nPERIAecDbBauteil\n  3\nPERIBauteilWand\n 90\n        1\n 91\n      1016\n280\n     0\n';
+    expect(aecPartCount(t)).toBe(1016);
+    expect(aecPartCount(periDxf(towerParts()))).toBe(0);
   });
 });
 

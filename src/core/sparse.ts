@@ -144,6 +144,10 @@ export class SparseSym {
     this.lx = new Float64Array(this.lp[n]);
   }
 
+  /** statistics: calls and steps of the conjugate gradients */
+  pcgCalls = 0;
+  pcgSteps = 0;
+
   /** number of entries of the factor */
   get fill(): number {
     return this.lp[this.n];
@@ -178,8 +182,10 @@ export class SparseSym {
   /**
    * Cholesky factorisation of the current values. Returns −1 on success or the original index of
    * the unknown at which the matrix is not positive definite (mechanism / instability).
+   * With `spc`, zero pivots (unknowns without stiffness: mechanisms) are fixed instead and their
+   * original indices collected there (as AUTOSPC); a clearly negative pivot still fails.
    */
-  factor(): number {
+  factor(spc?: number[]): number {
     const { n, cp, ci, cx, parent, lp, li, lx } = this;
     const c = new Int32Array(n);
     const x = new Float64Array(n);
@@ -214,12 +220,85 @@ export class SparseSym {
         li[p] = k;
         lx[p] = lki;
       }
-      if (!(d > 1e-10 * scale) || !Number.isFinite(d)) return this.perm[k];
+      // with `spc` (search for mechanisms) also nearly zero pivots count: round-off of the rigid
+      // connections leaves a little stiffness on a mechanism
+      if (!(d > (spc ? 1e-8 : 1e-10) * scale) || !Number.isFinite(d)) {
+        if (!spc || !Number.isFinite(d) || d < -1e-6 * scale) return this.perm[k];
+        spc.push(this.perm[k]);
+        d = Math.max(scale, 1);
+      }
       const p = c[k]++;
       li[p] = k;
       lx[p] = Math.sqrt(d);
     }
     return -1;
+  }
+
+  /** y = A·x with the current values (original numbering) */
+  multiply(x: Float64Array): Float64Array {
+    const { n, cp, ci, cx, perm } = this;
+    const xp = new Float64Array(n);
+    for (let k = 0; k < n; k++) xp[k] = x[perm[k]];
+    const yp = new Float64Array(n);
+    for (let j = 0; j < n; j++) {
+      const xj = xp[j];
+      let v = 0;
+      for (let p = cp[j]; p < cp[j + 1]; p++) {
+        const i = ci[p];
+        const a = cx[p];
+        if (i === j) v += a * xj;
+        else {
+          v += a * xp[i];
+          yp[i] += a * xj;
+        }
+      }
+      yp[j] += v;
+    }
+    const y = new Float64Array(n);
+    for (let k = 0; k < n; k++) y[perm[k]] = yp[k];
+    return y;
+  }
+
+  /**
+   * Solve A·x = b for the current values by conjugate gradients, preconditioned with the last
+   * factorisation (of a matrix close to the current one, e.g. the previous step of a non-linear
+   * iteration). Returns null if it does not converge within `maxIt` steps (then factorise again).
+   */
+  pcg(b: Float64Array, tol = 1e-9, maxIt = 25): Float64Array | null {
+    this.pcgCalls++;
+    const n = this.n;
+    const x = this.solve(b);
+    const Ax = this.multiply(x);
+    const r = new Float64Array(n);
+    for (let k = 0; k < n; k++) r[k] = b[k] - Ax[k];
+    let z = this.solve(r);
+    const z0 = this.solve(b);
+    let ref = 0;
+    for (let k = 0; k < n; k++) ref += b[k] * z0[k];
+    if (!(ref > 0)) return x;
+    let rz = 0;
+    for (let k = 0; k < n; k++) rz += r[k] * z[k];
+    const p = Float64Array.from(z);
+    for (let it = 0; it < maxIt; it++) {
+      if (!(rz > 0) || Math.sqrt(rz / ref) <= tol) return x;
+      this.pcgSteps++;
+      const Ap = this.multiply(p);
+      let pAp = 0;
+      for (let k = 0; k < n; k++) pAp += p[k] * Ap[k];
+      if (!(pAp > 0)) return null;
+      const alpha = rz / pAp;
+      for (let k = 0; k < n; k++) {
+        x[k] += alpha * p[k];
+        r[k] -= alpha * Ap[k];
+      }
+      z = this.solve(r);
+      let rz1 = 0;
+      for (let k = 0; k < n; k++) rz1 += r[k] * z[k];
+      const beta = rz1 / rz;
+      rz = rz1;
+      for (let k = 0; k < n; k++) p[k] = z[k] + beta * p[k];
+    }
+    return Math.sqrt(Math.max(rz, 0) / ref) <= tol ? x : null;
   }
 
   /** solve A·x = b with the last factorisation (b in the original numbering, not modified) */

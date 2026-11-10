@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react';
-import { useScaffold } from '../../scaffold/store';
+import { siteWind, useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import { LOAD_CLASSES } from '../../scaffold/catalog';
 import { buildScaffoldModel, type ModelNote } from '../../scaffold/model';
 import { analyzeScaffoldModelAsync, type CheckKind, type ScaffoldResult } from '../../scaffold/analysis';
 import { Button, Card, NumberField, SelectField, cx } from '../common';
 import { useFmt } from '../hooks';
-import { IconAlert, IconCheck, IconInfo } from '../icons';
+import { useStore } from '../../state/store';
+import { batchFromImport } from '../../state/batch';
+import { scaffoldBeam } from '../../scaffold/beams';
+import { beamSummary } from '../batch/summary';
+import { IconAlert, IconCheck, IconChevronRight, IconInfo } from '../icons';
 
 export interface ScaffoldRun {
   result: ScaffoldResult;
@@ -36,7 +40,8 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
   const [showAll, setShowAll] = useState(false);
   const outdoor = sc.exposure === 'outdoor';
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
-  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, sc.qMax, sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder]);
+  const wind = siteWind(sc, Math.max(st.max[2] - st.min[2], 1));
+  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder]);
   const stale = !!run && run.sig !== sig;
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
   const levels = useMemo(() => {
@@ -67,7 +72,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           level: sc.level,
           outdoor,
           qWork: 200,
-          qMax: outdoor ? sc.qMax : 0,
+          qMax: wind.qMax,
           cf: 1.3,
           snow: outdoor && sc.snow ? sc.snowLoad : 0,
           ice: outdoor && sc.ice ? sc.iceThickness : 0,
@@ -96,6 +101,22 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
     counts.set(c.check, o);
   }
   const uplift = res?.bases.filter((b) => b.Vmin < 0).length ?? 0;
+  // beams SRU / RCS with the loads of the analysis, as models of the beam calculator
+  const beams = useMemo(() => (res ? res.beams.map((b, k) => scaffoldBeam(b, `B${k + 1}`, byId.get(b.part)?.part.name ?? 'SRU', sc.doc?.fileName)) : []), [res, byId, sc.doc]);
+  const beamSums = useMemo(() => beams.map((b) => beamSummary(b.model)), [beams]);
+  const openBeams = (key: string) => {
+    const app = useStore.getState();
+    if (!beams.length || !sc.doc) return;
+    const ours = !!sc.batchRef && app.batch?.id === sc.batchRef.id;
+    if (!ours && !window.confirm(fmt.t('scaffold.beams.replaceConfirm'))) return;
+    const { batch, images } = batchFromImport(`${sc.doc.fileName.replace(/\.dxf$/i, '')} – SRU, RCS`, beams);
+    const it = batch.items.find((i) => i.key === key);
+    if (it) batch.active = it.id;
+    app.loadBatch(batch, images);
+    sc.setBatchRef({ id: batch.id, sig: 'beams' });
+    app.setPrefs({ appMode: 'beam' });
+    app.showToast('scaffold.beams.opened', { n: beams.length });
+  };
 
   return (
     <Card
@@ -119,7 +140,6 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           ]}
           onChange={(v) => sc.setOpts({ level: Number(v) })}
         />
-        {outdoor && <NumberField label={fmt.t('scaffold.calc.qMax')} q="areaLoad" showUnit value={sc.qMax} onChange={(v) => sc.setOpts({ qMax: Math.max(0, v) })} testId="scaffold-calc-qmax" />}
         {outdoor && sc.snow && <NumberField label={fmt.t('scaffold.calc.snowLoad')} q="areaLoad" showUnit value={sc.snowLoad} onChange={(v) => sc.setOpts({ snowLoad: Math.max(0, v) })} />}
         {outdoor && sc.ice && <NumberField label={fmt.t('scaffold.calc.ice')} q="sectionDim" showUnit value={sc.iceThickness} onChange={(v) => sc.setOpts({ iceThickness: Math.max(0, v) })} />}
         <label className="flex items-end gap-2 pb-1 text-xs">
@@ -127,7 +147,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           {fmt.t('scaffold.calc.secondOrder')}
         </label>
       </div>
-      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{fmt.t(outdoor ? (sc.qMax > 0 ? 'scaffold.calc.combosOutdoor' : 'scaffold.calc.combosNoMax') : 'scaffold.calc.combosIndoor')}</p>
+      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{fmt.t(outdoor ? (wind.qMax > 0 ? 'scaffold.calc.combosOutdoor' : 'scaffold.calc.combosNoMax') : 'scaffold.calc.combosIndoor', { q: fmt.q(wind.qMax, 'areaLoad') })}</p>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
       {res && (
@@ -293,6 +313,60 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
               </div>
             )}
           </div>
+
+          {beams.length > 0 && (
+            <div data-testid="scaffold-calc-beams">
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold">{fmt.t('scaffold.beams.title', { n: beams.length })}</p>
+                <Button size="sm" variant="primary" onClick={() => openBeams(beams[0].key)} data-testid="scaffold-beams-open-all">
+                  {fmt.t('scaffold.beams.openAll')} <IconChevronRight />
+                </Button>
+              </div>
+              <div className="max-h-56 overflow-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-[11px] text-slate-500 dark:border-slate-700">
+                      <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.girders.col.key')}</th>
+                      <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.beams.beam')}</th>
+                      <th className="px-1.5 py-1 text-end font-medium">{fmt.t('scaffold.beams.loads')}</th>
+                      <th className="px-1.5 py-1 text-end font-medium">ΣF_d</th>
+                      <th className="px-1.5 py-1 text-end font-medium">η</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {beams.map((b, k) => (
+                      <tr key={b.key} className="cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60" onClick={() => sc.select([res!.beams[k].part])}>
+                        <td className="px-1.5 py-0.5 font-semibold">{b.key}</td>
+                        <td className="px-1.5 py-0.5">
+                          {b.designation}
+                          {b.warnings.some((w) => w.key === 'beamSupports') && <span className="ms-1 text-amber-600">({fmt.t('scaffold.girders.assumed')})</span>}
+                        </td>
+                        <td className="num px-1.5 py-0.5 text-end">{b.loads}</td>
+                        <td className="num px-1.5 py-0.5 text-end">{fmt.q(b.sum, 'force', 1)}</td>
+                        <td className="num px-1.5 py-0.5 text-end font-semibold" style={{ color: beamSums[k].state === 'error' ? '#94a3b8' : etaColor(beamSums[k].eta) }}>
+                          {beamSums[k].state === 'error' ? '–' : `${fmt.num(beamSums[k].eta * 100, 0)} %`}
+                        </td>
+                        <td className="px-1.5 py-0.5 text-end">
+                          <Button
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openBeams(b.key);
+                            }}
+                            data-testid={`scaffold-beam-open-${b.key}`}
+                          >
+                            {fmt.t('scaffold.girders.open')} <IconChevronRight />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">{fmt.t('scaffold.beams.hint')}</p>
+            </div>
+          )}
 
           {run.notes.length > 0 && (
             <div data-testid="scaffold-calc-notes">

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useScaffold, TERRAINS, type Site, type Terrain } from '../../scaffold/store';
-import { EU_COUNTRIES, fetchElevation, searchPlace, type Place } from '../../scaffold/geo';
+import { EU_COUNTRIES, fetchElevation, reversePlace, searchPlace, type Place } from '../../scaffold/geo';
+import { siteWind } from '../../scaffold/store';
 import { Button, Card, NumberField, SelectField, cx } from '../common';
 import { DialogShell } from '../DialogShell';
 import { useFmt } from '../hooks';
@@ -27,13 +28,17 @@ function SiteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const choose = (p: Place, q = query) => {
-    const site: Site = { query: q, name: p.name, lat: p.lat, lon: p.lon, country: p.country, elevation: null, confirmed: false };
+  const choose = (p: Place, q = query, moved = false) => {
+    const site: Site = { query: q, name: p.name, lat: p.lat, lon: p.lon, country: p.country, elevation: null, confirmed: false, admin: p.admin };
     setPick(site);
     abort.current?.abort();
     const ac = new AbortController();
     abort.current = ac;
     void fetchElevation(p.lat, p.lon, ac.signal).then((e) => !ac.signal.aborted && setPick((s) => (s && s.lat === p.lat && s.lon === p.lon ? { ...s, elevation: e } : s)));
+    // administrative units in German (wind zone table), also after the marker was moved
+    void reversePlace(p.lat, p.lon, ac.signal).then(
+      (rp) => rp && !ac.signal.aborted && setPick((s) => (s && s.lat === p.lat && s.lon === p.lon ? { ...s, admin: rp.admin, country: rp.country || s.country, name: moved ? rp.name : s.name } : s)),
+    );
   };
 
   const search = async () => {
@@ -110,7 +115,7 @@ function SiteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
               <b>{pick.name}</b>
             </p>
             <Suspense fallback={<div className="h-72" />}>
-              <SiteMap lat={pick.lat} lon={pick.lon} onMove={(lat, lon) => choose({ name: pick.name, lat, lon, country: pick.country }, pick.query)} />
+              <SiteMap lat={pick.lat} lon={pick.lon} onMove={(lat, lon) => choose({ name: pick.name, lat, lon, country: pick.country, admin: pick.admin }, pick.query, true)} />
             </Suspense>
             <p className="text-[11px] text-slate-500">{fmt.t('scaffold.site.mapHint')}</p>
             <div className="grid grid-cols-3 gap-2">
@@ -145,7 +150,77 @@ function SiteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 /** Site and conditions of the scaffold: place (for wind / snow), outdoors or indoors, snow and ice. */
-export function SiteCard() {
+/** Maximum wind: zone of the site (Germany: official table), exposure, q_p; or v_b,0 / q_p by hand */
+function WindBlock({ height }: { height: number }) {
+  const fmt = useFmt();
+  const sc = useScaffold();
+  const w = siteWind(sc, height);
+  const de = sc.site?.country === 'de';
+  return (
+    <div className="rounded border border-slate-200 p-2 text-xs dark:border-slate-700" data-testid="site-wind">
+      <p className="mb-1 font-semibold">{fmt.t('scaffold.wind.title')}</p>
+      <label className="mb-1 flex items-center gap-2">
+        <input type="checkbox" checked={sc.windManual} onChange={(e) => sc.setOpts({ windManual: e.target.checked })} data-testid="wind-manual" />
+        {fmt.t('scaffold.wind.manual')}
+      </label>
+      {sc.windManual ? (
+        <NumberField label="q_p" q="areaLoad" showUnit value={sc.qMax} onChange={(v) => sc.setOpts({ qMax: Math.max(0, v) })} testId="wind-qmax" />
+      ) : !sc.site ? (
+        <p className="text-amber-700 dark:text-amber-300">{fmt.t('scaffold.wind.noSite')}</p>
+      ) : de ? (
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-2">
+            <SelectField
+              label={fmt.t('scaffold.wind.zone')}
+              value={String(sc.windZone)}
+              testId="wind-zone"
+              options={[{ value: '0', label: w.zone && !sc.windZone ? fmt.t('scaffold.wind.zoneAuto', { n: w.zone }) : fmt.t('scaffold.wind.zoneNone') }, ...[1, 2, 3, 4].map((n) => ({ value: String(n), label: fmt.t('scaffold.wind.zoneN', { n }) }))]}
+              onChange={(v) => sc.setOpts({ windZone: Number(v) })}
+            />
+            <SelectField
+              label={fmt.t('scaffold.wind.exposure')}
+              value={sc.windExposure}
+              testId="wind-exposure"
+              options={(['inland', 'coast', 'island'] as const).map((e) => ({ value: e, label: fmt.t(`scaffold.wind.exp.${e}`) }))}
+              onChange={(v) => sc.setOpts({ windExposure: v })}
+            />
+          </div>
+          {w.rows && w.rows.length > 0 && (
+            <ul className={cx('space-y-0.5 text-[11px]', w.sure ? 'text-slate-500' : 'text-amber-800 dark:text-amber-300')} dir="ltr" lang="de">
+              {w.rows.slice(0, 5).map((r, k) => (
+                <li key={k}>{r}</li>
+              ))}
+            </ul>
+          )}
+          {w.zone && w.sure === false && !sc.windZone && (
+            <p className="flex items-start gap-1 font-medium text-amber-700 dark:text-amber-300" data-testid="wind-check">
+              <IconAlert className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t('scaffold.wind.confirm')}
+            </p>
+          )}
+          {!w.zone && <p className="text-amber-700 dark:text-amber-300">{fmt.t('scaffold.wind.notFound')}</p>}
+        </div>
+      ) : (
+        <div>
+          <NumberField label={fmt.t('scaffold.wind.vb0')} value={sc.vb0} onChange={(v) => sc.setOpts({ vb0: Math.max(0, v) })} testId="wind-vb0" />
+          <p className="mt-1 text-[11px] text-slate-500">{fmt.t('scaffold.wind.vb0Hint')}</p>
+        </div>
+      )}
+      {!sc.windManual && (
+        <label className="mt-1.5 flex items-center gap-2">
+          <input type="checkbox" checked={sc.standing} onChange={(e) => sc.setOpts({ standing: e.target.checked })} />
+          {fmt.t('scaffold.wind.standing')}
+        </label>
+      )}
+      <p className="mt-1.5 font-medium" data-testid="wind-result">
+        {w.qMax > 0
+          ? fmt.t('scaffold.wind.result', { qp: fmt.q(w.qp, 'areaLoad'), q: fmt.q(w.qMax, 'areaLoad'), h: fmt.q(height, 'length', 1) })
+          : fmt.t('scaffold.wind.none')}
+      </p>
+    </div>
+  );
+}
+
+export function SiteCard({ height }: { height: number }) {
   const fmt = useFmt();
   const sc = useScaffold();
   const [open, setOpen] = useState(false);
@@ -195,6 +270,7 @@ export function SiteCard() {
             options={TERRAINS.map((t) => ({ value: t, label: fmt.t(`scaffold.site.terrainOption.${t}`) }))}
             onChange={(v) => sc.setOpts({ terrain: v as Terrain })}
           />
+          <WindBlock height={height} />
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={sc.snow} onChange={(e) => sc.setOpts({ snow: e.target.checked })} data-testid="site-snow" />
             {fmt.t('scaffold.site.snow')}

@@ -15,7 +15,7 @@ import type { FrameModel3, Member3, MemberEnd, Section3, V3 } from '../core/fram
 import { latticeEquivalent } from '../sections/lattice';
 import { findPeriProduct, periSI } from '../sections/peri';
 import type { ScaffoldStructure, WorldPart } from './structure';
-import { PART_WEIGHTS } from './weights';
+import { partKg } from './weights';
 import { E_STEEL, G_STEEL, JOINT, LEDGERS, TUBES, VARIANT_TUBE, connKx, connKy, connKz, ubhData, ubkData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 
 export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'tube' | 'anchor';
@@ -36,6 +36,14 @@ export interface ModelMember {
   g: number;
   /** carrier (ledger, beam …) this segment belongs to */
   carrier?: number;
+}
+
+/** point of a beam (SRU / RCS) where something stands on it or where it is supported */
+export interface BeamPoint {
+  node: number;
+  /** position along the beam, 0…1 */
+  t: number;
+  support: boolean;
 }
 
 export interface ModelNote {
@@ -77,7 +85,7 @@ export interface ScaffoldModel {
   levels: { z: number; area: number }[];
   decks: DeckShare[];
   /** members of a carrier and its length */
-  carriers: { part: string; kind: MKind; members: number[]; length: number }[];
+  carriers: { part: string; kind: MKind; members: number[]; length: number; points?: BeamPoint[] }[];
   /** weight of parts that are not members (toe boards, couplers …), kg at a node */
   masses: { node: number; kg: number }[];
   /** weight that could not be placed, kg */
@@ -307,7 +315,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       b: Q,
       sec: tubeSection('t32'),
       tube: 't32',
-      g: (PART_WEIGHTS[w.part.article] ?? 5) / Math.max(len3(P, Q), 0.1),
+      g: (partKg(w.part) ?? 5) / Math.max(len3(P, Q), 0.1),
       end: [
         { node: n0, offset: [0, 0, P[2] - zr], t: 0 },
         { node: tip, offset: [0, 0, 0], t: 1 },
@@ -331,7 +339,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       sec: ledgerSection(sec),
       head,
       ledger: sec,
-      g: (PART_WEIGHTS[w.part.article] ?? LEDGERS[sec].g * L) / L,
+      g: (partKg(w.part) ?? LEDGERS[sec].g * L) / L,
       end: [rosetteEnd(ml[0], ml[1], head), rosetteEnd(ml[1], ml[0], head)],
       inter: [],
     });
@@ -356,7 +364,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       a,
       b,
       sec: { EA: E_STEEL * si.A, EIy: E_STEEL * si.I, EIz: E_STEEL * si.I * 0.2, GJ: G_STEEL * si.I * 0.02 },
-      g: (PART_WEIGHTS[w.part.article] ?? 27 * L) / L,
+      g: (partKg(w.part) ?? 27 * L) / L,
       end: [null, null],
       inter: [],
     });
@@ -368,7 +376,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     const E = g.product.startsWith('ULA') ? 70e9 : E_STEEL;
     const a: V3 = [g.origin[0], g.origin[1], g.zTop];
     const b: V3 = [g.origin[0] + g.u[0] * g.L, g.origin[1] + g.u[1] * g.L, g.zTop];
-    const kg = g.parts.reduce((s, id) => s + (PART_WEIGHTS[byId.get(id)?.part.article ?? ''] ?? 0), 0);
+    const kg = g.parts.reduce((s, id) => s + ((byId.get(id) ? partKg(byId.get(id)!.part) : undefined) ?? 0), 0);
     const car: Carrier = {
       w: null,
       part: g.parts[0],
@@ -534,7 +542,9 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       });
     }
     carrierIndex.set(c, carrierOut.length);
-    carrierOut.push({ part: c.part, kind: c.kind, members, length: members.reduce((s, m) => s + memberLength(fm[m]), 0) });
+    const points: BeamPoint[] | undefined =
+      c.kind === 'beam' ? pts.map((q) => ({ node: q.node, t: Math.min(Math.max(q.t, 0), 1), support: q.k === HINGE || assumedSupports.some((a) => a.node === q.node) })) : undefined;
+    carrierOut.push({ part: c.part, kind: c.kind, members, length: members.reduce((s, m) => s + memberLength(fm[m]), 0), points });
   }
 
   const nearestNodeOf = (p: V3, r: number): number => {
@@ -582,7 +592,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     } else d = kind === 'ubk' ? ubkData(Lh, Math.abs(zb - za), r6) : ubsData(Lh, Math.abs(zb - za), r6);
     const L = len3(nodes[na], nodes[nb]);
     fm.push({ i: na, j: nb, sec: trussSec(d.eaT), truss: true });
-    mm.push({ kind, part: w.part.id, diag: d, g: (PART_WEIGHTS[w.part.article] ?? 3.5 * L) / L });
+    mm.push({ kind, part: w.part.id, diag: d, g: (partKg(w.part) ?? 3.5 * L) / L });
   }
   // ---- tubes: anchors and bracing
   const anchors: ScaffoldModel['anchors'] = [];
@@ -630,7 +640,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
           : undefined;
       fm.push({ i: c.ns[i], j: c.ns[i + 1], sec: tubeSection(t), ends });
       const nominal = Math.max((pi + 1 < c.parts.length ? c.parts[pi + 1].zb : p.zt) - p.zb, 0.2);
-      mm.push({ kind: 'standard', part: p.w.part.id, tube: t, joint, g: (PART_WEIGHTS[p.w.part.article] ?? TUBES[t].g * nominal) / nominal });
+      mm.push({ kind: 'standard', part: p.w.part.id, tube: t, joint, g: (partKg(p.w.part) ?? TUBES[t].g * nominal) / nominal });
     }
   });
 
@@ -653,7 +663,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     const long: 0 | 1 = w.max[0] - w.min[0] >= w.max[1] - w.min[1] ? 0 : 1;
     const short = 1 - long;
     const area = (w.max[0] - w.min[0]) * (w.max[1] - w.min[1]);
-    const kg = PART_WEIGHTS[w.part.article] ?? 22 * area;
+    const kg = partKg(w.part) ?? 22 * area;
     const z = w.min[2];
     const lv = levelOf(z);
     levels[lv].area += area;
@@ -695,7 +705,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
   const masses: ScaffoldModel['masses'] = [];
   for (const w of st.parts) {
     if (modelled.has(w.part.id) || w.cls.kind === 'deck') continue;
-    const kg = PART_WEIGHTS[w.part.article] ?? 0;
+    const kg = partKg(w.part) ?? 0;
     if (!kg) continue;
     const n = nearestNode([(w.min[0] + w.max[0]) / 2, (w.min[1] + w.max[1]) / 2, (w.min[2] + w.max[2]) / 2], 1.5);
     if (n >= 0) masses.push({ node: n, kg });

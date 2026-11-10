@@ -146,3 +146,41 @@ describe('scaffold analysis', () => {
     expect(dx(res)).toBeLessThan(dx(free));
   });
 });
+
+describe('beams SRU / RCS for the beam calculator', () => {
+  it('loads of the scaffold analysis as point loads, supports from the model', async () => {
+    const { scaffoldBeam } = await import('./beams');
+    const b = scaffoldBeam(
+      {
+        part: 'x',
+        length: 0.724,
+        points: [
+          { t: 0, support: true, F: 2800, combo: 'A +x' },
+          { t: 0.59, support: false, F: 6100, combo: 'A +x' },
+          { t: 0.93, support: false, F: 0.5, combo: '' },
+          { t: 1, support: true, F: 5500, combo: 'A −x' },
+        ],
+      },
+      'B1',
+      'SRU 72',
+      'plan.dxf',
+    );
+    // catalogue length of the SRU 72
+    expect(b.model.L).toBe(0.722);
+    expect(b.model.segments[0].section).toMatchObject({ kind: 'peri', product: 'SRU120' });
+    expect(b.model.supports.map((s) => [s.type, s.x])).toEqual([
+      ['pinned', 0],
+      ['roller', 0.722],
+    ]);
+    // design force / 1.5 as a variable load: 1.5·Q gives the design force again
+    expect(b.model.loads).toHaveLength(1);
+    expect(b.model.loads[0]).toMatchObject({ kind: 'point', caseId: 'Q', x: 0.426 });
+    expect((b.model.loads[0] as { P: number }).P).toBeCloseTo(6100 / GAMMA_F, 6);
+    expect(b.warnings).toEqual([]);
+    expect(b.sum).toBe(6100);
+    const rcs = scaffoldBeam({ part: 'y', length: 4.98, points: [{ t: 0.5, support: false, F: 9000, combo: 'A +y' }] }, 'B2', 'RCS 498');
+    expect(rcs.model.segments[0].section).toMatchObject({ product: 'RCS' });
+    expect(rcs.warnings.map((w) => w.key)).toEqual(['beamSupports']);
+    expect(rcs.model.supports.map((s) => s.x)).toEqual([0, 4.98]);
+  });
+});

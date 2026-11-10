@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { storage } from '../state/persist';
 import type { ScaffoldDoc } from './pericad';
+import { STANDING_FACTOR, germanWindZone, qpEN, qpGermany, type Admin, type ExposureDE } from './wind';
 
 const KEY = 'balken.scaffold';
 const OPT_KEY = 'balken.scaffoldOpts';
@@ -23,6 +24,8 @@ export interface Site {
   elevation: number | null;
   /** position confirmed by the user on the map */
   confirmed: boolean;
+  /** administrative units of the place (wind zone) */
+  admin?: Admin;
 }
 
 /** terrain categories EN 1991-1-4 */
@@ -51,9 +54,49 @@ export interface ScaffoldOpts {
   /** loaded deck level (−1: the largest) */
   level: number;
   secondOrder: boolean;
+  /** q_p entered by hand (qMax) instead of the value from the wind zone */
+  windManual: boolean;
+  /** German wind zone chosen by the user (0: from the table) */
+  windZone: number;
+  windExposure: ExposureDE;
+  /** basic wind velocity v_b,0 of the national annex for sites outside Germany, m/s */
+  vb0: number;
+  /** factor 0.7 for the standing time of the scaffold */
+  standing: boolean;
 }
 
-export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true };
+export interface SiteWind {
+  /** peak velocity pressure, N/m² (0: unknown) */
+  qp: number;
+  /** value for the analysis (with the standing factor), N/m² */
+  qMax: number;
+  /** German wind zone and whether the table is unambiguous */
+  zone?: number;
+  sure?: boolean;
+  rows?: string[];
+  source: 'manual' | 'de' | 'en' | 'none';
+}
+
+/** Maximum wind for the site: by hand, from the German wind zone table or from v_b,0 (EN 1991-1-4) */
+export function siteWind(o: ScaffoldOpts, height: number): SiteWind {
+  if (o.exposure !== 'outdoor') return { qp: 0, qMax: 0, source: 'none' };
+  if (o.windManual) return { qp: o.qMax, qMax: o.qMax, source: 'manual' };
+  const f = o.standing ? STANDING_FACTOR : 1;
+  if (o.site?.country === 'de') {
+    const z = o.site.admin ? germanWindZone(o.site.admin) : null;
+    const zone = o.windZone || z?.zone;
+    if (!zone) return { qp: 0, qMax: 0, source: 'none' };
+    const qp = qpGermany(zone, o.windExposure, height, o.site.elevation ?? 0);
+    return { qp, qMax: qp * f, zone, sure: o.windZone ? true : z?.sure, rows: z?.rows, source: 'de' };
+  }
+  if (o.site && o.vb0 > 0) {
+    const qp = qpEN(o.vb0, o.terrain, height);
+    return { qp, qMax: qp * f, source: 'en' };
+  }
+  return { qp: 0, qMax: 0, source: 'none' };
+}
+
+export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true };
 
 export interface ScaffoldState extends ScaffoldOpts {
   doc: ScaffoldDoc | null;
@@ -110,6 +153,11 @@ function save(s: ScaffoldState) {
     iceThickness: s.iceThickness,
     level: s.level,
     secondOrder: s.secondOrder,
+    windManual: s.windManual,
+    windZone: s.windZone,
+    windExposure: s.windExposure,
+    vb0: s.vb0,
+    standing: s.standing,
     batchRef: s.batchRef,
   };
   storage.set(OPT_KEY, JSON.stringify(o));

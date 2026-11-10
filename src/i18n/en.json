@@ -636,7 +636,9 @@
       "flexEnds": "{n} end elements instead of 2.",
       "girderLength": "Length {L} m is no catalogue length – used as drawn.",
       "girderSupports": "{n} standard(s) found at the girder – supports assumed at the ends.",
-      "girderNoDecks": "No decks on the girder – self weight only."
+      "girderNoDecks": "No decks on the girder – self weight only.",
+      "beamSupports": "No supports of the beam in the drawing – assumed at its ends.",
+      "beamNoLoads": "No loads of the scaffold on the beam – self weight only."
     },
     "showDetails": "Show details per beam",
     "hideDetails": "Hide details",
@@ -789,7 +791,9 @@
       "clamp": "Beam clamps",
       "toeboard": "Toe boards",
       "accessory": "Accessories",
-      "anchor": "Anchors"
+      "anchor": "Anchors",
+      "stair": "Stairs and hatches",
+      "guard": "Guard rails"
     },
     "girders": {
       "title": "Lattice girders",
@@ -848,7 +852,7 @@
       },
       "snow": "Include snow",
       "ice": "Include ice",
-      "windHint": "Wind and snow zones are taken from the EU database for the site when the scaffold is calculated (next step).",
+      "windHint": "The German wind zone is taken from the DIBt table for the site; q_p after DIN EN 1991-1-4/NA. For other countries v_b,0 is entered.",
       "dialogTitle": "Site of the scaffold",
       "placeholder": "City or address",
       "search": "Search",
@@ -874,13 +878,12 @@
       "level": "Loaded level",
       "levelAuto": "automatic – largest deck area",
       "levelOption": "level {z} ({a} m²)",
-      "qMax": "Max. wind: q_p",
       "snowLoad": "Snow on the decks",
       "ice": "Ice thickness",
       "secondOrder": "Second order + sway imperfection",
       "combosIndoor": "Indoors: G + Q on one level + notional horizontal load 2.5 % of Q, in 4 directions.",
-      "combosNoMax": "Outdoors: G + Q + working wind 0.2 kN/m², in 4 directions. With q_p > 0 the out-of-service condition with the maximum wind is added.",
-      "combosOutdoor": "Outdoors: working (G + Q + wind 0.2 kN/m²) and out of service (G + share of Q + maximum wind q_p), 4 directions each.",
+      "combosNoMax": "Outdoors: G + Q + working wind 0.2 kN/m², in 4 directions. No maximum wind set (card “Site and conditions”) – no out-of-service condition.",
+      "combosOutdoor": "Outdoors: working (G + Q + wind 0.2 kN/m²) and out of service (G + share of Q + maximum wind {q}), 4 directions each.",
       "stale": "The input has changed – results are out of date, recalculate.",
       "summary": "G = {g}, Q = {q} on level {z} · {n} unknowns · {s} s",
       "unstable": "Combinations {names}: the system is a mechanism or unstable – bracing or supports are missing.",
@@ -925,6 +928,37 @@
         "columnHanging": "Standards without a support below ({n}) – hang on the ledgers."
       },
       "basis": "Basis: approval Z-8.22-863 (moment–rotation curves, resistances of nodes, diagonals, joints), DIN EN 12811-1, PERI UP Tabellenbuch. Decks do not brace. Does not replace the verification by the structural engineer; comparison with RSTAB will follow."
+    },
+    "wind": {
+      "title": "Maximum wind",
+      "manual": "enter q_p by hand",
+      "noSite": "Set the site – the wind zone is taken from it.",
+      "zone": "Wind zone",
+      "zoneAuto": "from the table: zone {n}",
+      "zoneNone": "not determined",
+      "zoneN": "zone {n}",
+      "exposure": "Exposure",
+      "exp": {
+        "inland": "inland",
+        "coast": "coast (5 km strip) and Baltic islands",
+        "island": "North Sea islands"
+      },
+      "confirm": "In this district the zone depends on the municipality – check the table rows above and choose the zone.",
+      "notFound": "District not found in the wind zone table – choose the zone by hand.",
+      "vb0": "Basic wind velocity v_b,0, m/s",
+      "vb0Hint": "Outside Germany: take v_b,0 from the national annex to EN 1991-1-4 for the site; q_p follows EN 1991-1-4 and the terrain category.",
+      "standing": "factor 0.7 for the standing time (EN 12811-1)",
+      "result": "q_p = {qp} at {h} height → used {q}",
+      "none": "No maximum wind – only the working condition is calculated."
+    },
+    "beams": {
+      "title": "Beams SRU / RCS: {n}",
+      "openAll": "All beams in the beam calculator",
+      "beam": "Beam",
+      "loads": "Loads",
+      "opened": "Beams of the drawing opened in the beam calculator: {n}",
+      "replaceConfirm": "The current project of the beam calculator will be replaced by the SRU / RCS beams of the drawing. Continue?",
+      "hint": "Loads: largest design forces of the standards and ledgers on the beam (envelope of the combinations). They go to the beam calculator as Q = F_d / 1.5; the combination 1.5·G + 1.5·Q gives F_d again, the self weight of the beam is added. Supports: standards under the beam or – if there are none in the drawing – the beam ends (marked)."
     }
   }
 }

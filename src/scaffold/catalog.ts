@@ -3,6 +3,7 @@
  * PERI CAD writes into the drawing.
  */
 import type { LatticeId } from '../sections/lattice';
+import { findPart } from './weights';
 
 export type PartKind =
   | 'standard'
@@ -22,6 +23,8 @@ export type PartKind =
   | 'coupler'
   | 'clamp'
   | 'toeboard'
+  | 'stair'
+  | 'guard'
   | 'accessory'
   | 'other';
 
@@ -43,6 +46,8 @@ export const PART_KINDS: PartKind[] = [
   'coupler',
   'clamp',
   'toeboard',
+  'stair',
+  'guard',
   'accessory',
   'other',
 ];
@@ -67,7 +72,8 @@ const ARTICLES: Record<string, PartClass> = {
 };
 
 export function classifyPart(article: string, name: string, desc = ''): PartClass {
-  const text = `${name} ${desc}`;
+  // the catalogue name from the parts database helps where the drawing has a short name only ("UAH")
+  const text = `${name} ${desc} ${findPart(article, name, desc)?.name ?? ''}`;
   const flex = /flex/i.test(text);
   if (flex && /zwischenelement|intermediate/i.test(text)) {
     const n = Number(/ULS\s*(\d{3})\s*flex/i.exec(text)?.[1]);
@@ -79,9 +85,15 @@ export function classifyPart(article: string, name: string, desc = ''): PartClas
   if (ARTICLES[article]) return ARTICLES[article];
   const g = /\bUL([AS])\s*(50|70)\b/i.exec(text);
   if (g && !flex) return { kind: 'girder', girder: g[1].toUpperCase() === 'A' ? (g[2] === '50' ? 'ULA50HD' : 'ULA70HD') : g[2] === '50' ? 'ULS50' : 'ULS70' };
-  if (/\b(SRU|RCS)\b|stahlriegel|kletterschiene|\b(HEB|HEA|IPE|UPE|GT ?24|VT ?20)\b/i.test(text)) return { kind: 'beam' };
+  if (/treppe|leiter|durchstieg|podest|\bUAS\b|\bUA[ACFILW]\b/i.test(text) && !/geländer|belag|tafel/i.test(text)) return { kind: 'stair' };
+  if (/geländer|holm\b|rückenschutz|schutzwand|sicherheitstür|\bUP[AGSK]\b|\bUA[GH]\b/i.test(text)) return { kind: 'guard' };
+  if (/\b(SRU|RCS)\b|stahlriegel|kletterschiene|multiträger|\b(HEB|HEA|IPE|UPE|GT ?24|VT ?20)\b/i.test(text) && !/spindelkopf/i.test(text)) return { kind: 'beam' };
+  if (/klemmrosette|rohrverbinder|verbinder ULT|\bULT\b|schr(aube)?\b|mutter|bolzen|stecker|\bM ?\d+ ?x ?\d+|polyschutz|keder|dübel|ringschraube|spindelkopf|spindelsicherung|distanzhalter|richtstütz|traverse/i.test(text))
+    return { kind: 'accessory' };
+  if (/gerüsthalter/i.test(text)) return { kind: 'tube' };
+  if (/fußplatte|fussplatte|spindelunterlage|lenkrolle|lastrolle/i.test(text)) return { kind: 'jack' };
   if (/trägerklammer|traegerklammer|beam ?clamp/i.test(text)) return { kind: 'clamp' };
-  if (/kupplung|coupler|\bRA ?48|\bSW ?48|\bUE[CF]\b/i.test(text)) return { kind: 'coupler' };
+  if (/kupplung|coupler|\bR[ARS] ?\d+\/\d+|\bSW ?48|\bUE[CF]\b/i.test(text)) return { kind: 'coupler' };
   if (/gerüstrohr|geruestrohr|\btube\b/i.test(text)) return { kind: 'tube' };
   if (/bordblech|bordbrett|toe ?board|\bUPY\b/i.test(text)) return { kind: 'toeboard' };
   if (/\bUVB\b|basisstiel|starter/i.test(text)) return { kind: 'base' };
@@ -90,7 +102,7 @@ export function classifyPart(article: string, name: string, desc = ''): PartClas
   if (/konsole|\bUC[BM]\b|bracket/i.test(text)) return { kind: 'bracket' };
   if (/zapfen|riegelaufnahme|\bUHA\b|passbolzen|federstecker|kreuzverbinder|eckblech|abdeckblech|\bUD[BC]\b|\bUC ?\d/i.test(text)) return { kind: 'accessory' };
   if (/\bUH\b|\bUHV\b|riegel|ledger|transom/i.test(text)) return { kind: 'ledger' };
-  if (/\bUD[AGI]\b|\bUDS\b|belag|deck/i.test(text)) return { kind: 'deck' };
+  if (/\bUD[AGI]\b|\bUDS\b|belag|tafel|deck/i.test(text)) return { kind: 'deck' };
   if (/spindel|\bUJB\b|jack/i.test(text)) return { kind: 'jack' };
   return { kind: 'other' };
 }
@@ -114,6 +126,8 @@ export const KIND_COLOR: Record<PartKind, string> = {
   coupler: '#ca8a04',
   clamp: '#dc2626',
   toeboard: '#d6d3d1',
+  stair: '#0891b2',
+  guard: '#65a30d',
   accessory: '#94a3b8',
   other: '#cbd5e1',
 };

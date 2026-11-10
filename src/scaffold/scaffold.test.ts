@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parsePeriCadDxf, ScaffoldImportError } from './pericad';
 import { analyzeScaffold, girderBeamModel } from './structure';
 import { classifyPart } from './catalog';
+import { PARTS_DB_SIZE, findPart } from './weights';
 import { periDxf, towerParts, type TestPart } from './testDxf';
 import { beamSummary } from '../ui/batch/summary';
 
@@ -77,6 +78,29 @@ describe('part kinds', () => {
     expect(classifyPart('112676', 'UCM 50 mit Zapfen', 'Konsole UCM 50 mit Zapfen').kind).toBe('bracket');
     expect(classifyPart('100000', 'UVH 100', 'Kopfstiel UVH 100').kind).toBe('standard');
     expect(classifyPart('114818', 'UBH FLEX 100x100', 'H-Diagonale UBH Flex 100/100').kind).toBe('diagonal');
+  });
+
+  it('parts database of the PERI catalogue: kinds and weights by article or name', () => {
+    expect(PARTS_DB_SIZE).toBeGreaterThan(400);
+    // article of the drawing (1xxxxx) and of the catalogue (4xxxxx) are the same part
+    expect(findPart('100009')).toMatchObject({ kg: 10, name: 'Vertikalstiel UVR 200' });
+    expect(findPart('400013')?.kg).toBe(19.2);
+    expect(findPart('100013')?.name).toBe('Vertikalstiel UVR 400');
+    // unknown article: by the name written in the drawing
+    expect(findPart('999999', 'UBK 300/200', 'Knotendiagonale UBK 300/200(Preis auf Anfrage)')?.kg).toBe(10.3);
+    expect(findPart('999999', 'Stahlbelag UDG 25x100', '')?.kg).toBe(6.63);
+    expect(findPart('999999', 'Unbekannt')).toBeUndefined();
+    // short names of the drawing are classified with the catalogue name
+    expect(classifyPart('x', 'UAS 75x250/200', 'Gerüsttreppe UAS 75 x 250/200, Alu').kind).toBe('stair');
+    expect(classifyPart('x', 'UAH', 'Treppengeländer UAH').kind).toBe('guard');
+    expect(classifyPart('x', 'Klemmrosette 90°').kind).toBe('accessory');
+    expect(classifyPart('x', 'ULT 32').kind).toBe('accessory');
+    expect(classifyPart('x', 'RR 60/48').kind).toBe('coupler');
+    expect(classifyPart('x', 'M10x70').kind).toBe('accessory');
+    expect(classifyPart('x', 'Rohrverbinder 48,3').kind).toBe('accessory');
+    expect(classifyPart('x', 'UAC 75x250-L', 'Leitergangstafel UAC 75 x 250-L').kind).toBe('deck');
+    expect(classifyPart('x', 'UJB 38-80/55', 'Fußspindel UJB 38-80/55').kind).toBe('jack');
+    expect(classifyPart('x', 'UVR 400', 'Vertikalstiel UVR 400').kind).toBe('standard');
   });
 });
 

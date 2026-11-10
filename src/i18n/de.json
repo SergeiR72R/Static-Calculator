@@ -636,7 +636,9 @@
       "flexEnds": "{n} Endelemente statt 2.",
       "girderLength": "Länge {L} m ist keine Kataloglänge – wie gezeichnet verwendet.",
       "girderSupports": "Am Träger {n} Stiel(e) gefunden – Auflager an den Enden angenommen.",
-      "girderNoDecks": "Kein Belag auf dem Träger – nur Eigengewicht."
+      "girderNoDecks": "Kein Belag auf dem Träger – nur Eigengewicht.",
+      "beamSupports": "Keine Auflager des Trägers in der Zeichnung – an den Enden angenommen.",
+      "beamNoLoads": "Keine Lasten aus dem Gerüst auf dem Träger – nur Eigengewicht."
     },
     "showDetails": "Details je Träger anzeigen",
     "hideDetails": "Details ausblenden",
@@ -789,7 +791,9 @@
       "clamp": "Trägerklammern",
       "toeboard": "Bordbretter",
       "accessory": "Zubehör",
-      "anchor": "Verankerungen"
+      "anchor": "Verankerungen",
+      "stair": "Treppen und Durchstiege",
+      "guard": "Geländer"
     },
     "girders": {
       "title": "Gitterträger",
@@ -848,7 +852,7 @@
       },
       "snow": "Schnee ansetzen",
       "ice": "Vereisung ansetzen",
-      "windHint": "Wind- und Schneezone werden bei der Gerüstberechnung (nächster Schritt) aus der EU-Datenbank nach dem Standort bestimmt.",
+      "windHint": "Die deutsche Windzone wird aus der DIBt-Tabelle nach dem Standort bestimmt; q_p nach DIN EN 1991-1-4/NA. Für andere Länder wird v_b,0 eingegeben.",
       "dialogTitle": "Standort des Gerüsts",
       "placeholder": "Ort oder Adresse",
       "search": "Suchen",
@@ -874,13 +878,12 @@
       "level": "Belastete Lage",
       "levelAuto": "automatisch – größte Belagfläche",
       "levelOption": "Lage {z} ({a} m²)",
-      "qMax": "Max. Wind: q_p",
       "snowLoad": "Schnee auf dem Belag",
       "ice": "Eisdicke",
       "secondOrder": "Theorie II. Ordnung + Schiefstellung",
       "combosIndoor": "Im Gebäude: G + Q auf einer Lage + horizontale Ersatzlast 2,5 % von Q, in 4 Richtungen.",
-      "combosNoMax": "Im Freien: G + Q + Arbeitswind 0,2 kN/m², in 4 Richtungen. Mit q_p > 0 kommt der Ruhebetrieb mit maximalem Wind dazu.",
-      "combosOutdoor": "Im Freien: Arbeitsbetrieb (G + Q + Wind 0,2 kN/m²) und Ruhebetrieb (G + Anteil Q + maximaler Wind q_p), je 4 Richtungen.",
+      "combosNoMax": "Im Freien: G + Q + Arbeitswind 0,2 kN/m², in 4 Richtungen. Kein maximaler Wind festgelegt (Karte »Standort und Bedingungen«) – kein Ruhebetrieb.",
+      "combosOutdoor": "Im Freien: Arbeitsbetrieb (G + Q + Wind 0,2 kN/m²) und Ruhebetrieb (G + Anteil Q + maximaler Wind {q}), je 4 Richtungen.",
       "stale": "Die Eingaben haben sich geändert – Ergebnisse veraltet, bitte neu berechnen.",
       "summary": "G = {g}, Q = {q} auf Lage {z} · {n} Unbekannte · {s} s",
       "unstable": "Kombinationen {names}: System kinematisch oder instabil – Aussteifung oder Auflager fehlen.",
@@ -925,6 +928,37 @@
         "columnHanging": "Stiele ohne Auflager unten ({n}) – hängen an den Riegeln."
       },
       "basis": "Grundlage: Zulassung Z-8.22-863 (Moment-Drehwinkel-Beziehungen, Beanspruchbarkeiten der Knoten, Diagonalen, Stöße), DIN EN 12811-1, Tabellenbuch PERI UP. Beläge wirken nicht aussteifend. Ersetzt nicht den Nachweis durch den Statiker; Abgleich mit RSTAB folgt."
+    },
+    "wind": {
+      "title": "Maximaler Wind",
+      "manual": "q_p von Hand eingeben",
+      "noSite": "Standort festlegen – daraus wird die Windzone bestimmt.",
+      "zone": "Windzone",
+      "zoneAuto": "nach Tabelle: Zone {n}",
+      "zoneNone": "nicht bestimmt",
+      "zoneN": "Zone {n}",
+      "exposure": "Lage",
+      "exp": {
+        "inland": "Binnenland",
+        "coast": "Küste (5-km-Streifen) und Ostseeinseln",
+        "island": "Nordseeinseln"
+      },
+      "confirm": "In diesem Kreis hängt die Zone von der Gemeinde ab – anhand der Tabellenzeilen oben prüfen und die Zone wählen.",
+      "notFound": "Kreis nicht in der Windzonentabelle gefunden – Zone von Hand wählen.",
+      "vb0": "Basiswindgeschwindigkeit v_b,0, m/s",
+      "vb0Hint": "Außerhalb Deutschlands: v_b,0 aus dem nationalen Anhang zu EN 1991-1-4 für den Standort; q_p nach EN 1991-1-4 und Geländekategorie.",
+      "standing": "Standzeitfaktor 0,7 (EN 12811-1)",
+      "result": "q_p = {qp} in {h} Höhe → Ansatz {q}",
+      "none": "Kein maximaler Wind – nur der Arbeitsbetrieb wird berechnet."
+    },
+    "beams": {
+      "title": "Träger SRU / RCS: {n}",
+      "openAll": "Alle Träger im Trägerrechner",
+      "beam": "Träger",
+      "loads": "Lasten",
+      "opened": "Träger der Zeichnung im Trägerrechner geöffnet: {n}",
+      "replaceConfirm": "Das aktuelle Projekt im Trägerrechner wird durch die Träger SRU / RCS der Zeichnung ersetzt. Fortfahren?",
+      "hint": "Lasten: größte Bemessungskräfte der Stiele und Riegel auf dem Träger (Umhüllende der Kombinationen). In den Trägerrechner gehen sie als Q = F_d / 1,5; die Kombination 1,5·G + 1,5·Q ergibt wieder F_d, das Eigengewicht des Trägers kommt dazu. Auflager: Stiele unter dem Träger oder – wenn in der Zeichnung keine sind – die Trägerenden (gekennzeichnet)."
     }
   }
 }

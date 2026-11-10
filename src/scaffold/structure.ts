@@ -10,7 +10,7 @@ import { baseModel, makeSupport, udl } from '../core/defaults';
 import { FLEX, LATTICE_TYPES, flexLength, type LatticeId } from '../sections/lattice';
 import { periMaterial } from '../sections/peri';
 import { classifyPart, PART_KINDS, type PartClass } from './catalog';
-import { PART_WEIGHTS } from './weights';
+import { partKg } from './weights';
 import { healParts, type PartMove } from './heal';
 import { place, type ScaffoldDoc, type ScaffoldPart, type V3 } from './pericad';
 
@@ -438,7 +438,7 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
   for (const w of parts) {
     const r = bomMap.get(w.part.article);
     if (r) r.count++;
-    else bomMap.set(w.part.article, { article: w.part.article, weight: PART_WEIGHTS[w.part.article], name: w.part.name, desc: w.part.desc, count: 1, kind: classifyPart(w.part.article, w.part.name, w.part.desc).kind });
+    else bomMap.set(w.part.article, { article: w.part.article, weight: partKg(w.part), name: w.part.name, desc: w.part.desc, count: 1, kind: classifyPart(w.part.article, w.part.name, w.part.desc).kind });
   }
   const order = PART_KINDS;
   const bom = [...bomMap.values()].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.name.localeCompare(b.name));

@@ -223,7 +223,7 @@ export default function ScaffoldApp() {
           </div>
         </Card>
 
-        <SiteCard />
+        <SiteCard height={Math.max(st.max[2] - st.min[2], 1)} />
 
         <Card title={fmt.t('scaffold.loads.title')}>
           <div className="grid grid-cols-1 gap-2">

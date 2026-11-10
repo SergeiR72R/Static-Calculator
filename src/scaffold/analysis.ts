@@ -4,7 +4,7 @@
  * the rosette connections, slack and tension / compression stiffness of the diagonals, one-sided
  * bases, second-order theory with sway imperfection), checks after the approval Z-8.22-863.
  */
-import { Frame3, FrameError3, emptyLoads3, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
+import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
 import { COUPLER_RD, JOINT, LEDGERS, TUBES, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
@@ -88,6 +88,19 @@ export interface ForceResult {
   combo: string;
 }
 
+export interface BeamResult {
+  part: string;
+  length: number;
+  points: {
+    /** position along the beam, 0…1 */
+    t: number;
+    support: boolean;
+    /** largest load on the beam (downwards positive) or largest support force (upwards positive), N */
+    F: number;
+    combo: string;
+  }[];
+}
+
 export interface ScaffoldResult {
   combos: ComboResult[];
   /** governing check of every part (largest utilisation) */
@@ -98,6 +111,8 @@ export interface ScaffoldResult {
   anchors: ForceResult[];
   /** assumed supports of beams: vertical force, N */
   beamSupports: { part: string; node: number; V: number }[];
+  /** beams SRU / RCS: what stands on them and their supports (design values, envelope) */
+  beams: BeamResult[];
   /** loaded level and total loads (characteristic), N */
   level: number;
   totalG: number;
@@ -461,6 +476,24 @@ function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions) {
     if (c[0]) (connAt.get(m.i) ?? connAt.set(m.i, []).get(m.i)!).push({ k, e: 0 });
     if (c[1]) (connAt.get(m.j) ?? connAt.set(m.j, []).get(m.j)!).push({ k, e: 1 });
   });
+  // beams: vertical component of the local axes of their members
+  const beamRes: BeamResult[] = [];
+  const beamOf: { car: number; res: BeamResult }[] = [];
+  model.carriers.forEach((c, k) => {
+    if (c.kind !== 'beam' || !c.points) return;
+    const res: BeamResult = { part: c.part, length: c.length, points: c.points.map((p) => ({ t: p.t, support: p.support, F: 0, combo: '' })) };
+    beamRes.push(res);
+    beamOf.push({ car: k, res });
+  });
+  const zAxis = (k: number): [number, number, number] => {
+    const m = frame.members[k];
+    const oi = m.ends?.[0]?.offset ?? [0, 0, 0];
+    const oj = m.ends?.[1]?.offset ?? [0, 0, 0];
+    const a = frame.nodes[m.i];
+    const b = frame.nodes[m.j];
+    const { R } = localAxes([a[0] + oi[0], a[1] + oi[1], a[2] + oi[2]], [b[0] + oj[0], b[1] + oj[1], b[2] + oj[2]]);
+    return [R[2], R[5], R[8]];
+  };
   const stdAt = new Map<number, number[]>();
   frame.members.forEach((m, k) => {
     if (members[k].kind !== 'standard') return;
@@ -591,6 +624,27 @@ function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions) {
       put({ part, check: 'node', eta: worst + IS, combo: cb.name, detail: `α·I_A = ${worst.toFixed(2)}, I_S = ${IS.toFixed(2)}` });
     }
 
+    // beams: vertical force of every node on the beam members there
+    for (const { car, res } of beamOf) {
+      const c = model.carriers[car];
+      c.points!.forEach((p, pi) => {
+        let Fz = 0;
+        for (const k of c.members) {
+          const mr = r.members[k];
+          if (!mr) continue;
+          const z = zAxis(k);
+          if (frame.members[k].i === p.node) Fz += z[0] * mr.fi[0] + z[1] * mr.fi[1] + z[2] * mr.fi[2];
+          if (frame.members[k].j === p.node) Fz += z[0] * mr.fj[0] + z[1] * mr.fj[1] + z[2] * mr.fj[2];
+        }
+        // support: pushes the beam up; load: pushes it down
+        const F = p.support ? Fz : -Fz;
+        if (F > res.points[pi].F) {
+          res.points[pi].F = F;
+          res.points[pi].combo = cb.name;
+        }
+      });
+    }
+
     // bases and assumed supports
     for (const b of model.bases) {
       const V = r.reactions[b.sup + 2];
@@ -625,6 +679,7 @@ function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions) {
       bases: [...baseRes.values()],
       anchors: [...anchorRes.values()],
       beamSupports: [...beamSup.values()],
+    beams: beamRes,
       level,
       totalG,
       totalQ,

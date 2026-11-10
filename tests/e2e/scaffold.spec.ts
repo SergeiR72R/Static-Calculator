@@ -67,13 +67,17 @@ test('scaffold mode: a DWG is rejected with the hint to save as DXF', async ({ p
 });
 
 test('scaffold mode: site found by name, confirmed on the map; indoors without wind, snow and ice', async ({ page }) => {
-  await page.route('**/nominatim.openstreetmap.org/**', (r) =>
+  await page.route('**/nominatim.openstreetmap.org/search**', (r) =>
     r.fulfill({
       json: [
         { display_name: 'Weißenhorn, Landkreis Neu-Ulm, Bayern, Deutschland', lat: '48.3044', lon: '10.1601', address: { country_code: 'de' } },
         { display_name: 'Weißenhorn, Ortsteil, Deutschland', lat: '48.30', lon: '10.10', address: { country_code: 'de' } },
       ],
     }),
+  );
+  // administrative units in German for the wind zone table
+  await page.route('**/nominatim.openstreetmap.org/reverse**', (r) =>
+    r.fulfill({ json: { display_name: 'Weißenhorn, Landkreis Neu-Ulm, Bayern, Deutschland', address: { country_code: 'de', state: 'Bayern', county: 'Landkreis Neu-Ulm', town: 'Weißenhorn' } } }),
   );
   await page.route('**/api.open-meteo.com/**', (r) => r.fulfill({ json: { elevation: [504] } }));
   await page.route('**/tile.openstreetmap.org/**', (r) => r.abort());
@@ -92,6 +96,14 @@ test('scaffold mode: site found by name, confirmed on the map; indoors without w
   await expect(page.getByTestId('site-summary')).toContainText('Weißenhorn');
   await expect(page.getByTestId('site-summary')).toContainText('Место подтверждено');
   await expect(page.getByTestId('site-summary')).toContainText('504 m');
+  // wind zone from the table of the administrative districts, peak velocity pressure for the height of the scaffold
+  await expect(page.getByTestId('wind-zone')).toContainText('зона 2');
+  await expect(page.getByTestId('site-wind')).toContainText('Neu-Ulm');
+  await expect(page.getByTestId('wind-check')).toHaveCount(0);
+  await expect(page.getByTestId('wind-result')).toContainText('0,65');
+  await page.getByTestId('wind-zone').selectOption('4');
+  await expect(page.getByTestId('wind-result')).toContainText('0,95');
+  await page.getByTestId('wind-zone').selectOption('0');
   await page.getByTestId('site-snow').check();
   // kept after a reload
   await page.reload();
@@ -140,7 +152,8 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await page.getByTestId('scaffold-calc-row').click();
   await expect(page.getByTestId('scaffold-selected')).toBeVisible();
   // changed input marks the results as out of date; maximum wind adds the out-of-service combinations
-  await page.getByTestId('scaffold-calc-qmax').fill('0,8');
+  await page.getByTestId('wind-manual').check();
+  await page.getByTestId('wind-qmax').fill('0,8');
   await expect(page.getByTestId('scaffold-calc-result')).toContainText('результаты устарели');
   await page.getByTestId('scaffold-calc-run').click();
   await expect(page.getByTestId('scaffold-calc-result')).toContainText('R +x', { timeout: 20_000 });

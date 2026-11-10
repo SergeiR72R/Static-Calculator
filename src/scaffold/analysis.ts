@@ -544,6 +544,15 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
     try {
       sol = solveCombo(fr, model, cb.loads, opt.secondOrder);
     } catch (e) {
+      // a nearly free degree of freedom (some stiffness left, but far too little): held by a weak
+      // spring as the free ones, and the combination again
+      if (e instanceof FrameError3 && e.kind === 'displacement' && soft.length < weak.length + 30) {
+        const sp = { node: e.node, dof: e.dof, k: e.dof < 3 ? SOFT_T : SOFT_R };
+        soft.push(sp);
+        fr.addSupport(sp);
+        runCombo(cb);
+        return;
+      }
       if (e instanceof FrameError3) {
         out.push({ name: cb.name, ok: false, iterations: 0, converged: false, errorNode: e.node, dh: 0, dv: 0, sumV: 0 });
         return;
@@ -746,7 +755,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       totalG,
       totalQ,
       unknowns: fr.unknowns,
-      weak: weak.length,
+      weak: soft.length,
       factorisations: fr.factorisations,
       pcg: fr.pcgStats,
       unstable: [...unstable],

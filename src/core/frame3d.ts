@@ -102,6 +102,8 @@ export class FrameError3 extends Error {
   constructor(
     public node: number,
     public dof: number,
+    /** 'pivot': not positive definite; 'displacement': a nearly free degree of freedom moved far */
+    public kind: 'pivot' | 'displacement' = 'pivot',
   ) {
     super('frame3d: not positive definite');
   }
@@ -315,6 +317,13 @@ export class Frame3 {
     this.supPos = Int32Array.from(model.supports.map((s) => this.K.diag(s.node * 6 + s.dof)));
   }
 
+  /** an additional support (e.g. a weak spring on a degree of freedom found to be nearly free) */
+  addSupport(s: Support3) {
+    this.model.supports.push(s);
+    this.supPos = Int32Array.from([...this.supPos, this.K.diag(s.node * 6 + s.dof)]);
+    this.factored = false;
+  }
+
   get unknowns(): number {
     return this.K.n;
   }
@@ -510,7 +519,7 @@ export class Frame3 {
       u = K.solve(f);
     }
     // displacements beyond any structure: a mechanism that slipped through the factorisation
-    for (let d = 0; d < u.length; d++) if (!(Math.abs(u[d]) < 100)) throw new FrameError3(Math.floor(d / 6), d % 6);
+    for (let d = 0; d < u.length; d++) if (!(Math.abs(u[d]) < 100)) throw new FrameError3(Math.floor(d / 6), d % 6, 'displacement');
 
     // member forces
     const members: (MemberResult | null)[] = [];

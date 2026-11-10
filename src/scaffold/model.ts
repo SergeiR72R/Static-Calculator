@@ -461,6 +461,8 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
   const jackUnder = (c: Col) => jacks.filter((w) => near(w, c.x, c.y) && w.min[2] < c.z0 + 0.02 && w.max[2] > c.z0 - 0.15);
   /** head jack on the top of a standard (pointing up) */
   const jackOver = (c: Col) => jacks.filter((w) => near(w, c.x, c.y) && w.max[2] > c.z1 - 0.02 && w.min[2] < c.z1 + 0.15);
+  // ground: the lowest standard or spindle (not the lowest part: a part may lie far off by mistake)
+  const ground = Math.min(...cols.map((c) => c.z0), ...jacks.map((w) => w.min[2]));
   const links: { lower: number; upper: number; part: string }[] = [];
   /** spindles under base supports: foot below the bottom of the standard */
   const feet: { col: number; foot: number; part: string }[] = [];
@@ -502,7 +504,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     // spindles of all kinds, base standards (on a spindle not in the drawing), the lowest level and
     // beam clamps: supported on the ground or on a beam of the structure
     const clamp = st.parts.some((w) => w.cls.kind === 'clamp' && near(w, c.x, c.y) && w.max[2] > foot - 0.6 && w.min[2] < foot + 0.05);
-    if (isBase || under.length || clamp || c.z0 <= st.min[2] + 0.4) {
+    if (isBase || under.length || clamp || c.z0 <= ground + 0.4) {
       let n = c.ns[0];
       if (foot < c.z0 - 0.02) {
         n = addNode([c.x, c.y, foot], k);
@@ -510,7 +512,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       }
       bases.push({ node: n, sup: supports.length, part: (under[0] ?? c.parts[0].w).part.id, column: k });
       for (const dof of [0, 1, 2]) supports.push({ node: n, dof, k: Infinity });
-      if (foot > st.min[2] + 0.4) note('baseOnStructure', c.parts[0].w.part.id);
+      if (foot > ground + 0.4) note('baseOnStructure', c.parts[0].w.part.id);
     } else note('columnHanging', c.parts[0].w.part.id);
   });
   // tops of standards under a beam carry it

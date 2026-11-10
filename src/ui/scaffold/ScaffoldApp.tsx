@@ -10,6 +10,7 @@ import { Button, Card, NumberField, SelectField, cx } from '../common';
 import { useFmt, type Fmt } from '../hooks';
 import { IconAlert, IconChevronRight, IconInfo, IconUpload, IconX } from '../icons';
 import { openDxfFile } from './openDxf';
+import { SiteCard } from './SiteCard';
 
 const Scaffold3D = lazy(() => import('./Scaffold3D'));
 
@@ -209,6 +210,8 @@ export default function ScaffoldApp() {
             <DropZone />
           </div>
         </Card>
+
+        <SiteCard />
 
         <Card title={fmt.t('scaffold.loads.title')}>
           <div className="grid grid-cols-1 gap-2">

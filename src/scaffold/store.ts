@@ -9,6 +9,26 @@ import type { ScaffoldDoc } from './pericad';
 const KEY = 'balken.scaffold';
 const OPT_KEY = 'balken.scaffoldOpts';
 
+/** site of the scaffold (for wind, snow and ice) */
+export interface Site {
+  /** what the user typed, e.g. "Weißenhorn" */
+  query: string;
+  /** recognised place, e.g. "Weißenhorn, Landkreis Neu-Ulm, Bayern, Deutschland" */
+  name: string;
+  lat: number;
+  lon: number;
+  /** ISO 3166-1 alpha-2, lower case */
+  country: string;
+  /** height above sea level, m (null: unknown) */
+  elevation: number | null;
+  /** position confirmed by the user on the map */
+  confirmed: boolean;
+}
+
+/** terrain categories EN 1991-1-4 */
+export type Terrain = '0' | 'I' | 'II' | 'III' | 'IV';
+export const TERRAINS: Terrain[] = ['0', 'I', 'II', 'III', 'IV'];
+
 export interface ScaffoldOpts {
   /** service class EN 12811-1 (1…6) */
   loadClass: number;
@@ -16,9 +36,15 @@ export interface ScaffoldOpts {
   g: number;
   /** snapping tolerance, m */
   tol: number;
+  site: Site | null;
+  /** scaffold outdoors (wind, snow, ice) or in a building */
+  exposure: 'outdoor' | 'indoor';
+  snow: boolean;
+  ice: boolean;
+  terrain: Terrain;
 }
 
-export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05 };
+export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II' };
 
 export interface ScaffoldState extends ScaffoldOpts {
   doc: ScaffoldDoc | null;
@@ -60,7 +86,19 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef'] } {
 }
 
 function save(s: ScaffoldState) {
-  storage.set(OPT_KEY, JSON.stringify({ v: 2, loadClass: s.loadClass, g: s.g, tol: s.tol, batchRef: s.batchRef }));
+  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef'] } = {
+    v: 2,
+    loadClass: s.loadClass,
+    g: s.g,
+    tol: s.tol,
+    site: s.site,
+    exposure: s.exposure,
+    snow: s.snow,
+    ice: s.ice,
+    terrain: s.terrain,
+    batchRef: s.batchRef,
+  };
+  storage.set(OPT_KEY, JSON.stringify(o));
 }
 
 export const useScaffold = create<ScaffoldState>()((set, get) => ({

@@ -65,3 +65,57 @@ test('scaffold mode: a DWG is rejected with the hint to save as DXF', async ({ p
   await expect(page.getByTestId('toast')).toContainText('DXF');
   await expect(page.getByTestId('scaffold-welcome')).toBeVisible();
 });
+
+test('scaffold mode: site found by name, confirmed on the map; indoors without wind, snow and ice', async ({ page }) => {
+  await page.route('**/nominatim.openstreetmap.org/**', (r) =>
+    r.fulfill({
+      json: [
+        { display_name: 'Weißenhorn, Landkreis Neu-Ulm, Bayern, Deutschland', lat: '48.3044', lon: '10.1601', address: { country_code: 'de' } },
+        { display_name: 'Weißenhorn, Ortsteil, Deutschland', lat: '48.30', lon: '10.10', address: { country_code: 'de' } },
+      ],
+    }),
+  );
+  await page.route('**/api.open-meteo.com/**', (r) => r.fulfill({ json: { elevation: [504] } }));
+  await page.route('**/tile.openstreetmap.org/**', (r) => r.abort());
+  await page.goto('/');
+  await page.getByTestId('mode-scaffold').click();
+  await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
+  await expect(page.getByTestId('scaffold-site')).toContainText('Место не задано');
+  await page.getByTestId('site-open').click();
+  await page.getByTestId('site-query').fill('Weißenhorn');
+  await page.getByTestId('site-search').click();
+  await expect(page.getByTestId('site-pick')).toContainText('Landkreis Neu-Ulm');
+  await expect(page.getByTestId('site-map')).toBeVisible();
+  await expect(page.getByTestId('site-results')).toBeVisible();
+  await expect(page.getByTestId('site-elevation')).toHaveValue('504');
+  await page.getByTestId('site-confirm').click();
+  await expect(page.getByTestId('site-summary')).toContainText('Weißenhorn');
+  await expect(page.getByTestId('site-summary')).toContainText('Место подтверждено');
+  await expect(page.getByTestId('site-summary')).toContainText('504 m');
+  await page.getByTestId('site-snow').check();
+  // kept after a reload
+  await page.reload();
+  await expect(page.getByTestId('site-summary')).toContainText('Weißenhorn');
+  await expect(page.getByTestId('site-snow')).toBeChecked();
+  await page.getByTestId('site-indoor').click();
+  await expect(page.getByTestId('scaffold-site')).toContainText('ветер, снег и обледенение не учитываются');
+  await expect(page.getByTestId('site-snow')).toHaveCount(0);
+});
+
+test('scaffold mode: without internet the site can be entered by coordinates', async ({ page }) => {
+  await page.route('**/nominatim.openstreetmap.org/**', (r) => r.abort());
+  await page.route('**/api.open-meteo.com/**', (r) => r.abort());
+  await page.route('**/tile.openstreetmap.org/**', (r) => r.abort());
+  await page.goto('/');
+  await page.getByTestId('mode-scaffold').click();
+  await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
+  await page.getByTestId('site-open').click();
+  await page.getByTestId('site-query').fill('Ulm');
+  await page.getByTestId('site-search').click();
+  await page.getByTestId('site-manual').click();
+  await page.getByTestId('site-lat').fill('48,4');
+  await page.getByTestId('site-lon').fill('9,99');
+  await page.getByTestId('site-elevation').fill('480');
+  await page.getByTestId('site-confirm').click();
+  await expect(page.getByTestId('site-summary')).toContainText('48,4000°, 9,9900°');
+});

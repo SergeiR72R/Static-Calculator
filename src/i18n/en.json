@@ -823,6 +823,45 @@
       "noParts": "The DXF contains no PERI CAD parts.",
       "proxy": "The PERI parts were saved as proxy objects – save the DXF with PERI CAD loaded.",
       "read": "The DXF could not be read."
+    },
+    "site": {
+      "title": "Site and conditions",
+      "exposure": "Where the scaffold stands",
+      "outdoor": "Outdoors",
+      "indoor": "Indoors",
+      "indoorHint": "Scaffold inside a building: no wind, snow or ice.",
+      "missing": "No site yet – it is needed for wind, snow and ice.",
+      "set": "Set the site…",
+      "change": "Change the site…",
+      "confirmed": "Site confirmed on the map",
+      "unconfirmed": "Site not confirmed",
+      "asl": "above sea level",
+      "terrain": "Terrain category (EN 1991-1-4)",
+      "terrainOption": {
+        "0": "0 – sea, coast",
+        "I": "I – lakes, flat land without obstacles",
+        "II": "II – low vegetation, isolated obstacles",
+        "III": "III – suburbs, industrial areas, forest",
+        "IV": "IV – city, ≥ 15 % covered by buildings over 15 m"
+      },
+      "snow": "Include snow",
+      "ice": "Include ice",
+      "windHint": "Wind and snow zones are taken from the EU database for the site when the scaffold is calculated (next step).",
+      "dialogTitle": "Site of the scaffold",
+      "placeholder": "City or address",
+      "search": "Search",
+      "searching": "Searching…",
+      "offline": "Search not available (no internet connection?).",
+      "none": "Nothing found – refine the query.",
+      "hint": "Type a city or an address and press “Search”. The place found is shown on the map for confirmation.",
+      "mapHint": "If the place is not exact, drag the marker or click into the map.",
+      "lat": "Latitude, °",
+      "lon": "Longitude, °",
+      "elevation": "Altitude",
+      "notEu": "Site outside the EU: the EU wind and snow maps do not apply there.",
+      "cancel": "Cancel",
+      "confirm": "Confirm the site",
+      "manual": "Enter coordinates"
     }
   }
 }

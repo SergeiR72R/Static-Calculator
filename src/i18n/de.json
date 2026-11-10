@@ -823,6 +823,45 @@
       "noParts": "Die DXF enthält keine PERI-CAD-Teile.",
       "proxy": "PERI-Teile wurden als Proxy-Objekte gespeichert – DXF mit geladenem PERI CAD speichern.",
       "read": "Die DXF konnte nicht gelesen werden."
+    },
+    "site": {
+      "title": "Standort und Bedingungen",
+      "exposure": "Wo steht das Gerüst",
+      "outdoor": "Im Freien",
+      "indoor": "In einem Gebäude",
+      "indoorHint": "Gerüst in einem Gebäude: Wind, Schnee und Eis werden nicht angesetzt.",
+      "missing": "Kein Standort – er wird für Wind, Schnee und Eis gebraucht.",
+      "set": "Standort festlegen…",
+      "change": "Standort ändern…",
+      "confirmed": "Standort auf der Karte bestätigt",
+      "unconfirmed": "Standort nicht bestätigt",
+      "asl": "ü. NN",
+      "terrain": "Geländekategorie (EN 1991-1-4)",
+      "terrainOption": {
+        "0": "0 – See, Küste",
+        "I": "I – Seen, flaches Land ohne Hindernisse",
+        "II": "II – niedrige Vegetation, einzelne Hindernisse",
+        "III": "III – Vororte, Industriegebiete, Wald",
+        "IV": "IV – Stadt, ≥ 15 % Bebauung über 15 m"
+      },
+      "snow": "Schnee ansetzen",
+      "ice": "Vereisung ansetzen",
+      "windHint": "Wind- und Schneezone werden bei der Gerüstberechnung (nächster Schritt) aus der EU-Datenbank nach dem Standort bestimmt.",
+      "dialogTitle": "Standort des Gerüsts",
+      "placeholder": "Ort oder Adresse",
+      "search": "Suchen",
+      "searching": "Suche…",
+      "offline": "Suche nicht verfügbar (keine Internetverbindung?).",
+      "none": "Nichts gefunden – Eingabe präzisieren.",
+      "hint": "Ort oder Adresse eingeben und »Suchen« drücken. Der gefundene Ort wird zur Bestätigung auf der Karte gezeigt.",
+      "mapHint": "Ist der Ort ungenau, Markierung verschieben oder in die Karte klicken.",
+      "lat": "Breite, °",
+      "lon": "Länge, °",
+      "elevation": "Höhe ü. NN",
+      "notEu": "Standort außerhalb der EU: die Wind- und Schneekarten der EU gelten dort nicht.",
+      "cancel": "Abbrechen",
+      "confirm": "Standort bestätigen",
+      "manual": "Koordinaten eingeben"
     }
   }
 }

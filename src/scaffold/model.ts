@@ -259,12 +259,14 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       return { node: colNode(k, P[2], 0.03), offset: [u[0] * 0.025, u[1] * 0.025, 0], t: 0, conn: null, k: HINGE };
     }
     const v = variantAt(k, zr);
+    // ledgers of 25 cm: vertical spring c_z of the connection (annex A pages 9, 10 and 16), initial stiffness in tension
+    const cz = dist2(P, Q) <= 0.3 ? (v[0] === '2' ? 8e6 : 31.5e6) : Infinity;
     return {
       node: colNode(k, zr, 0.006),
       offset: [u[0] * 0.025, u[1] * 0.025, 0.035],
       t: 0,
       conn: v,
-      k: [Infinity, Infinity, Infinity, connKx(head, 0), connKy(head, v, 0), connKz(head, v, 0)],
+      k: [Infinity, Infinity, cz, connKx(head, 0), connKy(head, v, 0), connKz(head, v, 0)],
     };
   };
 

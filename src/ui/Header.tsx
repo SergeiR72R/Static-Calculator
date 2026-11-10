@@ -25,16 +25,16 @@ import {
   IconTemplate,
   IconUndo,
   IconUpload,
+  IconBeam,
+  IconScaffold,
 } from './icons';
 import { buildDxf, dxfLang } from '../export/dxf';
 import { buildCsv } from '../export/csv';
 import { viewLabel } from './viewLabel';
 
-const menuContent =
-  'no-print z-50 min-w-52 rounded-lg border border-slate-200 bg-white p-1 text-sm shadow-xl dark:border-slate-700 dark:bg-slate-900';
+const menuContent = 'no-print z-50 min-w-52 rounded-lg border border-slate-200 bg-white p-1 text-sm shadow-xl dark:border-slate-700 dark:bg-slate-900';
 const menuItem =
   'flex cursor-pointer select-none items-center gap-2 rounded px-2 py-1.5 outline-none data-[highlighted]:bg-accent-100 data-[disabled]:opacity-40 dark:data-[highlighted]:bg-accent-900/50';
-
 
 export function Header() {
   const fmt = useFmt();
@@ -112,77 +112,122 @@ export function Header() {
         <div className="leading-tight">
           <h1 className="text-base font-bold text-accent-700 dark:text-accent-200">{fmt.t('app.title')}</h1>
           <p className="hidden max-w-[15rem] truncate text-[11px] 2xl:max-w-[24rem] text-slate-500 sm:block dark:text-slate-400" data-testid="header-project">
-            {st.model.name ? `${fmt.t('header.project')}: ${st.model.name}` : fmt.t('app.subtitle')}
+            {st.appMode === 'scaffold' ? fmt.t('mode.scaffoldSubtitle') : st.model.name ? `${fmt.t('header.project')}: ${st.model.name}` : fmt.t('app.subtitle')}
           </p>
         </div>
       </div>
 
-      <Button variant="primary" data-testid="new-project" onClick={st.openWizard} className="hidden md:inline-flex">
-        <IconPlus /> {fmt.t('header.newProject')}
-      </Button>
-
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <Button data-testid="templates-menu" className="hidden md:inline-flex">
-            <IconTemplate /> {fmt.t('header.templates')} <IconChevronDown />
-          </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content className={menuContent} align="start" sideOffset={4}>
-            {TEMPLATE_IDS.map((id) => (
-              <DropdownMenu.Item key={id} className={menuItem} data-testid={`template-${id}`} onSelect={() => st.loadTemplate(id)}>
-                {fmt.t(`templates.${id}`)}
-              </DropdownMenu.Item>
-            ))}
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
-
-      <div className="hidden items-center md:flex">
-        <Button variant="ghost" aria-label={fmt.t('header.undo')} title={`${fmt.t('header.undo')} (Ctrl+Z)`} disabled={!st.history.past.length} onClick={st.undo} data-testid="undo">
-          <IconUndo />
-        </Button>
-        <Button variant="ghost" aria-label={fmt.t('header.redo')} title={`${fmt.t('header.redo')} (Ctrl+Y)`} disabled={!st.history.future.length} onClick={st.redo} data-testid="redo">
-          <IconRedo />
-        </Button>
+      <div
+        className="flex overflow-hidden rounded-lg border-2 border-accent-700 text-sm font-semibold dark:border-accent-400"
+        role="group"
+        aria-label={fmt.t('mode.label')}
+        data-testid="mode-switch"
+      >
+        {(['beam', 'scaffold'] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            data-testid={`mode-${m}`}
+            aria-pressed={st.appMode === m}
+            title={fmt.t(`mode.${m}Hint`)}
+            onClick={() => st.setPrefs({ appMode: m })}
+            className={cx(
+              'inline-flex items-center gap-1.5 px-3 py-1.5',
+              st.appMode === m
+                ? 'bg-accent-700 text-white dark:bg-accent-400 dark:text-slate-900'
+                : 'text-accent-800 hover:bg-accent-50 dark:text-accent-200 dark:hover:bg-slate-800',
+            )}
+          >
+            {m === 'beam' ? <IconBeam /> : <IconScaffold />}
+            {fmt.t(`mode.${m}`)}
+          </button>
+        ))}
       </div>
 
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger asChild>
-          <Button data-testid="file-menu">
-            <IconFile /> {fmt.t('header.file')} <IconChevronDown />
+      {st.appMode === 'beam' && (
+        <>
+          <Button variant="primary" data-testid="new-project" onClick={st.openWizard} className="hidden md:inline-flex">
+            <IconPlus /> {fmt.t('header.newProject')}
           </Button>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Portal>
-          <DropdownMenu.Content className={menuContent} align="start" sideOffset={4}>
-            <DropdownMenu.Item className={menuItem} data-testid="menu-new" onSelect={st.openWizard}>
-              <IconFile /> {fmt.t('header.new')}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className={menuItem} data-testid="menu-open" onSelect={() => fileRef.current?.click()}>
-              <IconUpload /> {fmt.t('header.open')}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className={menuItem} data-testid="menu-import" onSelect={() => xlsxRef.current?.click()}>
-              <IconUpload /> {fmt.t('header.importAcad')}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className={menuItem} data-testid="menu-save" onSelect={saveJson}>
-              <IconDownload /> {st.batch ? fmt.t('header.saveList', { n: st.batch.items.length }) : fmt.t('header.save')}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className={menuItem} data-testid="menu-share" onSelect={share}>
-              <IconLink /> {fmt.t('header.share')}
-            </DropdownMenu.Item>
-            <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
-            <DropdownMenu.Item className={menuItem} disabled={!canExport} data-testid="menu-csv" onSelect={() => setCsvOpen(true)}>
-              <IconDownload /> {fmt.t('header.csv')}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className={menuItem} disabled={!canExport} data-testid="menu-dxf" onSelect={() => setDxfOpen(true)}>
-              <IconDownload /> {fmt.t('header.dxf')}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item className={menuItem} disabled={!canExport} data-testid="menu-print" onSelect={() => setTimeout(() => window.print(), 50)}>
-              <IconPrint /> {fmt.t('header.print')}
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Portal>
-      </DropdownMenu.Root>
+
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <Button data-testid="templates-menu" title={fmt.t('header.templates')} className="hidden md:inline-flex">
+                <IconTemplate /> <span className="hidden 2xl:inline">{fmt.t('header.templates')}</span> <IconChevronDown />
+              </Button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className={menuContent} align="start" sideOffset={4}>
+                {TEMPLATE_IDS.map((id) => (
+                  <DropdownMenu.Item key={id} className={menuItem} data-testid={`template-${id}`} onSelect={() => st.loadTemplate(id)}>
+                    {fmt.t(`templates.${id}`)}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+
+          <div className="hidden items-center md:flex">
+            <Button
+              variant="ghost"
+              aria-label={fmt.t('header.undo')}
+              title={`${fmt.t('header.undo')} (Ctrl+Z)`}
+              disabled={!st.history.past.length}
+              onClick={st.undo}
+              data-testid="undo"
+            >
+              <IconUndo />
+            </Button>
+            <Button
+              variant="ghost"
+              aria-label={fmt.t('header.redo')}
+              title={`${fmt.t('header.redo')} (Ctrl+Y)`}
+              disabled={!st.history.future.length}
+              onClick={st.redo}
+              data-testid="redo"
+            >
+              <IconRedo />
+            </Button>
+          </div>
+
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <Button data-testid="file-menu">
+                <IconFile /> {fmt.t('header.file')} <IconChevronDown />
+              </Button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className={menuContent} align="start" sideOffset={4}>
+                <DropdownMenu.Item className={menuItem} data-testid="menu-new" onSelect={st.openWizard}>
+                  <IconFile /> {fmt.t('header.new')}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item className={menuItem} data-testid="menu-open" onSelect={() => fileRef.current?.click()}>
+                  <IconUpload /> {fmt.t('header.open')}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item className={menuItem} data-testid="menu-import" onSelect={() => xlsxRef.current?.click()}>
+                  <IconUpload /> {fmt.t('header.importAcad')}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item className={menuItem} data-testid="menu-save" onSelect={saveJson}>
+                  <IconDownload /> {st.batch ? fmt.t('header.saveList', { n: st.batch.items.length }) : fmt.t('header.save')}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item className={menuItem} data-testid="menu-share" onSelect={share}>
+                  <IconLink /> {fmt.t('header.share')}
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator className="my-1 h-px bg-slate-200 dark:bg-slate-700" />
+                <DropdownMenu.Item className={menuItem} disabled={!canExport} data-testid="menu-csv" onSelect={() => setCsvOpen(true)}>
+                  <IconDownload /> {fmt.t('header.csv')}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item className={menuItem} disabled={!canExport} data-testid="menu-dxf" onSelect={() => setDxfOpen(true)}>
+                  <IconDownload /> {fmt.t('header.dxf')}
+                </DropdownMenu.Item>
+                <DropdownMenu.Item className={menuItem} disabled={!canExport} data-testid="menu-print" onSelect={() => setTimeout(() => window.print(), 50)}>
+                  <IconPrint /> {fmt.t('header.print')}
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        </>
+      )}
       <input
         ref={xlsxRef}
         type="file"
@@ -216,11 +261,13 @@ export function Header() {
               key={u}
               type="button"
               data-testid={`units-${u}`}
+              title={fmt.t(`header.${u}`)}
               aria-pressed={st.units === u}
               onClick={() => st.setPrefs({ units: u })}
               className={cx('px-2 py-1.5', st.units === u ? 'bg-accent-700 text-white' : 'hover:bg-slate-100 dark:hover:bg-slate-800')}
             >
-              {fmt.t(`header.${u}`)}
+              <span className="2xl:hidden">{u === 'metric' ? 'kN, m' : 'kip, ft'}</span>
+              <span className="hidden 2xl:inline">{fmt.t(`header.${u}`)}</span>
             </button>
           ))}
         </div>
@@ -240,12 +287,7 @@ export function Header() {
             </option>
           ))}
         </select>
-        <Button
-          variant="ghost"
-          aria-label={fmt.t('header.theme')}
-          data-testid="theme-toggle"
-          onClick={() => st.setPrefs({ theme: st.theme === 'dark' ? 'light' : 'dark' })}
-        >
+        <Button variant="ghost" aria-label={fmt.t('header.theme')} data-testid="theme-toggle" onClick={() => st.setPrefs({ theme: st.theme === 'dark' ? 'light' : 'dark' })}>
           {st.theme === 'dark' ? <IconSun /> : <IconMoon />}
         </Button>
       </div>

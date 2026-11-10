@@ -134,3 +134,17 @@ export const IconBeamLogo = (p: P) => (
     <path d="M4 24 Q16 31 28 24" stroke="#99f6e4" strokeWidth="2" fill="none" />
   </svg>
 );
+/** single beam on two supports */
+export const IconBeam = (p: P) => (
+  <Icon {...p}>
+    <path d="M2 10h20" />
+    <path d="M5 11l-2.5 5h5zM19 11l-2.5 5h5z" />
+  </Icon>
+);
+/** scaffold: standards, ledgers and a diagonal */
+export const IconScaffold = (p: P) => (
+  <Icon {...p}>
+    <path d="M5 3v18M19 3v18M5 7h14M5 14h14M5 21h14" />
+    <path d="M5 14l14-7" />
+  </Icon>
+);

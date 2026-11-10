@@ -629,7 +629,14 @@
       "outside": "{name} at x = {x} mm lies outside the beam – moved to the beam end.",
       "noLoads": "No loads in the file.",
       "endSupport": "Only one stand in the drawing – second (pinned) support added at the beam end x = {x} mm (resting on the structure). Please check.",
-      "endSupports": "No supports in the drawing – pinned supports added at both beam ends. Please check."
+      "endSupports": "No supports in the drawing – pinned supports added at both beam ends. Please check.",
+      "flexSpacing": "Connector spacing {a} m matches no ULS Flex element (1.00 / 1.25 / 1.50 m) – rounded.",
+      "flexOneConnector": "ULS Flex girder with one connector only.",
+      "flexElements": "Intermediate elements of the drawing ({drawn}) do not match the connector spacing ({need}) – spacing used.",
+      "flexEnds": "{n} end elements instead of 2.",
+      "girderLength": "Length {L} m is no catalogue length – used as drawn.",
+      "girderSupports": "{n} standard(s) found at the girder – supports assumed at the ends.",
+      "girderNoDecks": "No decks on the girder – self weight only."
     },
     "showDetails": "Show details per beam",
     "hideDetails": "Hide details",
@@ -689,5 +696,123 @@
     "legendCoupler": "Grey: scaffold standards at the supports, orange: couplers at the top and bottom chord.",
     "legendHead": "Grey: scaffold standards at the supports, blue: ledger heads UH Plus at the rosettes; ▲ connectors ULS Flex.",
     "legendV": "Shear forces V of the chords and posts (pin-ended web members: self weight only). Reactions R_z in global axes (↓ +)."
+  },
+  "mode": {
+    "label": "Working mode",
+    "beam": "Beam",
+    "scaffold": "Scaffold · PERI CAD",
+    "beamHint": "Calculate a single beam or a beam list",
+    "scaffoldHint": "Import a scaffold from PERI CAD (DXF): parts, lattice girders, supports and loads",
+    "scaffoldSubtitle": "Scaffold from PERI CAD: DXF import and lattice girders"
+  },
+  "scaffold": {
+    "title": "Scaffold from PERI CAD",
+    "intro": "Open a PERI CAD drawing saved as DXF. The program recognises the PERI UP parts, builds the system in 3D, finds the lattice girders ULA / ULS / ULS Flex with their supports and deck loads and calculates them as a member model (as in RSTAB).",
+    "open": "Open DXF…",
+    "loading": "Reading DXF…",
+    "loaded": "Drawing loaded: {n} parts",
+    "close": "Close drawing",
+    "closeConfirm": "Close the drawing? It can be opened again from the DXF.",
+    "back": "Back to the scaffold (3D, all girders)",
+    "movedBy": "snapped into place (moved {d} mm)",
+    "selected": "Selected",
+    "next": "Next step: spatial analysis of the whole scaffold (standards, ledgers, rosette nodes, wind, second order).",
+    "drop": {
+      "title": "Open a PERI CAD drawing as DXF",
+      "hint": "Drop a DXF file here or choose one",
+      "stepsTitle": "How to save the drawing in PERI CAD",
+      "step1": "Open the drawing in AutoCAD with PERI CAD loaded.",
+      "step2": "“Save as…” → file type “AutoCAD 2018 DXF (*.dxf)”.",
+      "step3": "Open the DXF here – everything else is recognised automatically.",
+      "dwgNote": "DWG cannot be read directly: the PERI parts in it are readable for PERI CAD only. In the DXF they are written completely.",
+      "whatTitle": "What the program does",
+      "what1": "3D model of the scaffold from the system lines of the parts, parts list.",
+      "what2": "Imprecisely placed parts (a gap of a few centimetres) are set onto their connection points.",
+      "what3": "Lattice girders ULA / ULS / ULS Flex: length and elements, supports on the standards, deck load by service class.",
+      "what4": "Calculation of the girders with the PERI checks and a link to the beam calculator for every girder."
+    },
+    "file": {
+      "title": "Drawing",
+      "summary": "{n} parts · {types} articles · {girders} lattice girders"
+    },
+    "loads": {
+      "title": "Deck load (EN 12811-1)",
+      "class": "Service class",
+      "classOption": "Class {n} – {p}",
+      "g": "Self weight of the decks",
+      "hint": "Every deck gives half of its load to each of its two supports (girders or ledgers). Self weight of the lattice girders included; combinations 1.5·G + 1.5·Q and 1.0·G + 1.5·Q."
+    },
+    "heal": {
+      "title": "Snap parts",
+      "tol": "Snap tolerance",
+      "hint": "Parts at most this far from their connection point are set into place: standards onto one axis and the 0.5 m rosette grid, ledgers, diagonals and brackets onto the rosettes, decks onto their supports. 0 = off.",
+      "show": "Show the snapped parts ({n})"
+    },
+    "issues": {
+      "title": "Notes",
+      "none": "Nothing conspicuous."
+    },
+    "issue": {
+      "duplicate": "{name}: {n} identical parts at the same place (drawn twice?).",
+      "noGeometry": "{n} parts without system lines ({names}) – not shown.",
+      "unknownParts": "{n} parts of unknown kind ({names}) – parts list only.",
+      "ledgerFree": "{n} ledgers with a free end (no standard at the connection).",
+      "noDiagonals": "No vertical diagonals in the drawing – check the bracing of the scaffold.",
+      "flexChain": "ULS Flex parts that do not form a complete girder.",
+      "healed": "{n} parts set onto their connection points (up to {d} mm)."
+    },
+    "view": {
+      "title": "3D model",
+      "hint": "Drag: rotate · right button: pan · wheel: zoom · click: select a part or girder",
+      "toggle": "Show / hide",
+      "girderColors": "girders by η:"
+    },
+    "kind": {
+      "standard": "Standards",
+      "base": "Base standards",
+      "ledger": "Ledgers",
+      "deck": "Decks",
+      "diagonal": "Diagonals",
+      "bracket": "Brackets",
+      "jack": "Jacks",
+      "flexEnd": "ULS Flex: end elements",
+      "flexElement": "ULS Flex: intermediate elements",
+      "flexConnector": "ULS Flex: connectors",
+      "girder": "Lattice girders ULA / ULS",
+      "other": "Other"
+    },
+    "girders": {
+      "title": "Lattice girders",
+      "none": "No lattice girders ULA / ULS / ULS Flex in the drawing.",
+      "openAll": "All girders in the beam calculator ({n})",
+      "open": "Calculate",
+      "opened": "Girders of the drawing opened in the beam calculator: {n}",
+      "assumed": "assumed",
+      "replaceConfirm": "The current project of the beam calculator will be replaced by the girders of the drawing. Continue?",
+      "hint": "η – largest utilisation of all PERI checks (ULS and SLS). “Calculate” opens the girder in the beam calculator with all diagrams, 2D/3D view and report; supports and loads can be changed there.",
+      "col": {
+        "key": "Pos.",
+        "type": "Girder",
+        "L": "Length",
+        "supports": "Supports, m",
+        "load": "Deck q_k",
+        "eta": "η"
+      }
+    },
+    "bom": {
+      "title": "Parts list",
+      "article": "Article",
+      "name": "Description",
+      "kind": "Kind",
+      "count": "Qty"
+    },
+    "err": {
+      "dwg": "DWG cannot be read: save the drawing in PERI CAD as DXF (“Save as” → AutoCAD 2018 DXF).",
+      "binary": "Binary DXF is not supported – save as text (ASCII) DXF.",
+      "format": "The file is not a DXF.",
+      "noParts": "The DXF contains no PERI CAD parts.",
+      "proxy": "The PERI parts were saved as proxy objects – save the DXF with PERI CAD loaded.",
+      "read": "The DXF could not be read."
+    }
   }
 }

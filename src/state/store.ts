@@ -14,6 +14,8 @@ export type InputTab = 'beam' | 'supports' | 'loads' | 'cases' | 'settings';
 export type MainTab = 'results' | 'report';
 
 export interface Prefs {
+  /** working mode: single beam / beam list, or scaffold from PERI CAD */
+  appMode: 'beam' | 'scaffold';
   lang: Lang;
   units: UnitSystem;
   decimals: number;
@@ -34,6 +36,7 @@ export interface Prefs {
 }
 
 export const DEFAULT_PREFS: Prefs = {
+  appMode: 'beam',
   lang: 'de',
   units: 'metric',
   decimals: 2,
@@ -139,6 +142,7 @@ function loadPrefs(): Prefs {
 
 function savePrefs(s: AppState) {
   const p: Partial<Prefs> = {
+    appMode: s.appMode,
     units: s.units,
     decimals: s.decimals,
     momentSide: s.momentSide,
@@ -222,6 +226,7 @@ function loadUserDefaults(): UserDefaults {
 
 export const useStore = create<AppState>()((set, get) => ({
   ...loadPrefs(),
+  ...(init.fromLink ? { appMode: 'beam' as const } : {}),
   model: init.model,
   history: { past: [], future: [], lastKey: null, lastTime: 0 },
   dragBase: null,

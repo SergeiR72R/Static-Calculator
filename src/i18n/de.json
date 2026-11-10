@@ -629,7 +629,14 @@
       "outside": "{name} bei x = {x} mm liegt außerhalb des Trägers – an das Trägerende gesetzt.",
       "noLoads": "Keine Lasten in der Datei.",
       "endSupport": "Nur ein Ständer in der Zeichnung – zweites Auflager (Festlager) am Trägerende x = {x} mm ergänzt (Auflage auf dem Bauwerk). Bitte prüfen.",
-      "endSupports": "Keine Auflager in der Zeichnung – Festlager an beiden Trägerenden ergänzt. Bitte prüfen."
+      "endSupports": "Keine Auflager in der Zeichnung – Festlager an beiden Trägerenden ergänzt. Bitte prüfen.",
+      "flexSpacing": "Verbinderabstand {a} m passt zu keinem ULS-Flex-Element (1,00 / 1,25 / 1,50 m) – gerundet.",
+      "flexOneConnector": "ULS-Flex-Träger mit nur einem Verbinder.",
+      "flexElements": "Zwischenelemente der Zeichnung ({drawn}) passen nicht zu den Verbinderabständen ({need}) – Abstände verwendet.",
+      "flexEnds": "{n} Endelemente statt 2.",
+      "girderLength": "Länge {L} m ist keine Kataloglänge – wie gezeichnet verwendet.",
+      "girderSupports": "Am Träger {n} Stiel(e) gefunden – Auflager an den Enden angenommen.",
+      "girderNoDecks": "Kein Belag auf dem Träger – nur Eigengewicht."
     },
     "showDetails": "Details je Träger anzeigen",
     "hideDetails": "Details ausblenden",
@@ -689,5 +696,123 @@
     "legendCoupler": "Grau: Gerüstständer am Auflager, orange: Kupplungen an Ober- und Untergurt.",
     "legendHead": "Grau: Gerüstständer am Auflager, blau: Riegelköpfe UH Plus an den Rosetten; ▲ Verbinder ULS Flex.",
     "legendV": "Querkräfte V der Gurte und Pfosten (gelenkige Füllstäbe: nur aus Eigengewicht). Reaktionen R_z in globalen Achsen (↓ +)."
+  },
+  "mode": {
+    "label": "Arbeitsmodus",
+    "beam": "Träger",
+    "scaffold": "Gerüst · PERI CAD",
+    "beamHint": "Einzelträger oder Trägerliste berechnen",
+    "scaffoldHint": "Gerüst aus PERI CAD (DXF) importieren: Teile, Gitterträger, Auflager und Lasten",
+    "scaffoldSubtitle": "Gerüst aus PERI CAD: DXF-Import und Gitterträger"
+  },
+  "scaffold": {
+    "title": "Gerüst aus PERI CAD",
+    "intro": "Öffnen Sie eine als DXF gespeicherte PERI-CAD-Zeichnung. Das Programm erkennt die PERI-UP-Teile, baut das System in 3D auf, findet die Gitterträger ULA / ULS / ULS Flex mit ihren Auflagern und Belaglasten und berechnet sie als Stabwerk (wie in RSTAB).",
+    "open": "DXF öffnen…",
+    "loading": "DXF wird gelesen…",
+    "loaded": "Zeichnung geladen: {n} Teile",
+    "close": "Zeichnung schließen",
+    "closeConfirm": "Zeichnung schließen? Sie kann aus der DXF wieder geöffnet werden.",
+    "back": "Zurück zum Gerüst (3D, alle Träger)",
+    "movedBy": "eingerastet (verschoben um {d} mm)",
+    "selected": "Ausgewählt",
+    "next": "Nächster Schritt: räumliche Berechnung des ganzen Gerüsts (Stiele, Riegel, Rosettenknoten, Wind, Theorie II. Ordnung).",
+    "drop": {
+      "title": "PERI-CAD-Zeichnung als DXF öffnen",
+      "hint": "DXF-Datei hierher ziehen oder auswählen",
+      "stepsTitle": "So speichern Sie die Zeichnung in PERI CAD",
+      "step1": "Zeichnung in AutoCAD mit geladenem PERI CAD öffnen.",
+      "step2": "»Speichern unter…« → Dateityp »AutoCAD 2018 DXF (*.dxf)«.",
+      "step3": "Die DXF hier öffnen – alles Weitere wird automatisch erkannt.",
+      "dwgNote": "DWG wird nicht direkt gelesen: die PERI-Teile sind darin nur für PERI CAD lesbar. In der DXF werden sie vollständig geschrieben.",
+      "whatTitle": "Was das Programm macht",
+      "what1": "3D-Modell des Gerüsts aus den Systemlinien der Teile, Stückliste.",
+      "what2": "Ungenau gesetzte Teile (einige Zentimeter Spalt) werden an ihren Anschlusspunkt gesetzt.",
+      "what3": "Gitterträger ULA / ULS / ULS Flex: Länge und Elemente, Auflager auf den Stielen, Belaglast nach Lastklasse.",
+      "what4": "Berechnung der Träger mit den PERI-Nachweisen und Übergang in den Trägerrechner zu jedem Träger."
+    },
+    "file": {
+      "title": "Zeichnung",
+      "summary": "{n} Teile · {types} Artikel · {girders} Gitterträger"
+    },
+    "loads": {
+      "title": "Belaglast (EN 12811-1)",
+      "class": "Lastklasse",
+      "classOption": "Klasse {n} – {p}",
+      "g": "Eigengewicht Belag",
+      "hint": "Jeder Belag gibt die Hälfte seiner Last an jedes seiner beiden Auflager (Träger oder Riegel) ab. Eigengewicht der Gitterträger wird berücksichtigt; Kombinationen 1,5·G + 1,5·Q und 1,0·G + 1,5·Q."
+    },
+    "heal": {
+      "title": "Teile einrasten",
+      "tol": "Fangtoleranz",
+      "hint": "Teile, die höchstens so weit neben ihrem Anschlusspunkt liegen, werden an ihren Platz gesetzt: Stiele auf eine Achse und das Rosettenraster 0,5 m, Riegel, Diagonalen und Konsolen an die Rosetten, Beläge auf ihre Auflager. 0 = aus.",
+      "show": "Eingerastete Teile zeigen ({n})"
+    },
+    "issues": {
+      "title": "Hinweise",
+      "none": "Keine Auffälligkeiten."
+    },
+    "issue": {
+      "duplicate": "{name}: {n} gleiche Teile an derselben Stelle (doppelt gezeichnet?).",
+      "noGeometry": "{n} Teile ohne Systemlinien ({names}) – nicht dargestellt.",
+      "unknownParts": "{n} Teile unbekannter Art ({names}) – nur in der Stückliste.",
+      "ledgerFree": "{n} Riegel mit freiem Ende (kein Stiel am Anschlusspunkt).",
+      "noDiagonals": "Keine Vertikaldiagonalen in der Zeichnung – Aussteifung des Gerüsts prüfen.",
+      "flexChain": "ULS-Flex-Teile, die keinen vollständigen Träger bilden.",
+      "healed": "{n} Teile an ihren Anschlusspunkt gesetzt (bis {d} mm)."
+    },
+    "view": {
+      "title": "3D-Modell",
+      "hint": "Ziehen: drehen · rechte Maustaste: verschieben · Mausrad: zoomen · Klick: Teil oder Träger auswählen",
+      "toggle": "Ein- / ausblenden",
+      "girderColors": "Träger nach η:"
+    },
+    "kind": {
+      "standard": "Stiele",
+      "base": "Basisstiele",
+      "ledger": "Riegel",
+      "deck": "Beläge",
+      "diagonal": "Diagonalen",
+      "bracket": "Konsolen",
+      "jack": "Spindeln",
+      "flexEnd": "ULS Flex: Endelemente",
+      "flexElement": "ULS Flex: Zwischenelemente",
+      "flexConnector": "ULS Flex: Verbinder",
+      "girder": "Gitterträger ULA / ULS",
+      "other": "Sonstige"
+    },
+    "girders": {
+      "title": "Gitterträger",
+      "none": "Keine Gitterträger ULA / ULS / ULS Flex in der Zeichnung.",
+      "openAll": "Alle Träger im Trägerrechner ({n})",
+      "open": "Berechnen",
+      "opened": "Gitterträger der Zeichnung im Trägerrechner geöffnet: {n}",
+      "assumed": "angenommen",
+      "replaceConfirm": "Das aktuelle Projekt im Trägerrechner wird durch die Gitterträger der Zeichnung ersetzt. Fortfahren?",
+      "hint": "η – größte Ausnutzung aller PERI-Nachweise (GZT und GZG). »Berechnen« öffnet den Träger im Trägerrechner mit allen Verläufen, 2D/3D-Ansicht und Bericht; dort lassen sich Auflager und Lasten ändern.",
+      "col": {
+        "key": "Pos.",
+        "type": "Träger",
+        "L": "Länge",
+        "supports": "Auflager, m",
+        "load": "Belag q_k",
+        "eta": "η"
+      }
+    },
+    "bom": {
+      "title": "Stückliste",
+      "article": "Artikel",
+      "name": "Bezeichnung",
+      "kind": "Art",
+      "count": "Anzahl"
+    },
+    "err": {
+      "dwg": "DWG kann nicht gelesen werden: Zeichnung in PERI CAD als DXF speichern (»Speichern unter« → AutoCAD 2018 DXF).",
+      "binary": "Binäre DXF wird nicht unterstützt – als Text-DXF (ASCII) speichern.",
+      "format": "Die Datei ist keine DXF.",
+      "noParts": "Die DXF enthält keine PERI-CAD-Teile.",
+      "proxy": "PERI-Teile wurden als Proxy-Objekte gespeichert – DXF mit geladenem PERI CAD speichern.",
+      "read": "Die DXF konnte nicht gelesen werden."
+    }
   }
 }

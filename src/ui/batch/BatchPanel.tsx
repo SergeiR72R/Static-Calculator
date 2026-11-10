@@ -6,6 +6,8 @@ import { useFmt, type Fmt } from '../hooks';
 import { IconAlert, IconCheck, IconChevronDown, IconChevronRight, IconDownload, IconX } from '../icons';
 import { saveProjectFile } from '../projectFile';
 import { beamSummary, type BeamSummary } from './summary';
+import { useScaffold } from '../../scaffold/store';
+import { IconScaffold } from '../icons';
 
 type Filter = 'all' | 'open' | 'checked' | 'problems';
 
@@ -62,6 +64,8 @@ export function BatchPanel() {
   const [query, setQuery] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const scaffoldBatch = useScaffold((s) => s.batchRef?.id);
+  const setPrefs = useStore((s) => s.setPrefs);
 
   const rows = useMemo(() => (batch ? batch.items.map((it) => ({ it, st: itemStatus(it), s: beamSummary(it.model) })) : []), [batch]);
   const idx = batch ? batch.items.findIndex((i) => i.id === batch.active) : -1;
@@ -136,6 +140,13 @@ export function BatchPanel() {
           <IconX />
         </button>
       </div>
+      {scaffoldBatch === batch.id && (
+        <div className="px-3 pt-1.5">
+          <Button size="sm" variant="primary" className="w-full justify-center" onClick={() => setPrefs({ appMode: 'scaffold' })} data-testid="batch-back-scaffold">
+            <IconScaffold /> {fmt.t('scaffold.back')}
+          </Button>
+        </div>
+      )}
       <div className="px-3 pt-1.5">
         <Button size="sm" className="w-full justify-center" onClick={saveProjectFile} data-testid="batch-save" title={fmt.t('batch.saveHint')}>
           <IconDownload /> {fmt.t('batch.save', { n: rows.length })}

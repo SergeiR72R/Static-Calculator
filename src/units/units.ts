@@ -9,6 +9,7 @@ export type Quantity =
   | 'force'
   | 'moment'
   | 'lineLoad'
+  | 'areaLoad'
   | 'sectionDim'
   | 'stress'
   | 'modulus'
@@ -42,6 +43,7 @@ export const UNITS: Record<UnitSystem, Record<Quantity, UnitDef>> = {
     force: { symbol: 'kN', factor: 1e3 },
     moment: { symbol: 'kN·m', factor: 1e3 },
     lineLoad: { symbol: 'kN/m', factor: 1e3 },
+    areaLoad: { symbol: 'kN/m²', factor: 1e3 },
     sectionDim: { symbol: 'mm', factor: 1e-3 },
     stress: { symbol: 'MPa', factor: 1e6 },
     modulus: { symbol: 'MPa', factor: 1e6 },
@@ -62,6 +64,7 @@ export const UNITS: Record<UnitSystem, Record<Quantity, UnitDef>> = {
     force: { symbol: 'kip', factor: KIP },
     moment: { symbol: 'kip·ft', factor: KIP * FT },
     lineLoad: { symbol: 'kip/ft', factor: KIP / FT },
+    areaLoad: { symbol: 'psf', factor: (KIP / 1000) / FT ** 2 },
     sectionDim: { symbol: 'in', factor: IN },
     stress: { symbol: 'ksi', factor: KSI },
     modulus: { symbol: 'ksi', factor: KSI },

@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { COUPLER_RD, JACK, JOINT, LEDGERS, TUBES, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
+import { COUPLER_RD, E_STEEL, JACK, JOINT, LEDGERS, TUBES, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
 
 const G = 9.81;
 
@@ -38,7 +38,7 @@ export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level:
 /** partial factor for all actions (EN 12811-1, 10.3.2) */
 export const GAMMA_F = 1.5;
 
-export type CheckKind = 'conn' | 'node' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable';
+export type CheckKind = 'conn' | 'node' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable' | 'stability';
 
 export interface PartCheck {
   part: string;
@@ -60,6 +60,8 @@ export interface ComboResult {
   converged: boolean;
   /** bases in tension were kept (lifting off would leave a mechanism) */
   noLift?: boolean;
+  /** stability lost with the second order (results of the first order): parts where the system gives way */
+  stability?: string[];
   /** node of a mechanism / instability */
   errorNode?: number;
   /** largest horizontal and vertical displacement, m, and their nodes */
@@ -321,15 +323,33 @@ interface Solved {
   converged: boolean;
   /** bases kept two-sided because lifting off would leave a mechanism */
   noLift: boolean;
+  /** the system lost its stability with the second order: mode, member forces then; continued in first order */
+  stability?: { node: number; mode: Float64Array | null; N: Float64Array };
 }
 
 /** non-linear solution of one combination */
 /** most iterations of one combination */
 export const MAX_ITERATIONS = 14;
 
+/**
+ * A scaffold does not move by a metre (or turn by a radian): degrees of freedom moving that far in the
+ * first, linear step are nearly free (a mechanism with a little stiffness left). They get weak springs
+ * like the free ones, and the combination is run again.
+ */
+const NEAR_FREE_T = 1;
+const NEAR_FREE_R = 1;
+
+export class NearlyFreeError extends Error {
+  constructor(public dofs: number[]) {
+    super('analysis: nearly free degrees of freedom');
+  }
+}
+
 /** non-linear solution of one combination; `onStep` after every iteration (its number) */
-function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder: boolean, onStep?: (it: number) => void): Solved {
+function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder0: boolean, onStep?: (it: number) => void): Solved {
   const { frame, members } = model;
+  let secondOrder = secondOrder0;
+  let stability: Solved['stability'];
   const nM = frame.members.length;
   const states: (MemberState | undefined)[] = new Array(nM).fill(undefined);
   // connection stiffness [i, j] as [kx, ky, kz] rotational and the vertical spring c_z (Infinity: none);
@@ -383,11 +403,27 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
     makeStates(Ns, it === 1);
     try {
       r = fr.solve(loads, states, supActive, { reuse: true });
+      if (it === 1) {
+        const far: number[] = [];
+        for (let d = 0; d < r.u.length; d++) if (Math.abs(r.u[d]) > (d % 6 < 3 ? NEAR_FREE_T : NEAR_FREE_R)) far.push(d);
+        if (far.length) throw new NearlyFreeError(far);
+      }
     } catch (e) {
+      if (e instanceof NearlyFreeError) throw e;
+      if (e instanceof FrameError3 && e.kind === 'displacement') throw new NearlyFreeError([e.node * 6 + e.dof]);
       // bases that lifted off left a mechanism: keep all bases two-sided (the uplift is reported)
       if (e instanceof FrameError3 && !noLift && supActive.some((x) => !x)) {
         noLift = true;
         supActive.fill(true);
+        it--;
+        continue;
+      }
+      // not positive definite with the axial forces: the system loses its stability (second order).
+      // Where it gives way is kept; the combination goes on in first order.
+      if (e instanceof FrameError3 && e.kind === 'pivot' && secondOrder && Ns) {
+        stability = { node: e.node, mode: e.mode, N: Ns };
+        secondOrder = false;
+        Ns = null;
         it--;
         continue;
       }
@@ -458,7 +494,7 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
       break;
     }
   }
-  return { r, iterations: Math.min(it, MAX), converged, noLift };
+  return { r, iterations: Math.min(it, MAX), converged, noLift, stability };
 }
 
 /** set-up of the analysis: solver, combinations, check data; the combinations are run one by one */
@@ -550,6 +586,8 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
     for (const n of [m.i, m.j]) (stdAt.get(n) ?? stdAt.set(n, []).get(n)!).push(k);
   });
 
+  /** rounds of weak springs added for nearly free degrees of freedom (all combinations) */
+  let rounds = 0;
   const runCombo = (cb: Combo) => {
     let sol: Solved;
     try {
@@ -557,15 +595,21 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
     } catch (e) {
       // a nearly free degree of freedom (some stiffness left, but far too little): held by a weak
       // spring as the free ones, and the combination again
-      if (e instanceof FrameError3 && e.kind === 'displacement' && soft.length < weak.length + 30) {
-        const sp = { node: e.node, dof: e.dof, k: e.dof < 3 ? SOFT_T : SOFT_R };
-        soft.push(sp);
-        fr.addSupport(sp);
+      if (e instanceof NearlyFreeError && rounds < 8) {
+        rounds++;
+        const have = new Set(soft.map((q) => q.node * 6 + q.dof));
+        for (const d of e.dofs) {
+          if (have.has(d)) continue;
+          const sp = { node: Math.floor(d / 6), dof: d % 6, k: d % 6 < 3 ? SOFT_T : SOFT_R };
+          soft.push(sp);
+          fr.addSupport(sp);
+        }
         runCombo(cb);
         return;
       }
-      if (e instanceof FrameError3) {
-        out.push({ name: cb.name, ok: false, iterations: 0, converged: false, errorNode: e.node, dh: 0, dv: 0, sumV: 0 });
+      if (e instanceof NearlyFreeError || e instanceof FrameError3) {
+        const node = e instanceof NearlyFreeError ? Math.floor(e.dofs[0] / 6) : e.node;
+        out.push({ name: cb.name, ok: false, iterations: 0, converged: false, errorNode: node, dh: 0, dv: 0, sumV: 0 });
         return;
       }
       throw e;
@@ -585,7 +629,37 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
     frame.supports.forEach((sp, k) => {
       if (sp.dof === 2) sumV += r.reactions[k];
     });
-    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, dh, dv, dhNode, dvNode, sumV });
+    // stability lost with the second order: the parts where the system gives way (largest displacements
+    // of the mode), with the compression of the standards there against their Euler load
+    let stabilityParts: string[] | undefined;
+    if (sol.stability) {
+      const { mode, node, N } = sol.stability;
+      const amp = new Float64Array(frame.nodes.length);
+      let top = 0;
+      if (mode) for (let n = 0; n < amp.length; n++) top = Math.max(top, (amp[n] = Math.hypot(mode[n * 6], mode[n * 6 + 1], mode[n * 6 + 2])));
+      const zone = new Set<number>([node]);
+      if (top > 0) for (let n = 0; n < amp.length; n++) if (amp[n] >= 0.3 * top) zone.add(n);
+      const found = new Map<string, { eta: number; detail?: string; N?: number }>();
+      frame.members.forEach((fmk, k) => {
+        if (!zone.has(fmk.i) && !zone.has(fmk.j)) return;
+        const m = members[k];
+        if (m.floating) return;
+        let eta = 1.01;
+        let detail: string | undefined;
+        if (m.kind === 'standard' && N[k] < 0) {
+          const Ncr = (Math.PI ** 2 * E_STEEL * TUBES[m.tube!].I) / lcr[k] ** 2;
+          eta = Math.max(1.01, -N[k] / Ncr);
+          detail = `N = ${(N[k] / 1e3).toFixed(1)} kN, L_cr = ${lcr[k].toFixed(2)} m, N_cr = ${(Ncr / 1e3).toFixed(1)} kN`;
+        }
+        const o = found.get(m.part);
+        if (!o || eta > o.eta) found.set(m.part, { eta, detail, N: N[k] });
+      });
+      // the most loaded parts of the zone (a large zone is a sway of the whole scaffold)
+      const list = [...found.entries()].sort((a, b) => b[1].eta - a[1].eta).slice(0, 200);
+      stabilityParts = list.map(([id]) => id);
+      for (const [part, f] of list) put({ part, check: 'stability', eta: f.eta, combo: cb.name, detail: f.detail, N: f.N });
+    }
+    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, stability: stabilityParts, dh, dv, dhNode, dvNode, sumV });
 
     // utilisation of the standard tube at both ends of a member
     const tubeEta = (k: number, x: number) => {

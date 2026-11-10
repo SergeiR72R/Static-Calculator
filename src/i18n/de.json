@@ -916,7 +916,8 @@
         "coupler": "Rohrverband (Kupplung)",
         "uplift": "Abheben Fußpunkt",
         "jack": "Spindel (N + M)",
-        "unstable": "Nicht gehalten (Mechanismus)"
+        "unstable": "Nicht gehalten (Mechanismus)",
+        "stability": "Stabilitätsverlust (Theorie II. Ordnung)"
       },
       "bases": "Fußpunkte: {n}",
       "basesMax": "Größte Vertikalkraft {v}, Horizontalkraft {h} (Bemessungswerte).",
@@ -942,7 +943,8 @@
         "ublNoLedger": "UBL-Diagonalen ohne zwei gefundene Riegel ({n}) – an die Stielknoten angeschlossen, Tabelle nach dem überwiegenden Riegeltyp."
       },
       "basis": "Grundlage: Zulassung Z-8.22-863 (Moment-Drehwinkel-Beziehungen, Beanspruchbarkeiten der Knoten, Diagonalen, Stöße), DIN EN 12811-1, Tabellenbuch PERI UP. Beläge wirken nicht aussteifend. Ersetzt nicht den Nachweis durch den Statiker; Abgleich mit RSTAB folgt.",
-      "mechanismParts": "{n} Teile sind nicht gehalten (Mechanismus) – in der Berechnung durch weiche Federn gehalten. Bitte in der Zeichnung prüfen. Anzeigen."
+      "mechanismParts": "{n} Teile sind nicht gehalten (Mechanismus) – in der Berechnung durch weiche Federn gehalten. Bitte in der Zeichnung prüfen. Anzeigen.",
+      "stabilityLost": "Stabilitätsverlust nach Theorie II. Ordnung – Ergebnisse nach I. Ordnung; Bereich zeigen ({n} Teile)"
     },
     "wind": {
       "title": "Maximaler Wind",

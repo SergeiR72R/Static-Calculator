@@ -473,7 +473,8 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
   const jackOver = (c: Col) => jacks.filter((w) => near(w, c.x, c.y) && w.max[2] > c.z1 - 0.02 && w.min[2] < c.z1 + 0.15);
   // ground: the lowest standard or spindle (not the lowest part: a part may lie far off by mistake)
   const ground = Math.min(...cols.map((c) => c.z0), ...jacks.map((w) => w.min[2]));
-  const links: { lower: number; upper: number; part: string }[] = [];
+  /** `foot`: lowest point of the spindle clamped in the upper standard (its plate), null without a spindle */
+  const links: { lower: number; upper: number; part: string; foot: number | null }[] = [];
   /** spindles under base supports: foot below the bottom of the standard (virtual: added by the program) */
   const feet: { col: number; foot: number; part: string; virtual?: boolean }[] = [];
   /**
@@ -526,8 +527,9 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
         }
       });
       if (best >= 0) {
-        links.push({ lower: best, upper: k, part: under[0]?.part.id ?? c.parts[0].w.part.id });
-        c.onCarrier = true;
+        links.push({ lower: best, upper: k, part: under[0]?.part.id ?? c.parts[0].w.part.id, foot: under.length ? foot : null });
+        // with a spindle in the standard the hinge is at the plate of the spindle, not at the standard
+        c.onCarrier = !under.length;
         note('columnOnColumn', c.parts[0].w.part.id);
         return;
       }
@@ -805,14 +807,35 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     mm.push({ kind: 'jack', part: f.part, g: (f.virtual ? JACK_KG : jackKg(f.part)) / L });
   }
   // standard on the standard below through a platform (base jack on head jack)
+  // The base jack is clamped in the upper standard down to its plate; the plate bears on what lies on
+  // the lower standard (head jack, bearing plates, a beam): that piece is clamped in the lower standard
+  // and hinged under the plate (the only hinge of the joint).
+  const PIN = (): MemberEnd => ({ offset: [0, 0, 0], k: [Infinity, Infinity, Infinity, Infinity, 0, 0] });
   for (const l of links) {
     const lo = cols[l.lower];
     const up = cols[l.upper];
     const a = lo.ns[lo.ns.length - 1];
     const b = up.ns[0];
+    const kg = jackKg(l.part);
+    if (l.foot !== null && l.foot < up.z0 - 0.02) {
+      if (l.foot > nodes[a][2] + 0.03) {
+        const f = addNode([up.x, up.y, l.foot], l.upper);
+        const Ls = Math.max(up.z0 - l.foot, 0.05);
+        fm.push({ i: b, j: f, sec: JACK_SEC });
+        mm.push({ kind: 'jack', part: l.part, g: kg / Ls });
+        fm.push({ i: a, j: f, sec: JACK_SEC, ends: [undefined, PIN()] });
+        mm.push({ kind: 'jack', part: l.part, g: 0, link: true });
+      } else {
+        // the plate of the spindle right on the lower standard
+        const L = Math.max(len3(nodes[a], nodes[b]), 0.05);
+        fm.push({ i: b, j: a, sec: JACK_SEC, ends: [undefined, PIN()] });
+        mm.push({ kind: 'jack', part: l.part, g: kg / L, link: true });
+      }
+      continue;
+    }
     const L = Math.max(len3(nodes[a], nodes[b]), 0.05);
-    fm.push({ i: a, j: b, sec: JACK_SEC, ends: [undefined, { offset: [0, 0, 0], k: [Infinity, Infinity, Infinity, Infinity, 0, 0] }] });
-    mm.push({ kind: 'jack', part: l.part, g: jackKg(l.part) / L, link: true });
+    fm.push({ i: a, j: b, sec: JACK_SEC, ends: [undefined, PIN()] });
+    mm.push({ kind: 'jack', part: l.part, g: kg / L, link: true });
   }
 
 

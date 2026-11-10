@@ -31,7 +31,7 @@ export function etaColor(eta: number): string {
   return '#16a34a';
 }
 
-const CHECKS: CheckKind[] = ['unstable', 'conn', 'node', 'tube', 'buckling', 'joint', 'ledger', 'diagonal', 'jack', 'anchor', 'coupler', 'uplift'];
+const CHECKS: CheckKind[] = ['stability', 'unstable', 'conn', 'node', 'tube', 'buckling', 'joint', 'ledger', 'diagonal', 'jack', 'anchor', 'coupler', 'uplift'];
 
 /** Options, start and results of the space frame analysis of the scaffold */
 export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: ScaffoldRun | null; setRun: (r: ScaffoldRun | null) => void }) {
@@ -223,6 +223,10 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
                         <span className="text-red-600">{fmt.t('scaffold.calc.mechanism')}</span>
                       ) : !c.converged ? (
                         <span className="text-amber-700">{fmt.t('scaffold.calc.notConverged')}</span>
+                      ) : c.stability ? (
+                        <button type="button" className="text-start font-medium text-red-600 underline" onClick={() => sc.select(c.stability!)} data-testid="scaffold-calc-stability">
+                          {fmt.t('scaffold.calc.stabilityLost', { n: c.stability.length })}
+                        </button>
                       ) : c.noLift ? (
                         <span className="text-amber-700">{fmt.t('scaffold.calc.noLift')}</span>
                       ) : (

@@ -916,7 +916,8 @@
         "coupler": "Tube brace (coupler)",
         "uplift": "Uplift at the base",
         "jack": "Spindle (N + M)",
-        "unstable": "Not held (mechanism)"
+        "unstable": "Not held (mechanism)",
+        "stability": "Loss of stability (second order)"
       },
       "bases": "Bases: {n}",
       "basesMax": "Largest vertical force {v}, horizontal force {h} (design values).",
@@ -942,7 +943,8 @@
         "ublNoLedger": "UBL diagonals without two ledgers found ({n}) – connected to the nodes of the standards, table by the prevailing ledger type."
       },
       "basis": "Basis: approval Z-8.22-863 (moment–rotation curves, resistances of nodes, diagonals, joints), DIN EN 12811-1, PERI UP Tabellenbuch. Decks do not brace. Does not replace the verification by the structural engineer; comparison with RSTAB will follow.",
-      "mechanismParts": "{n} parts are not held (mechanism) – kept in place by weak springs in the analysis. Check in the drawing. Show."
+      "mechanismParts": "{n} parts are not held (mechanism) – kept in place by weak springs in the analysis. Check in the drawing. Show.",
+      "stabilityLost": "stability lost with second order – results of first order; show the zone ({n} parts)"
     },
     "wind": {
       "title": "Maximum wind",

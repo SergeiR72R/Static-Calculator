@@ -14,7 +14,7 @@ import { downloadExportScript, openScaffoldFiles } from './openDxf';
 import { SiteCard } from './SiteCard';
 import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './AnalysisCard';
 import { ScaffoldReport } from './ScaffoldReport';
-import { useProgress } from './progress';
+import { useProgress, useScaffoldRun } from './progress';
 import { ProgressBar } from './ProgressBar';
 
 /** end of the highlighting of a note / part: all parts in their colours again */
@@ -179,7 +179,11 @@ export default function ScaffoldApp() {
   const sc = useScaffold();
   const [resetKey, setResetKey] = useState(0);
   const [hidden, setHidden] = useState<Set<PartKind>>(new Set());
-  const [run, setRun] = useState<ScaffoldRun | null>(null);
+  // the result of the analysis lives outside the page (kept when going to the beam calculator and back)
+  const stored = useScaffoldRun();
+  // the result belongs to the drawing it was computed for
+  const run = stored.run && stored.doc === sc.doc ? (stored.run as ScaffoldRun) : null;
+  const setRun = (r: ScaffoldRun | null) => stored.setRun(r, sc.doc);
   const [byEta, setByEta] = useState(true);
   // the report is only rendered while printing
   const [printing, setPrinting] = useState(false);
@@ -208,11 +212,7 @@ export default function ScaffoldApp() {
 
   const partColor = useMemo(() => (run && byEta ? Object.fromEntries(Object.entries(run.result.eta).map(([id, e]) => [id, partEtaColor(e)])) : null), [run, byEta]);
   // a new drawing: the results of the old one are gone
-  const docRef = useRef(doc);
-  if (docRef.current !== doc) {
-    docRef.current = doc;
-    if (run) setRun(null);
-  }
+
 
   if (!doc || !st || !shown)
     return (

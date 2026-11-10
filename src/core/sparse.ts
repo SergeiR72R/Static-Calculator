@@ -187,6 +187,7 @@ export class SparseSym {
    */
   factor(spc?: number[]): number {
     const { n, cp, ci, cx, parent, lp, li, lx } = this;
+    this.failed = null;
     const c = new Int32Array(n);
     const x = new Float64Array(n);
     const s = new Int32Array(n);
@@ -223,7 +224,10 @@ export class SparseSym {
       // with `spc` (search for mechanisms) also nearly zero pivots count: round-off of the rigid
       // connections leaves a little stiffness on a mechanism
       if (!(d > (spc ? 1e-8 : 1e-10) * scale) || !Number.isFinite(d)) {
-        if (!spc || !Number.isFinite(d) || d < -1e-6 * scale) return this.perm[k];
+        if (!spc || !Number.isFinite(d) || d < -1e-6 * scale) {
+          this.failed = { k, c };
+          return this.perm[k];
+        }
         spc.push(this.perm[k]);
         d = Math.max(scale, 1);
       }
@@ -232,6 +236,32 @@ export class SparseSym {
       lx[p] = Math.sqrt(d);
     }
     return -1;
+  }
+
+  /** row and column fill at which the last factorisation failed */
+  private failed: { k: number; c: Int32Array } | null = null;
+
+  /**
+   * After a failed factorisation (pivot d ≤ 0 at the unknown k): a displacement x with xᵀ·A·x = d ≤ 0,
+   * i.e. a direction in which the matrix has no stiffness (instability). x_k = 1 and the unknowns
+   * eliminated before k follow it in equilibrium (x₁ = −A₁₁⁻¹·a); all others are zero. Original numbering.
+   */
+  negativeDirection(): Float64Array | null {
+    const f = this.failed;
+    if (!f) return null;
+    const { lp, li, lx, perm, n } = this;
+    const { k, c } = f;
+    const x = new Float64Array(k + 1);
+    x[k] = 1;
+    // L₁₁ᵀ·x₁ = −l (row k of L, already stored as the last entries of its columns)
+    for (let j = k - 1; j >= 0; j--) {
+      let v = 0;
+      for (let p = lp[j] + 1; p < c[j]; p++) v -= lx[p] * x[li[p]];
+      x[j] = v / lx[lp[j]];
+    }
+    const out = new Float64Array(n);
+    for (let j = 0; j <= k; j++) out[perm[j]] = x[j];
+    return out;
   }
 
   /** y = A·x with the current values (original numbering) */

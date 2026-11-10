@@ -46,6 +46,30 @@ describe('sparse Cholesky', () => {
     K.cx[K.diag(2)] = 1;
     expect(K.factor()).toBe(1);
   });
+
+  it('gives a direction without stiffness after a failed factorisation', () => {
+    // chain of springs 0 – 1 – 2 – 3 with a negative spring at the end: indefinite
+    const n = 4;
+    const K = new SparseSym(n, Int32Array.from([2, 0, 3, 1]), Int32Array.from([0, 1, 1, 2, 2, 3]));
+    const A = [
+      [3, -1, 0, 0],
+      [-1, 2, -1, 0],
+      [0, -1, 2, -1],
+      [0, 0, -1, 0.2],
+    ];
+    for (let i = 0; i < n; i++) for (let j = i; j < n; j++) if (A[i][j]) K.cx[K.index(i, j)] = A[i][j];
+    expect(K.negativeDirection()).toBeNull();
+    expect(K.factor()).toBeGreaterThanOrEqual(0);
+    const x = K.negativeDirection()!;
+    let q = 0;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) q += x[i] * A[i][j] * x[j];
+    expect(q).toBeLessThan(0);
+    expect(Math.max(...x.map(Math.abs))).toBeGreaterThan(0);
+    // a positive definite matrix leaves none
+    K.cx[K.index(3, 3)] = 2;
+    expect(K.factor()).toBe(-1);
+    expect(K.negativeDirection()).toBeNull();
+  });
 });
 
 describe('space frame', () => {

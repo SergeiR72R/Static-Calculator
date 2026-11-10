@@ -260,6 +260,34 @@ describe('supports, mechanisms, parallel runs', () => {
     expect(r.checks.some((c) => c.check === 'jack' && (c.N ?? 0) < 0)).toBe(true);
   });
 
+  it('standard on a standard with a base jack: clamped in the upper standard, hinged at its plate', () => {
+    // lower standard ends at 4.5 m; base jack with its plate at 4.8 m, 40 cm in the base standard from 5.2 m
+    const st = tower((p) => {
+      p.push({ art: 'UJB', rot: 'x', t: [-0.075, -0.075, 4.8] });
+      p.push({ art: 'UVB', rot: 'y', t: [0.08, -0.08, 5.2] });
+      p.push({ art: 'UVR', rot: 'y', t: [0.08, -0.08, 5.44] });
+    });
+    const m = buildScaffoldModel(st);
+    expect(m.notes.find((n) => n.key === 'columnOnColumn')?.parts.length).toBe(1);
+    const jacks = m.members.map((x, k) => ({ x, f: m.frame.members[k] })).filter((q) => q.x.kind === 'jack');
+    expect(jacks).toHaveLength(2);
+    const z = (n: number) => m.frame.nodes[n][2];
+    const spindle = jacks.find((q) => !q.x.link)!;
+    const stub = jacks.find((q) => q.x.link)!;
+    // spindle from the bottom of the upper standard (5.2) to its plate (4.8), without hinges
+    expect([z(spindle.f.i), z(spindle.f.j)]).toEqual([5.2, 4.8]);
+    expect(spindle.f.ends).toBeUndefined();
+    // from the top of the lower standard (4.5) to the plate, hinged there
+    expect(z(stub.f.i)).toBeCloseTo(4.5, 6);
+    expect(stub.f.j).toBe(spindle.f.j);
+    expect(stub.f.ends![1]!.k!.slice(4)).toEqual([0, 0]);
+    // the upper standard runs on into its spindle (no hinge at its bottom)
+    const first = m.frame.members.findIndex((f, k) => m.members[k].kind === 'standard' && f.i === spindle.f.i);
+    expect(m.frame.members[first].ends?.[0]?.k).toBeUndefined();
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false });
+    expect(r.combos.every((c) => c.ok && !c.stability)).toBe(true);
+  });
+
   it('a standard without anything under it stands on the structure; a mechanism is held by a weak spring and reported', () => {
     const st = tower((p) => {
       braced(p);
@@ -285,6 +313,27 @@ describe('supports, mechanisms, parallel runs', () => {
     expect(r2.combos.every((c) => c.ok)).toBe(true);
     expect(r2.unstable.length).toBeGreaterThan(0);
     expect(r2.checks.some((c) => c.check === 'unstable')).toBe(true);
+  });
+
+  it('stability lost with the second order: the zone is reported, the combination goes on in first order', () => {
+    // the unbraced tower under a load far beyond what its standards carry
+    const m = buildScaffoldModel(tower());
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: false, p: 150e3 };
+    const r = analyzeScaffoldModel(m, opt);
+    expect(r.combos.every((c) => c.ok)).toBe(true);
+    const lost = r.combos.filter((c) => c.stability);
+    expect(lost.length).toBeGreaterThan(0);
+    expect(lost[0].stability!.length).toBeGreaterThan(0);
+    const st = r.checks.filter((c) => c.check === 'stability');
+    expect(st.length).toBeGreaterThan(0);
+    expect(st.every((c) => c.eta > 1)).toBe(true);
+    // standards of the zone with their compression against the Euler load
+    expect(st.some((c) => /N_cr/.test(c.detail ?? ''))).toBe(true);
+    // without the second order nothing is lost
+    const r1 = analyzeScaffoldModel(m, { ...opt, secondOrder: false });
+    expect(r1.combos.some((c) => c.stability)).toBe(false);
+    // under the normal load neither
+    expect(analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false }).combos.some((c) => c.stability)).toBe(false);
   });
 
   it('combinations run in parts and merged give the same result as one run', () => {

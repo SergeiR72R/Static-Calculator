@@ -104,6 +104,8 @@ export class FrameError3 extends Error {
     public dof: number,
     /** 'pivot': not positive definite; 'displacement': a nearly free degree of freedom moved far */
     public kind: 'pivot' | 'displacement' = 'pivot',
+    /** 'pivot': displacement without stiffness (6 values per node): where the system gives way */
+    public mode: Float64Array | null = null,
   ) {
     super('frame3d: not positive definite');
   }
@@ -513,7 +515,7 @@ export class Frame3 {
     if (!u) {
       this.factored = false;
       const bad = K.factor(spc);
-      if (bad >= 0) throw new FrameError3(Math.floor(bad / 6), bad % 6);
+      if (bad >= 0) throw new FrameError3(Math.floor(bad / 6), bad % 6, 'pivot', K.negativeDirection());
       this.factored = !spc;
       this.factorisations++;
       u = K.solve(f);

@@ -151,6 +151,13 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   // the progress bars of opening and of the analysis are gone when done
   await expect(page.getByTestId('scaffold-calc-progress')).toHaveCount(0);
   await expect(page.getByTestId('scaffold-load-progress')).toHaveCount(0);
+  // to the beam calculator and back: the result is kept
+  const maxText = await page.getByTestId('scaffold-calc-max').innerText();
+  await page.getByTestId('mode-beam').click();
+  await expect(page.getByTestId('scaffold-app')).toHaveCount(0);
+  await page.getByTestId('mode-scaffold').click();
+  await expect(page.getByTestId('scaffold-calc-result')).toBeVisible();
+  await expect(page.getByTestId('scaffold-calc-max')).toHaveText(maxText);
   const eta = Number((await page.getByTestId('scaffold-calc-max').innerText()).replace(/[^\d]/g, ''));
   expect(eta).toBeGreaterThan(10);
   // four working combinations, checks of nodes and standards, bases

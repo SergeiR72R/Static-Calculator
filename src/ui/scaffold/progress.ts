@@ -16,3 +16,13 @@ export const useProgress = create<{ load: Progress | null; calc: Progress | null
   setLoad: (load) => set({ load }),
   setCalc: (calc) => set({ calc }),
 }));
+
+/**
+ * Result of the last analysis of the scaffold, kept outside the scaffold page: it stays when the user
+ * goes to the beam calculator and back, as long as the same drawing is open (`doc`).
+ */
+export const useScaffoldRun = create<{ run: unknown; doc: unknown; setRun: (run: unknown, doc: unknown) => void }>((set) => ({
+  run: null,
+  doc: null,
+  setRun: (run, doc) => set({ run, doc }),
+}));

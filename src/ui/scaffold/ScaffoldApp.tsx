@@ -10,7 +10,7 @@ import { warningText } from '../batch/BatchPanel';
 import { Button, Card, NumberField, SelectField, cx } from '../common';
 import { useFmt, type Fmt } from '../hooks';
 import { IconAlert, IconChevronRight, IconInfo, IconPrint, IconUpload, IconX } from '../icons';
-import { openDxfFile } from './openDxf';
+import { downloadExportScript, openScaffoldFiles } from './openDxf';
 import { SiteCard } from './SiteCard';
 import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './AnalysisCard';
 import { ScaffoldReport } from './ScaffoldReport';
@@ -34,12 +34,12 @@ function DropZone({ big }: { big?: boolean }) {
   const ref = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
-  const open = async (f: File | undefined) => {
-    if (!f) return;
+  const open = async (files: FileList | null | undefined) => {
+    if (!files?.length) return;
     setBusy(true);
     // let the spinner paint before the synchronous parse
     await new Promise((r) => setTimeout(r, 30));
-    await openDxfFile(f);
+    await openScaffoldFiles([...files]);
     setBusy(false);
   };
   return (
@@ -52,7 +52,7 @@ function DropZone({ big }: { big?: boolean }) {
       onDrop={(e) => {
         e.preventDefault();
         setOver(false);
-        void open(e.dataTransfer.files[0]);
+        void open(e.dataTransfer.files);
       }}
       className={cx(
         'flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed text-center transition-colors',
@@ -70,14 +70,21 @@ function DropZone({ big }: { big?: boolean }) {
       <input
         ref={ref}
         type="file"
-        accept=".dxf,.dwg"
+        accept=".dxf,.dwg,.txt"
+        multiple
         className="hidden"
         data-testid="scaffold-file"
         onChange={(e) => {
-          void open(e.target.files?.[0]);
+          void open(e.target.files);
           e.target.value = '';
         }}
       />
+      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+        {fmt.t('scaffold.export.hint')}{' '}
+        <button type="button" className="font-medium text-accent-700 underline dark:text-accent-300" onClick={downloadExportScript} data-testid="scaffold-export-script">
+          {fmt.t('scaffold.export.download')}
+        </button>
+      </p>
     </div>
   );
 }

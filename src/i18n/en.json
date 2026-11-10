@@ -764,7 +764,10 @@
       "healed": "{n} parts set onto their connection points (up to {d} mm).",
       "anchors": "{n} anchors (tube with a coupler at the standard, a flange coupler on the steel beam of the structure or nothing at the other end).",
       "healCheck": "{name}: placed imprecisely, but {n} connected parts would have to move with it – not corrected automatically, please check the drawing.",
-      "aecParts": "The drawing has up to {n} parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL: e.g. spindles, diagonals, girders) – AutoCAD did not write them to the DXF, they are missing from the model. In a copy: QSELECT → type PERI_AEC_DB_BAUTEIL_GRUPPE → EXPLODE; then QSELECT → type PERI_AEC_DB_BAUTEIL → EXPLODE; save the DXF – the program then reads them from the PERI blocks."
+      "aecParts": "The drawing has up to {n} parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL: e.g. spindles, diagonals, girders) – AutoCAD did not write them to the DXF, they are missing from the model. In a copy: QSELECT → type PERI_AEC_DB_BAUTEIL_GRUPPE → EXPLODE; then QSELECT → type PERI_AEC_DB_BAUTEIL → EXPLODE; save the DXF – the program then reads them from the PERI blocks.",
+      "exported": "{n} parts of the older kind added from the export {file}: axis from the bounding box, name and weight by the article number.",
+      "exportedGroups": "{n} PERI groups of the older kind: the parts inside the groups are not in the export – explode the groups and run PERIEXPORT again.",
+      "exportedGuessed": "{n} inclined parts from the export: which diagonal of the bounding box is not known – please check."
     },
     "view": {
       "title": "3D model",
@@ -1001,6 +1004,13 @@
       "total": "Total",
       "noWeight": "No weight in the parts database: {n} pcs – not in the total.",
       "failed": "Checks with η > 100 %: {n} – all of them in the program (filter by check, colours in 3D)."
+    },
+    "export": {
+      "hint": "Parts of the older PERI CAD kind (e.g. base jacks) are not in the DXF: load the script in AutoCAD (APPLOAD), run PERIEXPORT and open the file …_peri.txt here together with the DXF.",
+      "download": "Download the script PERIEXPORT.lsp",
+      "loaded": "Parts added from the AutoCAD export: {n}",
+      "errFormat": "This file is not a PERIEXPORT file.",
+      "errNoDxf": "Open the DXF of the drawing first, then the file …_peri.txt."
     }
   }
 }

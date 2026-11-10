@@ -32,6 +32,8 @@ export interface ScaffoldPart {
   layer: string;
   /** placement: row-major 3 × 4 (rotation | translation), metres */
   m: number[];
+  /** own system lines (parts from the PERIEXPORT file of AutoCAD), instead of the geometry of the article */
+  geom?: PartGeom;
 }
 
 export interface ScaffoldDoc {
@@ -43,6 +45,10 @@ export interface ScaffoldDoc {
   aecParts?: number;
   /** other block references of the drawing (timber planks, blocks …): name and insertion point, m */
   blocks?: { name: string; p: V3 }[];
+  /** rotation (row-major 3 × 3) that turned the drawing upright (y up in PERI CAD) */
+  up?: number[];
+  /** parts added from the PERIEXPORT file of AutoCAD */
+  exported?: { file: string; added: number; groups: number; guessed: number; unknown: number };
 }
 
 /** number of instances of the older PERI CAD parts (class PERI_AEC_DB_BAUTEIL) from the CLASSES section */
@@ -382,12 +388,14 @@ export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
     const blocksAt = med(others.map((o) => Math.hypot(o.p[0], o.p[1])));
     if (parts > 1 && blocksAt / parts > 300) others = others.map((o) => ({ name: o.name, p: o.p.map((v) => v * 1e-3) as V3 }));
   }
+  let upR: number[] | undefined;
   if (up && up[2] < 0.999) {
     const R = rotationTo(up, [0, 0, 1]);
+    upR = R;
     for (const r of raws) r.part.m = mulRT(R, r.part.m);
     others = others.map((o) => ({ name: o.name, p: [0, 1, 2].map((i) => R[i * 3] * o.p[0] + R[i * 3 + 1] * o.p[1] + R[i * 3 + 2] * o.p[2]) as V3 }));
   }
-  return { fileName, parts: raws.map((r) => r.part), geom, ...(aecParts ? { aecParts } : {}), ...(others.length ? { blocks: others } : {}) };
+  return { fileName, parts: raws.map((r) => r.part), geom, ...(aecParts ? { aecParts } : {}), ...(others.length ? { blocks: others } : {}), ...(upR ? { up: upR } : {}) };
 }
 
 /** rotation matrix (row major 3 × 3) turning the unit vector a onto the unit vector b */

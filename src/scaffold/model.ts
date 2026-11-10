@@ -543,7 +543,8 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       }
       bases.push({ node: n, sup: supports.length, part: (under[0] ?? c.parts[0].w).part.id, column: k });
       for (const dof of [0, 1, 2]) supports.push({ node: n, dof, k: Infinity });
-      if (foot > ground + 0.4) note('baseOnStructure', c.parts[0].w.part.id);
+      // above the lowest level and not on timber planks: on a beam of the structure (by assumption)
+      if (foot > ground + 0.4 && padTop({ ...c, z0: foot + 0.01 }) === null) note('baseOnStructure', c.parts[0].w.part.id);
     } else note('columnHanging', c.parts[0].w.part.id);
   });
   // tops of standards under a beam carry it

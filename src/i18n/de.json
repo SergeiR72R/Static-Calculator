@@ -764,7 +764,10 @@
       "healed": "{n} Teile an ihren Anschlusspunkt gesetzt (bis {d} mm).",
       "anchors": "{n} Verankerungen (Rohr mit Kupplung am Stiel, am anderen Ende Flanschkupplung am Träger des Bauwerks oder nichts).",
       "healCheck": "{name}: ungenau gesetzt, aber mit ihm müssten {n} verbundene Teile verschoben werden – nicht automatisch korrigiert, bitte in der Zeichnung prüfen.",
-      "aecParts": "Die Zeichnung enthält bis zu {n} Teile des älteren PERI-CAD-Typs (PERI_AEC_DB_BAUTEIL: z. B. Spindeln, Diagonalen, Träger) – AutoCAD hat sie nicht in die DXF geschrieben, sie fehlen im Modell. In einer Kopie: SSCHNELL → Typ PERI_AEC_DB_BAUTEIL_GRUPPE → URSPRUNG; dann SSCHNELL → Typ PERI_AEC_DB_BAUTEIL → URSPRUNG; DXF speichern – das Programm liest sie dann über die PERI-Blöcke."
+      "aecParts": "Die Zeichnung enthält bis zu {n} Teile des älteren PERI-CAD-Typs (PERI_AEC_DB_BAUTEIL: z. B. Spindeln, Diagonalen, Träger) – AutoCAD hat sie nicht in die DXF geschrieben, sie fehlen im Modell. In einer Kopie: SSCHNELL → Typ PERI_AEC_DB_BAUTEIL_GRUPPE → URSPRUNG; dann SSCHNELL → Typ PERI_AEC_DB_BAUTEIL → URSPRUNG; DXF speichern – das Programm liest sie dann über die PERI-Blöcke.",
+      "exported": "{n} Teile des älteren Typs aus dem Export {file} ergänzt: Achse aus der Umhüllenden, Bezeichnung und Gewicht über die Artikelnummer.",
+      "exportedGroups": "{n} PERI-Gruppen des älteren Typs: die Teile in den Gruppen fehlen im Export – Gruppen auflösen und PERIEXPORT wiederholen.",
+      "exportedGuessed": "{n} schräge Teile aus dem Export: welche Diagonale der Umhüllenden, ist nicht bestimmt – bitte prüfen."
     },
     "view": {
       "title": "3D-Modell",
@@ -1001,6 +1004,13 @@
       "total": "Summe",
       "noWeight": "Ohne Gewicht in der Teiledatenbank: {n} Stk. – nicht in der Summe.",
       "failed": "Nachweise mit η > 100 %: {n} – alle im Programm sichtbar (Filter je Nachweis, Einfärbung in 3D)."
+    },
+    "export": {
+      "hint": "Teile des älteren PERI-CAD-Typs (z. B. Spindeln) kommen nicht in die DXF: Skript in AutoCAD laden (APPLOAD), PERIEXPORT ausführen und hier die Datei …_peri.txt zusammen mit der DXF öffnen.",
+      "download": "Skript PERIEXPORT.lsp herunterladen",
+      "loaded": "Teile aus dem AutoCAD-Export ergänzt: {n}",
+      "errFormat": "Diese Datei ist kein PERIEXPORT.",
+      "errNoDxf": "Zuerst die DXF der Zeichnung öffnen, dann die Datei …_peri.txt."
     }
   }
 }

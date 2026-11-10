@@ -123,7 +123,7 @@ function worldPart(doc: ScaffoldDoc, p0: ScaffoldPart): WorldPart {
   // exploded parts of the older kind carry only their article: name from the parts database
   const db = p0.name === p0.article && !p0.desc ? findPart(p0.article) : undefined;
   const p = db ? { ...p0, name: db.name, desc: db.name } : p0;
-  const g = doc.geom[p.article] ?? { lines: [], rosettes: [] };
+  const g = p.geom ?? doc.geom[p.article] ?? { lines: [], rosettes: [] };
   const lines = g.lines.map(([a, b]) => [place(p.m, a), place(p.m, b)] as [V3, V3]);
   const rosettes = g.rosettes.map((q) => place(p.m, q));
   const pts = [...lines.flat(), ...rosettes];
@@ -391,7 +391,13 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
     }
   const noGeom = parts.filter((w) => !w.lines.length && !w.rosettes.length && w.cls.kind !== 'coupler');
   if (noGeom.length) issues.push({ key: 'noGeometry', params: { n: noGeom.length, names: [...new Set(noGeom.map((w) => w.part.name))].join(', ') }, parts: noGeom.map((w) => w.part.id), severity: 'warning' });
-  if (doc.aecParts) issues.push({ key: 'aecParts', params: { n: doc.aecParts }, parts: [], severity: 'warning' });
+  if (doc.exported) {
+    const x = doc.exported;
+    const ids = parts.filter((w) => w.part.id.startsWith('X')).map((w) => w.part.id);
+    issues.push({ key: 'exported', params: { n: x.added, file: x.file }, parts: ids, severity: 'info' });
+    if (x.groups) issues.push({ key: 'exportedGroups', params: { n: x.groups }, parts: [], severity: 'warning' });
+    if (x.guessed) issues.push({ key: 'exportedGuessed', params: { n: x.guessed }, parts: [], severity: 'info' });
+  } else if (doc.aecParts) issues.push({ key: 'aecParts', params: { n: doc.aecParts }, parts: [], severity: 'warning' });
   const unknown = parts.filter((w) => w.cls.kind === 'other');
   if (unknown.length) issues.push({ key: 'unknownParts', params: { n: unknown.length, names: [...new Set(unknown.map((w) => w.part.name))].join(', ') }, parts: unknown.map((w) => w.part.id), severity: 'info' });
 

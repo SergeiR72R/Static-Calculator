@@ -470,12 +470,17 @@ export class Frame3 {
     // degrees of freedom without any stiffness (rotations of nodes with pin-ended members only)
     for (let d = 0; d < n * 6; d++) {
       const p = K.diag(d);
-      if (!(Math.abs(K.cx[p]) > 1e-9)) K.cx[p] = 1;
+      if (!(Math.abs(K.cx[p]) > 1e-9)) {
+        K.cx[p] = 1;
+        f[d] = 0;
+      }
     }
 
     const bad = K.factor();
     if (bad >= 0) throw new FrameError3(Math.floor(bad / 6), bad % 6);
     const u = K.solve(f);
+    // displacements beyond any structure: a mechanism that slipped through the factorisation
+    for (let d = 0; d < u.length; d++) if (!(Math.abs(u[d]) < 100)) throw new FrameError3(Math.floor(d / 6), d % 6);
 
     // member forces
     const members: (MemberResult | null)[] = [];

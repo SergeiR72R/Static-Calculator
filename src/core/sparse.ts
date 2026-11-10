@@ -214,7 +214,7 @@ export class SparseSym {
         li[p] = k;
         lx[p] = lki;
       }
-      if (!(d > 1e-12 * scale) || !Number.isFinite(d)) return this.perm[k];
+      if (!(d > 1e-10 * scale) || !Number.isFinite(d)) return this.perm[k];
       const p = c[k]++;
       li[p] = k;
       lx[p] = Math.sqrt(d);

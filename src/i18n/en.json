@@ -756,10 +756,11 @@
       "duplicate": "{name}: {n} identical parts at the same place (drawn twice?).",
       "noGeometry": "{n} parts without system lines ({names}) – not shown.",
       "unknownParts": "{n} parts of unknown kind ({names}) – parts list only.",
-      "ledgerFree": "{n} ledgers with a free end (no standard at the connection).",
+      "ledgerFree": "{n} ledgers with an end without a standard (cantilever, bearing on a ledger or on the structure) – check.",
       "noDiagonals": "No vertical diagonals in the drawing – check the bracing of the scaffold.",
       "flexChain": "ULS Flex parts that do not form a complete girder.",
-      "healed": "{n} parts set onto their connection points (up to {d} mm)."
+      "healed": "{n} parts set onto their connection points (up to {d} mm).",
+      "anchors": "{n} anchors (tube with a coupler at the standard, a flange coupler on the steel beam of the structure or nothing at the other end)."
     },
     "view": {
       "title": "3D model",
@@ -779,7 +780,14 @@
       "flexElement": "ULS Flex: intermediate elements",
       "flexConnector": "ULS Flex: connectors",
       "girder": "Lattice girders ULA / ULS",
-      "other": "Other"
+      "other": "Other",
+      "beam": "Beams SRU / RCS",
+      "tube": "Scaffold tubes",
+      "coupler": "Couplers",
+      "clamp": "Beam clamps",
+      "toeboard": "Toe boards",
+      "accessory": "Accessories",
+      "anchor": "Anchors"
     },
     "girders": {
       "title": "Lattice girders",
@@ -804,7 +812,9 @@
       "article": "Article",
       "name": "Description",
       "kind": "Kind",
-      "count": "Qty"
+      "count": "Qty",
+      "weight": "Weight",
+      "total": "Total weight: {kg} kg (parts without weight: {n})"
     },
     "err": {
       "dwg": "DWG cannot be read: save the drawing in PERI CAD as DXF (“Save as” → AutoCAD 2018 DXF).",

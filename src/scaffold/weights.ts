@@ -1,0 +1,102 @@
+/**
+ * Weights of PERI UP parts per article, kg (PERI CAD 24 parts list, from the BeamCheck module).
+ * PERI CAD does not store weights in the drawing.
+ */
+export const PART_WEIGHTS: Record<string, number> = {
+  '102859': 3.08, // Vertikalstiel UVR 50
+  '101306': 5.38, // Vertikalstiel UVR 100
+  '102860': 7.69, // Vertikalstiel UVR 150
+  '100009': 10.0, // Vertikalstiel UVR 200
+  '100012': 14.7, // Vertikalstiel UVR 300
+  '101309': 2.51, // Kopfstiel UVH 50
+  '100000': 4.61, // Kopfstiel UVH 100
+  '117195': 7.6, // Kopfstiel UVH 125
+  '100003': 6.92, // Kopfstiel UVH 150
+  '100005': 9.24, // Kopfstiel UVH 200
+  '100007': 11.5, // Kopfstiel UVH 250
+  '114681': 10.9, // Horizontalriegel UHV 150 Plus
+  '114687': 14.7, // Horizontalriegel UHV 200 Plus
+  '114691': 17.9, // Horizontalriegel UHV 250 Plus
+  '114695': 21.6, // Horizontalriegel UHV 300 Plus
+  '114613': 1.42, // Horizontalriegel UH 25 Plus
+  '114595': 2.07, // Horizontalriegel UH 50 Plus
+  '114629': 2.73, // Horizontalriegel UH 75 Plus
+  '114632': 4.39, // Horizontalriegel UH 100 Plus
+  '114638': 5.34, // Horizontalriegel UH 125 Plus
+  '114641': 4.72, // Horizontalriegel UH 150 Plus
+  '117032': 5.38, // Horizontalriegel UH 175 Plus
+  '114645': 6.04, // Horizontalriegel UH 200 Plus
+  '116356': 6.7, // Horizontalriegel UH 225 Plus
+  '114648': 7.36, // Horizontalriegel UH 250 Plus
+  '114651': 8.68, // Horizontalriegel UH 300 Plus
+  '124124': 3.88, // Stahlbelag UDG 25 x 50
+  '124121': 5.26, // Stahlbelag UDG 25 x 75
+  '124118': 6.63, // Stahlbelag UDG 25 x 100
+  '124115': 8.01, // Stahlbelag UDG 25 x 125
+  '124112': 9.41, // Stahlbelag UDG 25 x 150
+  '124109': 12.2, // Stahlbelag UDG 25 x 200
+  '123771': 14.9, // Stahlbelag UDG 25 x 250
+  '124915': 17.7, // Stahlbelag UDG 25 x 300
+  '103868': 18.1, // Stahlriegel Universal SRU U120, L = 0,72 m
+  '103871': 24.2, // Stahlriegel Universal SRU U120, L = 0,97 m
+  '103874': 30.9, // Stahlriegel Universal SRU U120, L = 1,22 m
+  '103877': 38.1, // Stahlriegel Universal SRU U120, L = 1,47 m
+  '103886': 44.7, // Stahlriegel Universal SRU U120, L = 1,72 m
+  '103889': 52.0, // Stahlriegel Universal SRU U120, L = 1,97 m
+  '103898': 58.6, // Stahlriegel Universal SRU U120, L = 2,22 m
+  '103892': 65.6, // Stahlriegel Universal SRU U120, L = 2,47 m
+  '103929': 72.0, // Stahlriegel Universal SRU U120, L = 2,72 m
+  '103903': 81.0, // Stahlriegel Universal SRU U120, L = 2,97 m
+  '103906': 92.6, // Stahlriegel Universal SRU U120, L = 3,47 m
+  '103915': 106.0, // Stahlriegel Universal SRU U120, L = 3,97 m
+  '103918': 119.0, // Stahlriegel Universal SRU U120, L = 4,47 m
+  '103922': 135.0, // Stahlriegel Universal SRU U120, L = 4,97 m
+  '103925': 146.0, // Stahlriegel Universal SRU U120, L = 5,47 m
+  '103928': 159.0, // Stahlriegel Universal SRU U120, L = 5,97 m
+  '103943': 157.0, // Stahlriegel Universal SRU U140, L = 4,97 m
+  '114166': 78.2, // Kletterschiene RCS 148
+  '135990': 105.0, // Kletterschiene RCS 198
+  '109469': 130.0, // Kletterschiene RCS 248
+  '112102': 156.0, // Kletterschiene RCS 298
+  '109470': 182.0, // Kletterschiene RCS 348
+  '112141': 209.0, // Kletterschiene RCS 398
+  '109471': 262.0, // Kletterschiene RCS 498
+  '109472': 393.0, // Kletterschiene RCS 748
+  '109610': 524.0, // Kletterschiene RCS 998
+  '137020': 8.72, // Horizontalriegel UHV-2 150
+  '137025': 11.7, // Horizontalriegel UHV-2 200
+  '137030': 14.0, // Horizontalriegel UHV-2 250
+  '137035': 17.0, // Horizontalriegel UHV-2 300
+  '100014': 2.47, // Basisstiel UVB 24
+  '117194': 3.98, // Basisstiel UVB 49
+  '132219': 2.49, // Vertikalstiel UVR-2 50
+  '132224': 4.34, // Vertikalstiel UVR-2 100
+  '132229': 6.19, // Vertikalstiel UVR-2 150
+  '132234': 8.03, // Vertikalstiel UVR-2 200
+  '133499': 2.26, // Basisstiel UVB 25
+  '135187': 3.58, // Basisstiel UVB 50
+  '132123': 2.1, // Kopfstiel UVH-2 50
+  '132194': 4.21, // Kopfstiel UVH-2 100
+  '132196': 6.07, // Kopfstiel UVH-2 125
+  '132198': 6.32, // Kopfstiel UVH-2 150
+  '132200': 8.42, // Kopfstiel UVH-2 200
+  '131995': 1.4, // Horizontalriegel UH-2 25
+  '131998': 2.03, // Horizontalriegel UH-2 50
+  '132213': 2.68, // Horizontalriegel UH-2 75
+  '132004': 3.73, // Horizontalriegel UH-2 100
+  '132007': 4.5, // Horizontalriegel UH-2 125
+  '132010': 4.67, // Horizontalriegel UH-2 150
+  '132013': 5.33, // Horizontalriegel UH-2 175
+  '132016': 5.99, // Horizontalriegel UH-2 200
+  '132019': 6.65, // Horizontalriegel UH-2 225
+  '132025': 7.31, // Horizontalriegel UH-2 250
+  '132022': 8.64, // Horizontalriegel UH-2 300
+  '132479': 3.19, // Stahlbelag UDG-2 25 x 50
+  '132488': 4.32, // Stahlbelag UDG-2 25 x 75
+  '132492': 5.45, // Stahlbelag UDG-2 25 x 100
+  '132502': 6.59, // Stahlbelag UDG-2 25 x 125
+  '132505': 7.73, // Stahlbelag UDG-2 25 x 150
+  '132508': 10.5, // Stahlbelag UDG-2 25 x 200
+  '132511': 12.9, // Stahlbelag UDG-2 25 x 250
+  '132515': 15.8, // Stahlbelag UDG-2 25 x 300
+};

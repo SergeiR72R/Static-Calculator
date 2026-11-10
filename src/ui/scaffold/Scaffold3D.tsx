@@ -30,8 +30,8 @@ interface Scene {
   render: () => void;
 }
 
-const SEL = '#f59e0b';
-const MOVED = '#e11d48';
+const SEL = '#d946ef';
+const MOVED = '#0ea5e9';
 
 /** drawing (x, y, z up) → three.js (x, y up, z towards the viewer) */
 const toThree = (p: number[], c: number[]) => new THREE.Vector3(p[0] - c[0], p[2] - c[2], -(p[1] - c[1]));
@@ -117,18 +117,21 @@ export default function Scaffold3D({ st, girderColor, selected, moved, resetKey,
     const mov = new Set(moved);
     const partGirder = new Map<string, string>();
     for (const g of st.girders) for (const id of g.parts) partGirder.set(id, g.key);
+    // with a selection the other parts fade towards the background
+    const fade = sel.size > 0;
+    const bg = new THREE.Color(theme === 'dark' ? '#0f172a' : '#ffffff');
     const colorOf = (id: string, kind: keyof typeof KIND_COLOR) => {
       if (sel.has(id)) return SEL;
       const g = partGirder.get(id);
-      if (g && girderColor[g]) return girderColor[g];
-      if (mov.has(id)) return MOVED;
-      return KIND_COLOR[kind];
+      const c = g && girderColor[g] ? girderColor[g] : mov.has(id) ? MOVED : KIND_COLOR[kind];
+      return fade ? `#${new THREE.Color(c).lerp(bg, 0.75).getHexString()}` : c;
     };
 
     // tubes
     const segs: { a: THREE.Vector3; b: THREE.Vector3; r: number; color: string; id: string }[] = [];
     const decks: { min: THREE.Vector3; max: THREE.Vector3; color: string; id: string }[] = [];
     const ros: { p: THREE.Vector3; id: string }[] = [];
+    const dots: { p: THREE.Vector3; color: string; id: string }[] = [];
     for (const w of st.parts) {
       const color = colorOf(w.part.id, w.cls.kind);
       if (w.cls.kind === 'deck') {
@@ -143,6 +146,8 @@ export default function Scaffold3D({ st, girderColor, selected, moved, resetKey,
       }
       // rosettes only on standards (circles of other parts' line blocks, e.g. the ULS Flex connector, are no nodes)
       if (w.cls.kind === 'standard' || w.cls.kind === 'base') for (const p of w.rosettes) ros.push({ p: toThree(p, center), id: w.part.id });
+      // parts without system lines (couplers): a small block at their place
+      if (!w.lines.length) dots.push({ p: toThree([w.part.m[3], w.part.m[7], w.part.m[11]], center), color, id: w.part.id });
     }
     const m4 = new THREE.Matrix4();
     const q = new THREE.Quaternion();
@@ -175,6 +180,17 @@ export default function Scaffold3D({ st, girderColor, selected, moved, resetKey,
       mesh.computeBoundingSphere();
       s.content.add(mesh);
       s.pick.push({ mesh, ids: decks.map((d) => d.id) });
+    }
+    if (dots.length) {
+      const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), new THREE.MeshLambertMaterial(), dots.length);
+      dots.forEach((d, i) => {
+        m4.makeTranslation(d.p.x, d.p.y, d.p.z);
+        mesh.setMatrixAt(i, m4);
+        mesh.setColorAt(i, col.set(d.color));
+      });
+      mesh.computeBoundingSphere();
+      s.content.add(mesh);
+      s.pick.push({ mesh, ids: dots.map((d) => d.id) });
     }
     if (ros.length) {
       const geo = new THREE.CylinderGeometry(0.06, 0.06, 0.012, 12);
@@ -225,7 +241,7 @@ export default function Scaffold3D({ st, girderColor, selected, moved, resetKey,
     const size = new THREE.Vector3(st.max[0] - st.min[0], st.max[2] - st.min[2], st.max[1] - st.min[1]);
     const r = Math.max(size.length() / 2, 1);
     const target = new THREE.Vector3(0, size.y / 2, 0);
-    const dist = r / Math.sin(((s.camera.fov / 2) * Math.PI) / 180) / Math.min(1, s.camera.aspect || 1) * 0.85;
+    const dist = r / Math.sin(((s.camera.fov / 2) * Math.PI) / 180) / Math.min(1, s.camera.aspect || 1) * 0.7;
     const dir = new THREE.Vector3(-0.55, 0.45, 1).normalize();
     s.controls.target.copy(target);
     s.camera.position.copy(target).addScaledVector(dir, dist);

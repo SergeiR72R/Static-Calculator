@@ -246,7 +246,52 @@ export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
     }
     for (const r of raws) for (const i of [3, 7, 11]) r.part.m[i] *= s;
   }
+  // vertical axis: PERI CAD drawings may be modelled with y (or another axis) up; the system lines of the
+  // standards run along their local z axis. Rotate the drawing so that this direction becomes +z.
+  const ups = new Map<string, { v: V3; n: number }>();
+  for (const r of raws) {
+    if (!/\bUV[RHB]\b|stiel/i.test(`${r.part.name} ${r.part.desc}`)) continue;
+    const v: V3 = [r.part.m[2], r.part.m[6], r.part.m[10]];
+    const k = v.map((x) => Math.round(x * 100)).join(',');
+    const e = ups.get(k);
+    if (e) e.n++;
+    else ups.set(k, { v, n: 1 });
+  }
+  const up = [...ups.values()].sort((a, b) => b.n - a.n)[0]?.v;
+  if (up && up[2] < 0.999) {
+    const R = rotationTo(up, [0, 0, 1]);
+    for (const r of raws) r.part.m = mulRT(R, r.part.m);
+  }
   return { fileName, parts: raws.map((r) => r.part), geom };
+}
+
+/** rotation matrix (row major 3 × 3) turning the unit vector a onto the unit vector b */
+function rotationTo(a0: V3, b: V3): number[] {
+  const n = Math.hypot(...a0);
+  const a: V3 = [a0[0] / n, a0[1] / n, a0[2] / n];
+  const c = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  if (c < -0.999999) return [1, 0, 0, 0, -1, 0, 0, 0, -1]; // upside down: half turn about x
+  const v: V3 = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const k = 1 / (1 + c);
+  return [
+    v[0] * v[0] * k + c,
+    v[0] * v[1] * k - v[2],
+    v[0] * v[2] * k + v[1],
+    v[1] * v[0] * k + v[2],
+    v[1] * v[1] * k + c,
+    v[1] * v[2] * k - v[0],
+    v[2] * v[0] * k - v[1],
+    v[2] * v[1] * k + v[0],
+    v[2] * v[2] * k + c,
+  ];
+}
+
+/** R · [M | t] for a row-major 3 × 4 placement */
+function mulRT(R: number[], m: number[]): number[] {
+  const out = new Array<number>(12);
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 4; j++) out[i * 4 + j] = R[i * 3] * m[j] + R[i * 3 + 1] * m[4 + j] + R[i * 3 + 2] * m[8 + j];
+  return out;
 }
 
 /** part placement applied to a local point */

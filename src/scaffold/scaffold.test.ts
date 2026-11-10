@@ -5,10 +5,10 @@ import { classifyPart } from './catalog';
 import { periDxf, towerParts, type TestPart } from './testDxf';
 import { beamSummary } from '../ui/batch/summary';
 
-const tower = (edit?: (p: TestPart[]) => void, scale = 1) => {
+const tower = (edit?: (p: TestPart[]) => void, scale = 1, yUp = false) => {
   const parts = towerParts();
   edit?.(parts);
-  return parsePeriCadDxf(periDxf(parts, scale), 'tower.dxf');
+  return parsePeriCadDxf(periDxf(parts, scale, yUp), 'tower.dxf');
 };
 
 describe('PERI CAD DXF reader', () => {
@@ -30,6 +30,14 @@ describe('PERI CAD DXF reader', () => {
     const b = analyzeScaffold(tower(undefined, 1000));
     expect(b.girders.map((g) => [g.L, g.supports, g.loads])).toEqual(a.girders.map((g) => [g.L, g.supports, g.loads]));
     expect(b.max[2]).toBeCloseTo(a.max[2], 6);
+  });
+
+  it('drawings modelled with the y axis up are turned upright', () => {
+    const a = analyzeScaffold(tower());
+    const b = analyzeScaffold(tower(undefined, 1, true));
+    expect(b.columns).toHaveLength(6);
+    expect(b.girders.map((g) => [g.L, g.supports, g.loads, g.zTop])).toEqual(a.girders.map((g) => [g.L, g.supports, g.loads, g.zTop]));
+    expect(b.max[2] - b.min[2]).toBeCloseTo(a.max[2] - a.min[2], 6);
   });
 
   it('rejects DWG, foreign DXF and DXF without PERI parts with a message key', () => {
@@ -57,6 +65,18 @@ describe('part kinds', () => {
     expect(classifyPart('x', 'UBL 200/200', 'Vertikaldiagonale UBL').kind).toBe('diagonal');
     expect(classifyPart('x', 'UCB 73', 'Konsole UCB').kind).toBe('bracket');
     expect(classifyPart('x', 'Stahlbelag UDG 25x150').kind).toBe('deck');
+    expect(classifyPart('103929', 'SRU 272', 'Stahlriegel SRU 272 U120').kind).toBe('beam');
+    expect(classifyPart('109471', 'RCS 498', 'Kletterschiene RCS 498').kind).toBe('beam');
+    expect(classifyPart('026413', 'TUBE 3m', 'Gerüstrohr 48,3x3,2mm 3m vz').kind).toBe('tube');
+    expect(classifyPart('017020', 'RA 48/48', 'Normalkupplung RA Ø48/48mm vz').kind).toBe('coupler');
+    expect(classifyPart('113726', 'UEC', 'Flanschkupplung UEC').kind).toBe('coupler');
+    expect(classifyPart('106183', 'Main Beam Clamp HD 70 mm, galv.', 'Trägerklammer HD 70mm vz').kind).toBe('clamp');
+    expect(classifyPart('110160', 'UPY 150', 'Bordblech Stahl UPY 150').kind).toBe('toeboard');
+    expect(classifyPart('101731', 'UHA', 'Riegelaufnahme UHA').kind).toBe('accessory');
+    expect(classifyPart('130681', 'UH Zapfen', 'UH-Zapfen-2').kind).toBe('accessory');
+    expect(classifyPart('112676', 'UCM 50 mit Zapfen', 'Konsole UCM 50 mit Zapfen').kind).toBe('bracket');
+    expect(classifyPart('100000', 'UVH 100', 'Kopfstiel UVH 100').kind).toBe('standard');
+    expect(classifyPart('114818', 'UBH FLEX 100x100', 'H-Diagonale UBH Flex 100/100').kind).toBe('diagonal');
   });
 });
 
@@ -115,6 +135,29 @@ describe('scaffold structure', () => {
       }),
     );
     expect(dup.issues.map((i) => i.key)).toContain('duplicate');
+  });
+
+  it('anchors: tube with a coupler at a standard and a flange coupler at the structure', () => {
+    const s = analyzeScaffold(
+      tower((p) => {
+        // standard axis (0, 0); tube 1 m outwards in −x at +1.20 m, coupler at the standard, flange coupler at the end
+        p.push({ art: 'TUBE', rot: 'nx', t: [-0.06, 0, 1.2] });
+        p.push({ art: 'RA', rot: 'x', t: [-0.06, 0, 1.2] });
+        p.push({ art: 'UEC', rot: 'x', t: [-1.06, 0, 1.2] });
+        // brace between two standards: no anchor
+        p.push({ art: 'TUBE2', rot: 'x', t: [0, 0.06, 1.6] });
+        p.push({ art: 'RA', rot: 'x', t: [0, 0.06, 1.6] });
+      }),
+    );
+    expect(s.anchors).toHaveLength(1);
+    expect(s.anchors[0].length).toBeCloseTo(1, 6);
+    expect(s.anchors[0].flange).toHaveLength(1);
+    expect(s.parts.filter((w) => w.cls.kind === 'anchor')).toHaveLength(1);
+    expect(s.issues.find((i) => i.key === 'anchors')?.params).toEqual({ n: 1 });
+  });
+
+  it('parts list with weights from the PERI parts list', () => {
+    expect(st.bom.find((b) => b.article === '100009')).toMatchObject({ weight: 10, count: 10 });
   });
 
   it('a girder without standards gets supports at its ends (marked as assumed)', () => {

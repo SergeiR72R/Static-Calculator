@@ -392,6 +392,7 @@ export default function ScaffoldApp() {
                   <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.bom.name')}</th>
                   <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.bom.kind')}</th>
                   <th className="px-1.5 py-1 text-end font-medium">{fmt.t('scaffold.bom.count')}</th>
+                  <th className="px-1.5 py-1 text-end font-medium">{fmt.t('scaffold.bom.weight')}, kg</th>
                 </tr>
               </thead>
               <tbody>
@@ -408,11 +409,21 @@ export default function ScaffoldApp() {
                       {fmt.t(`scaffold.kind.${b.kind}`)}
                     </td>
                     <td className="num px-1.5 py-1 text-end font-semibold">{b.count}</td>
+                    <td className="num px-1.5 py-1 text-end">{b.weight !== undefined ? fmt.num(b.weight * b.count, 1) : '–'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <p className="mt-2 text-xs font-medium" data-testid="scaffold-bom-total">
+            {fmt.t('scaffold.bom.total', {
+              kg: fmt.num(
+                st.bom.reduce((a, b) => a + (b.weight ?? 0) * b.count, 0),
+                0,
+              ),
+              n: st.bom.filter((b) => b.weight === undefined).reduce((a, b) => a + b.count, 0),
+            })}
+          </p>
         </Card>
       </section>
     </main>

@@ -89,6 +89,10 @@ export const ARTS: Record<string, Art> = {
       [[0.890157, 0.015, 0.53], [1.304382, 0.015, 0.03]],
     ],
   },
+  TUBE: { article: '026411', name: 'TUBE 1m', desc: 'Gerüstrohr 48,3x3,2mm 1m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [1, 0, 0]]] },
+  TUBE2: { article: '026412', name: 'TUBE 2m', desc: 'Gerüstrohr 48,3x3,2mm 2m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [2, 0, 0]]] },
+  RA: { article: '017020', name: 'RA 48/48', desc: 'Normalkupplung RA Ø48/48mm vz', layer: 'PERI_Coupler', lines: [], circles: [[0.076, 0.05, 0.05]] },
+  UEC: { article: '113726', name: 'UEC', desc: 'Flanschkupplung UEC', layer: '0', lines: [[[0.074, 0.032, 0.113], [0.019, 0.032, 0.113]]], circles: [[-0.032, 0.032, -0.019]] },
 };
 
 /** rotation (row major 3 × 3) with the local x axis along +x, +y or −x */
@@ -140,8 +144,11 @@ export function towerParts(): TestPart[] {
   return P;
 }
 
-/** DXF text in the structure of PERI CAD; `scale` 1000 writes millimetres */
-export function periDxf(parts: TestPart[], scale = 1): string {
+/**
+ * DXF text in the structure of PERI CAD; `scale` 1000 writes millimetres, `yUp` writes the drawing
+ * with the y axis vertical (as PERI CAD drawings modelled in a rotated coordinate system).
+ */
+export function periDxf(parts: TestPart[], scale = 1, yUp = false): string {
   const out: string[] = [];
   const tag = (c: number, v: string | number) => out.push(String(c).padStart(3, ' '), String(v));
   let h = 0x100;
@@ -231,7 +238,9 @@ export function periDxf(parts: TestPart[], scale = 1): string {
     tag(90, 1);
     tag(100, 'PERIAcDbAcadEntity');
     tag(90, 1);
-    const m = [R[0], R[1], R[2], p.t[0] * scale, R[3], R[4], R[5], p.t[1] * scale, R[6], R[7], R[8], p.t[2] * scale, 0, 0, 0, 1];
+    let m = [R[0], R[1], R[2], p.t[0] * scale, R[3], R[4], R[5], p.t[1] * scale, R[6], R[7], R[8], p.t[2] * scale, 0, 0, 0, 1];
+    // y up: (x, y, z) → (x, z, −y)
+    if (yUp) m = [...m.slice(0, 4), ...m.slice(8, 12), ...m.slice(4, 8).map((v) => -v), 0, 0, 0, 1];
     for (const v of m) tag(40, v);
     tag(100, 'PERIAcDbPart');
     tag(90, 1);

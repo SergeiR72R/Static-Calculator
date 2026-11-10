@@ -9,7 +9,8 @@ import type { BeamModel, Load } from '../core/types';
 import { baseModel, makeSupport, udl } from '../core/defaults';
 import { FLEX, LATTICE_TYPES, flexLength, type LatticeId } from '../sections/lattice';
 import { periMaterial } from '../sections/peri';
-import { classifyPart, type PartClass } from './catalog';
+import { classifyPart, PART_KINDS, type PartClass } from './catalog';
+import { PART_WEIGHTS } from './weights';
 import { healParts, type PartMove } from './heal';
 import { place, type ScaffoldDoc, type ScaffoldPart, type V3 } from './pericad';
 
@@ -68,6 +69,8 @@ export interface ScaffoldIssue {
 }
 
 export interface BomRow {
+  /** weight of one part, kg (from the PERI parts list; undefined if unknown) */
+  weight?: number;
   article: string;
   name: string;
   desc: string;
@@ -75,9 +78,23 @@ export interface BomRow {
   kind: PartClass['kind'];
 }
 
+/** anchor: scaffold tube with a coupler at a standard and a flange coupler (or nothing) at the structure */
+export interface Anchor {
+  /** the tube */
+  id: string;
+  /** couplers at the standard, flange couplers at the structure */
+  couplers: string[];
+  flange: string[];
+  /** point at the standard and at the structure, horizontal length */
+  atStandard: V3;
+  atStructure: V3;
+  length: number;
+}
+
 export interface ScaffoldStructure {
   parts: WorldPart[];
   columns: Column[];
+  anchors: Anchor[];
   girders: Girder[];
   bom: BomRow[];
   issues: ScaffoldIssue[];
@@ -356,7 +373,7 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
       const w = parts.find((p) => p.part.id === ids[0])!;
       issues.push({ key: 'duplicate', params: { name: w.part.name, n: ids.length }, parts: ids, severity: 'warning' });
     }
-  const noGeom = parts.filter((w) => !w.lines.length);
+  const noGeom = parts.filter((w) => !w.lines.length && !w.rosettes.length && w.cls.kind !== 'coupler');
   if (noGeom.length) issues.push({ key: 'noGeometry', params: { n: noGeom.length, names: [...new Set(noGeom.map((w) => w.part.name))].join(', ') }, parts: noGeom.map((w) => w.part.id), severity: 'warning' });
   const unknown = parts.filter((w) => w.cls.kind === 'other');
   if (unknown.length) issues.push({ key: 'unknownParts', params: { n: unknown.length, names: [...new Set(unknown.map((w) => w.part.name))].join(', ') }, parts: unknown.map((w) => w.part.id), severity: 'info' });
@@ -368,16 +385,23 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
   }
   const columns = buildColumns(parts);
 
-  // ledgers: both ends at a standard
+  // ledgers: both ends at a standard (or carried by another part)
+  const carriers = parts.filter((w) => w.cls.kind === 'accessory' || w.cls.kind === 'ledger' || w.cls.kind === 'beam' || w.cls.kind === 'bracket');
   const free = parts.filter((w) => {
     if (w.cls.kind !== 'ledger') return false;
     const hs = w.lines.filter(([a, b]) => isHor(a, b) && Math.hypot(b[0] - a[0], b[1] - a[1]) > 0.2);
     if (!hs.length) return false;
     const [a, b] = hs.reduce((p, q) => (Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]) > Math.hypot(p[1][0] - p[0][0], p[1][1] - p[0][1]) ? q : p));
-    const at = (p: V3) => columns.some((c) => Math.hypot(c.x - p[0], c.y - p[1]) < 0.1 && p[2] > c.z0 - 0.1 && p[2] < c.z1 + 0.1);
+    const at = (p: V3) =>
+      columns.some((c) => Math.hypot(c.x - p[0], c.y - p[1]) < 0.1 && p[2] > c.z0 - 0.1 && p[2] < c.z1 + 0.1) ||
+      // ledger receiver UHA (ledger on ledger) or a ledger / beam / bracket just below the end
+      carriers.some((q) => q !== w && p[0] > q.min[0] - 0.12 && p[0] < q.max[0] + 0.12 && p[1] > q.min[1] - 0.12 && p[1] < q.max[1] + 0.12 && p[2] > q.min[2] - 0.05 && p[2] < q.max[2] + 0.35);
     return !at(a) || !at(b);
   });
-  if (free.length) issues.push({ key: 'ledgerFree', params: { n: free.length }, parts: free.map((w) => w.part.id), severity: 'warning' });
+  if (free.length) issues.push({ key: 'ledgerFree', params: { n: free.length }, parts: free.map((w) => w.part.id), severity: 'info' });
+  const anchors = findAnchors(parts, columns);
+  if (anchors.length)
+    issues.push({ key: 'anchors', params: { n: anchors.length }, parts: anchors.flatMap((a) => [a.id, ...a.couplers, ...a.flange]), severity: 'info' });
   if (columns.length && !parts.some((w) => w.cls.kind === 'diagonal'))
     issues.push({ key: 'noDiagonals', parts: [], severity: 'warning' });
 
@@ -408,15 +432,48 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
   for (const w of parts) {
     const r = bomMap.get(w.part.article);
     if (r) r.count++;
-    else bomMap.set(w.part.article, { article: w.part.article, name: w.part.name, desc: w.part.desc, count: 1, kind: w.cls.kind });
+    else bomMap.set(w.part.article, { article: w.part.article, weight: PART_WEIGHTS[w.part.article], name: w.part.name, desc: w.part.desc, count: 1, kind: classifyPart(w.part.article, w.part.name, w.part.desc).kind });
   }
-  const order = ['base', 'standard', 'ledger', 'diagonal', 'bracket', 'deck', 'flexEnd', 'flexElement', 'flexConnector', 'girder', 'jack', 'other'];
+  const order = PART_KINDS;
   const bom = [...bomMap.values()].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.name.localeCompare(b.name));
 
   const all = parts.flatMap((w) => [w.min, w.max]);
   const min: V3 = [0, 1, 2].map((i) => Math.min(...all.map((p) => p[i]))) as V3;
   const max: V3 = [0, 1, 2].map((i) => Math.max(...all.map((p) => p[i]))) as V3;
-  return { parts, columns, girders, bom, issues, moves, min, max };
+  return { parts, columns, anchors, girders, bom, issues, moves, min, max };
+}
+
+/**
+ * Anchors as PERI CAD draws them: a scaffold tube with a coupler (RA / SW) at a standard on one end
+ * and a flange coupler (UEC / UEF) on the steel beam of the structure — or nothing, the structure
+ * itself is usually not drawn — on the other end. Tubes with standards at both ends are bracing.
+ * The tubes of anchors get the kind "anchor".
+ */
+function findAnchors(parts: WorldPart[], columns: Column[]): Anchor[] {
+  const couplers = parts.filter((w) => w.cls.kind === 'coupler');
+  const isFlange = (w: WorldPart) => /\bUE[CF]\b|flansch|flange/i.test(`${w.part.name} ${w.part.desc}`);
+  const pos = (w: WorldPart): V3 => [w.part.m[3], w.part.m[7], w.part.m[11]];
+  const near = (p: V3, q: V3, r: number) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) <= r;
+  const colAt = (p: V3) => columns.find((c) => Math.hypot(c.x - p[0], c.y - p[1]) <= 0.25 && p[2] >= c.z0 - 0.1 && p[2] <= c.z1 + 0.1);
+  const out: Anchor[] = [];
+  for (const w of parts) {
+    if (w.cls.kind !== 'tube' || !w.lines.length) continue;
+    const [a, b] = w.lines.reduce((p, q) => (Math.hypot(...q[1].map((v, i) => v - q[0][i])) > Math.hypot(...p[1].map((v, i) => v - p[0][i])) ? q : p));
+    for (const [s, e] of [
+      [a, b],
+      [b, a],
+    ] as [V3, V3][]) {
+      const cs = couplers.filter((c) => !isFlange(c) && near(pos(c), s, 0.2));
+      if (!cs.length || !colAt(s)) continue;
+      const fl = couplers.filter((c) => isFlange(c) && near(pos(c), e, 0.25));
+      // the other end: on the structure (flange coupler) or free; at a standard it is a brace
+      if (!fl.length && colAt(e)) continue;
+      out.push({ id: w.part.id, couplers: cs.map((c) => c.part.id), flange: fl.map((c) => c.part.id), atStandard: s, atStructure: e, length: Math.hypot(e[0] - s[0], e[1] - s[1]) });
+      w.cls = { kind: 'anchor' };
+      break;
+    }
+  }
+  return out;
 }
 
 export interface LoadOptions {

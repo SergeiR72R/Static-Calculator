@@ -16,9 +16,36 @@ export type PartKind =
   | 'flexElement'
   | 'flexConnector'
   | 'girder'
+  | 'beam'
+  | 'tube'
+  | 'anchor'
+  | 'coupler'
+  | 'clamp'
+  | 'toeboard'
+  | 'accessory'
   | 'other';
 
-export const PART_KINDS: PartKind[] = ['standard', 'base', 'ledger', 'deck', 'diagonal', 'bracket', 'jack', 'flexEnd', 'flexElement', 'flexConnector', 'girder', 'other'];
+export const PART_KINDS: PartKind[] = [
+  'standard',
+  'base',
+  'ledger',
+  'deck',
+  'diagonal',
+  'bracket',
+  'jack',
+  'flexEnd',
+  'flexElement',
+  'flexConnector',
+  'girder',
+  'beam',
+  'tube',
+  'anchor',
+  'coupler',
+  'clamp',
+  'toeboard',
+  'accessory',
+  'other',
+];
 
 export interface PartClass {
   kind: PartKind;
@@ -52,11 +79,17 @@ export function classifyPart(article: string, name: string, desc = ''): PartClas
   if (ARTICLES[article]) return ARTICLES[article];
   const g = /\bUL([AS])\s*(50|70)\b/i.exec(text);
   if (g && !flex) return { kind: 'girder', girder: g[1].toUpperCase() === 'A' ? (g[2] === '50' ? 'ULA50HD' : 'ULA70HD') : g[2] === '50' ? 'ULS50' : 'ULS70' };
+  if (/\b(SRU|RCS)\b|stahlriegel|kletterschiene|\b(HEB|HEA|IPE|UPE|GT ?24|VT ?20)\b/i.test(text)) return { kind: 'beam' };
+  if (/trägerklammer|traegerklammer|beam ?clamp/i.test(text)) return { kind: 'clamp' };
+  if (/kupplung|coupler|\bRA ?48|\bSW ?48|\bUE[CF]\b/i.test(text)) return { kind: 'coupler' };
+  if (/gerüstrohr|geruestrohr|\btube\b/i.test(text)) return { kind: 'tube' };
+  if (/bordblech|bordbrett|toe ?board|\bUPY\b/i.test(text)) return { kind: 'toeboard' };
   if (/\bUVB\b|basisstiel|starter/i.test(text)) return { kind: 'base' };
-  if (/\bUVR\b|\bUVH\b|vertikalstiel|standard/i.test(text)) return { kind: 'standard' };
-  if (/\bUBL\b|\bUBK\b|diagonal/i.test(text)) return { kind: 'diagonal' };
-  if (/konsole|\bUCB\b|bracket/i.test(text)) return { kind: 'bracket' };
-  if (/\bUH\b|\bUHA\b|\bUHV\b|riegel|ledger|transom/i.test(text)) return { kind: 'ledger' };
+  if (/\bUVR\b|\bUVH\b|vertikalstiel|kopfstiel|standard/i.test(text)) return { kind: 'standard' };
+  if (/\bUB[LKHS]\b|diagonal/i.test(text)) return { kind: 'diagonal' };
+  if (/konsole|\bUC[BM]\b|bracket/i.test(text)) return { kind: 'bracket' };
+  if (/zapfen|riegelaufnahme|\bUHA\b|passbolzen|federstecker|kreuzverbinder|eckblech|abdeckblech|\bUD[BC]\b|\bUC ?\d/i.test(text)) return { kind: 'accessory' };
+  if (/\bUH\b|\bUHV\b|riegel|ledger|transom/i.test(text)) return { kind: 'ledger' };
   if (/\bUD[AGI]\b|\bUDS\b|belag|deck/i.test(text)) return { kind: 'deck' };
   if (/spindel|\bUJB\b|jack/i.test(text)) return { kind: 'jack' };
   return { kind: 'other' };
@@ -75,7 +108,14 @@ export const KIND_COLOR: Record<PartKind, string> = {
   flexElement: '#0d9488',
   flexConnector: '#f97316',
   girder: '#0d9488',
-  other: '#94a3b8',
+  beam: '#b45309',
+  tube: '#a16207',
+  anchor: '#e11d48',
+  coupler: '#ca8a04',
+  clamp: '#dc2626',
+  toeboard: '#d6d3d1',
+  accessory: '#94a3b8',
+  other: '#cbd5e1',
 };
 
 /** service classes EN 12811-1, Table 3: uniformly distributed load, kN/m² */

@@ -147,7 +147,9 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
     p: V3;
     col: Col;
     rz: number;
-    r: number;
+    /** offset of the end from the standard axis: along the part (towards its other end) and across */
+    par: number;
+    perp: number;
     dir: [number, number];
   }
   const hits: EndHit[] = [];
@@ -174,18 +176,21 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
         const m2 = Math.hypot(p[0] - best.col.x, p[1] - best.col.y) || 1;
         dir = [(p[0] - best.col.x) / m2, (p[1] - best.col.y) / m2];
       }
-      hits.push({ w, k, p, col: best.col, rz, r: best.r, dir });
+      const ox = p[0] - best.col.x;
+      const oy = p[1] - best.col.y;
+      hits.push({ w, k, p, col: best.col, rz, par: ox * dir[0] + oy * dir[1], perp: -ox * dir[1] + oy * dir[0], dir });
     });
   }
-  const learned = new Map<string, { d: number; dz: number } | null>();
+  const learned = new Map<string, { par: number; perp: number; dz: number } | null>();
   const learn = (h: EndHit) => {
     const key = `${h.w.part.article}|${h.k}`;
     if (!learned.has(key)) {
       const same = hits.filter((x) => `${x.w.part.article}|${x.k}` === key);
-      const d = mode(same.map((x) => x.r));
+      const par = mode(same.map((x) => x.par));
+      const perp = mode(same.map((x) => Math.abs(x.perp)));
       const dz = mode(same.map((x) => x.p[2] - x.rz));
       const def = DEFAULT_END[h.w.cls.kind];
-      learned.set(key, d !== null && dz !== null ? { d, dz } : (def ?? null));
+      learned.set(key, par !== null && perp !== null && dz !== null ? { par, perp, dz } : def ? { par: def.d, perp: 0, dz: def.dz } : null);
     }
     return learned.get(key)!;
   };
@@ -196,7 +201,9 @@ export function healParts(parts: WorldPart[], tol: number): PartMove[] {
     for (const h of hs) {
       const t = learn(h);
       if (!t) continue;
-      const target: V3 = [h.col.x + h.dir[0] * t.d, h.col.y + h.dir[1] * t.d, h.rz + t.dz];
+      // across the part: the side of the drawing is kept (diagonals may sit on either side of the rosette)
+      const pp = h.perp < 0 ? -t.perp : t.perp;
+      const target: V3 = [h.col.x + h.dir[0] * t.par - h.dir[1] * pp, h.col.y + h.dir[1] * t.par + h.dir[0] * pp, h.rz + t.dz];
       const d: V3 = [target[0] - h.p[0], target[1] - h.p[1], target[2] - h.p[2]];
       if (norm(d) <= tol * Math.SQRT2) ds.push(d);
     }

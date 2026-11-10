@@ -756,10 +756,11 @@
       "duplicate": "{name}: {n} gleiche Teile an derselben Stelle (doppelt gezeichnet?).",
       "noGeometry": "{n} Teile ohne Systemlinien ({names}) – nicht dargestellt.",
       "unknownParts": "{n} Teile unbekannter Art ({names}) – nur in der Stückliste.",
-      "ledgerFree": "{n} Riegel mit freiem Ende (kein Stiel am Anschlusspunkt).",
+      "ledgerFree": "{n} Riegel mit einem Ende ohne Stiel (Auskragung, Auflager auf Riegel oder Bauwerk) – prüfen.",
       "noDiagonals": "Keine Vertikaldiagonalen in der Zeichnung – Aussteifung des Gerüsts prüfen.",
       "flexChain": "ULS-Flex-Teile, die keinen vollständigen Träger bilden.",
-      "healed": "{n} Teile an ihren Anschlusspunkt gesetzt (bis {d} mm)."
+      "healed": "{n} Teile an ihren Anschlusspunkt gesetzt (bis {d} mm).",
+      "anchors": "{n} Verankerungen (Rohr mit Kupplung am Stiel, am anderen Ende Flanschkupplung am Träger des Bauwerks oder nichts)."
     },
     "view": {
       "title": "3D-Modell",
@@ -779,7 +780,14 @@
       "flexElement": "ULS Flex: Zwischenelemente",
       "flexConnector": "ULS Flex: Verbinder",
       "girder": "Gitterträger ULA / ULS",
-      "other": "Sonstige"
+      "other": "Sonstige",
+      "beam": "Träger SRU / RCS",
+      "tube": "Gerüstrohre",
+      "coupler": "Kupplungen",
+      "clamp": "Trägerklammern",
+      "toeboard": "Bordbretter",
+      "accessory": "Zubehör",
+      "anchor": "Verankerungen"
     },
     "girders": {
       "title": "Gitterträger",
@@ -804,7 +812,9 @@
       "article": "Artikel",
       "name": "Bezeichnung",
       "kind": "Art",
-      "count": "Anzahl"
+      "count": "Anzahl",
+      "weight": "Gewicht",
+      "total": "Gesamtgewicht: {kg} kg (ohne Teile ohne Gewichtsangabe: {n})"
     },
     "err": {
       "dwg": "DWG kann nicht gelesen werden: Zeichnung in PERI CAD als DXF speichern (»Speichern unter« → AutoCAD 2018 DXF).",

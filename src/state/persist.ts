@@ -120,6 +120,15 @@ export const storage = {
       /* ignore */
     }
   },
+  /** false if the value could not be stored (quota of the browser exceeded, storage blocked) */
+  trySet(key: string, value: string): boolean {
+    try {
+      localStorage.setItem(key, value);
+      return true;
+    } catch {
+      return false;
+    }
+  },
   remove(key: string): void {
     try {
       localStorage.removeItem(key);

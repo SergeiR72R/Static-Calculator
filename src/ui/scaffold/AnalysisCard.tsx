@@ -91,7 +91,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
 
   const res = run?.result;
   const failed = res?.combos.filter((c) => !c.ok) ?? [];
-  const maxEta = res ? Math.max(0, ...res.checks.map((c) => c.eta)) : 0;
+  const maxEta = res ? res.checks.reduce((m, c) => Math.max(m, c.eta), 0) : 0;
   const rows = res ? res.checks.filter((c) => filter === 'all' || c.check === filter) : [];
   const shown = showAll ? rows.slice(0, 400) : rows.slice(0, 25);
   const counts = new Map<CheckKind, { n: number; max: number }>();
@@ -287,7 +287,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
             <div data-testid="scaffold-calc-bases">
               <p className="mb-1 text-xs font-semibold">{fmt.t('scaffold.calc.bases', { n: res.bases.length })}</p>
               <p className="text-xs text-slate-600 dark:text-slate-300">
-                {fmt.t('scaffold.calc.basesMax', { v: fmt.q(Math.max(0, ...res.bases.map((b) => b.Vmax)), 'force', 1), h: fmt.q(Math.max(0, ...res.bases.map((b) => b.H)), 'force', 1) })}
+                {fmt.t('scaffold.calc.basesMax', { v: fmt.q(res.bases.reduce((m, b) => Math.max(m, b.Vmax), 0), 'force', 1), h: fmt.q(res.bases.reduce((m, b) => Math.max(m, b.H), 0), 'force', 1) })}
               </p>
               {uplift > 0 && (
                 <button

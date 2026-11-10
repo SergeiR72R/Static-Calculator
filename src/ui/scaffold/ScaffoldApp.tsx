@@ -34,12 +34,13 @@ function DropZone({ big }: { big?: boolean }) {
   const ref = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
-  const open = async (files: FileList | null | undefined) => {
-    if (!files?.length) return;
+  // the files are copied right away: a FileList is live and empties when the input is reset
+  const open = async (files: File[]) => {
+    if (!files.length) return;
     setBusy(true);
     // let the spinner paint before the synchronous parse
     await new Promise((r) => setTimeout(r, 30));
-    await openScaffoldFiles([...files]);
+    await openScaffoldFiles(files);
     setBusy(false);
   };
   return (
@@ -52,7 +53,7 @@ function DropZone({ big }: { big?: boolean }) {
       onDrop={(e) => {
         e.preventDefault();
         setOver(false);
-        void open(e.dataTransfer.files);
+        void open([...e.dataTransfer.files]);
       }}
       className={cx(
         'flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed text-center transition-colors',
@@ -75,7 +76,7 @@ function DropZone({ big }: { big?: boolean }) {
         className="hidden"
         data-testid="scaffold-file"
         onChange={(e) => {
-          void open(e.target.files);
+          void open([...(e.target.files ?? [])]);
           e.target.value = '';
         }}
       />

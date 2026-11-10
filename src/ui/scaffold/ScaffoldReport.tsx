@@ -28,7 +28,7 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
   const byId = new Map(st.parts.map((w) => [w.part.id, w]));
   const name = (id: string) => byId.get(id)?.part.name ?? id;
   const res = run?.result;
-  const maxEta = res ? Math.max(0, ...res.checks.map((c) => c.eta)) : 0;
+  const maxEta = res ? res.checks.reduce((m, c) => Math.max(m, c.eta), 0) : 0;
   const totalKg = st.bom.reduce((a, b) => a + (b.weight ?? 0) * b.count, 0);
   const noWeight = st.bom.filter((b) => b.weight === undefined).reduce((a, b) => a + b.count, 0);
   const pct = (e: number) => `${fmt.num(e * 100, 0)} %`;
@@ -191,7 +191,7 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
 
           <h3 className="mt-2 font-semibold">{fmt.t('scaffold.calc.bases', { n: res.bases.length })}</h3>
           <p>
-            {fmt.t('scaffold.calc.basesMax', { v: fmt.q(Math.max(0, ...res.bases.map((b) => b.Vmax)), 'force', 1), h: fmt.q(Math.max(0, ...res.bases.map((b) => b.H)), 'force', 1) })}
+            {fmt.t('scaffold.calc.basesMax', { v: fmt.q(res.bases.reduce((m, b) => Math.max(m, b.Vmax), 0), 'force', 1), h: fmt.q(res.bases.reduce((m, b) => Math.max(m, b.H), 0), 'force', 1) })}
             {uplift.length > 0 && ` ${fmt.t('scaffold.report.uplift', { n: uplift.length })}`}
           </p>
           <table className="my-1 border-collapse">

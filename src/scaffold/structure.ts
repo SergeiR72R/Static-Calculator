@@ -464,9 +464,15 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
   const order = PART_KINDS;
   const bom = [...bomMap.values()].sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.name.localeCompare(b.name));
 
-  const all = parts.flatMap((w) => [w.min, w.max]);
-  const min: V3 = [0, 1, 2].map((i) => Math.min(...all.map((p) => p[i]))) as V3;
-  const max: V3 = [0, 1, 2].map((i) => Math.max(...all.map((p) => p[i]))) as V3;
+  // bounds of the drawing (a loop: tens of thousands of parts are too many arguments for Math.min)
+  const min: V3 = [Infinity, Infinity, Infinity];
+  const max: V3 = [-Infinity, -Infinity, -Infinity];
+  for (const w of parts)
+    for (let i = 0; i < 3; i++) {
+      if (w.min[i] < min[i]) min[i] = w.min[i];
+      if (w.max[i] > max[i]) max[i] = w.max[i];
+    }
+  if (!parts.length) for (let i = 0; i < 3; i++) min[i] = max[i] = 0;
   const pads = (doc.blocks ?? []).flatMap((b) => {
     const t = PAD.test(b.name) ? padThickness(b.name) : null;
     return t ? [{ name: b.name, p: b.p, t }] : [];

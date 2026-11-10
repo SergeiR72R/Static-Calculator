@@ -189,8 +189,9 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   setDoc: (doc) => {
     set({ doc, selected: [], girder: null, batchRef: null });
     save(get());
-    if (doc) storage.set(KEY, JSON.stringify(doc));
-    else storage.remove(KEY);
+    // a drawing too large for the storage of the browser is not kept for the next visit; the one
+    // stored before goes too (else it would come back after a reload)
+    if (!doc || !storage.trySet(KEY, JSON.stringify(doc))) storage.remove(KEY);
   },
   setOpts: (o) => {
     set(o);

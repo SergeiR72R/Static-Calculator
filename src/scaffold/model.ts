@@ -129,6 +129,10 @@ const JACK_XY = 0.045;
 /** largest extension of a spindle (approval: 60 cm), m; weight of an added base jack UJB 38-50/30, kg */
 const JACK_MAX_EXT = 0.6;
 const JACK_KG = 3.39;
+/** gap between the plate of the upper spindle and the top of the standard below: from 40 cm a beam of
+ * the structure lies between them (below: a platform), searched up to 1.2 m, m */
+const BEAM_GAP = 0.4;
+const BEAM_GAP_MAX = 1.2;
 /** largest distance between the standards of a spindle pair through a platform, m */
 const JACK_GAP = 1.5;
 /** scaffold spindle UJB / UJS (approval 3.2.9.5: A = 4.36 cm², I = 4.96 cm⁴), clamped in the standard */
@@ -509,23 +513,38 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       return;
     }
     const foot = Math.min(c.z0, ...under.map((w) => w.min[2]));
-    // a base standard (on a spindle) or a spindle right above a standard below, through a platform:
-    // the load goes on to that standard (directly under it or 1…3 cm off)
+    // a base standard (on a spindle) or a spindle right above a standard below (directly under it or
+    // 1…3 cm off): with a small gap a platform lies between them and the load goes on to the lower
+    // standard; with a gap of 40 cm or more a beam of the structure lies between them and carries the
+    // upper standard (the lower one ends under the beam without bearing on it)
     if (isBase || under.length) {
       let best = -1;
       let bd = Infinity;
+      let bestGap = 0;
       cols.forEach((d, j) => {
         if (j === k) return;
         const dxy = Math.hypot(d.x - c.x, d.y - c.y);
         if (dxy > JACK_XY) return;
         const top = Math.max(d.z1, ...jackOver(d).map((w) => w.max[2]));
         const gap = foot - top;
-        if (gap < -0.05 || gap > 0.6 || c.z0 - d.z1 > JACK_GAP) return;
+        if (gap < -0.05 || gap > BEAM_GAP_MAX || c.z0 - d.z1 > JACK_GAP + BEAM_GAP_MAX) return;
         if (dxy + Math.abs(gap) < bd) {
           bd = dxy + Math.abs(gap);
           best = j;
+          bestGap = gap;
         }
       });
+      if (best >= 0 && bestGap >= BEAM_GAP) {
+        let n = c.ns[0];
+        if (foot < c.z0 - 0.02) {
+          n = addNode([c.x, c.y, foot], k);
+          feet.push({ col: k, foot: n, part: under[0].part.id });
+        }
+        bases.push({ node: n, sup: supports.length, part: (under[0] ?? c.parts[0].w).part.id, column: k });
+        for (const dof of [0, 1, 2]) supports.push({ node: n, dof, k: Infinity });
+        note('columnOnBeam', c.parts[0].w.part.id);
+        return;
+      }
       if (best >= 0) {
         links.push({ lower: best, upper: k, part: under[0]?.part.id ?? c.parts[0].w.part.id, foot: under.length ? foot : null });
         // with a spindle in the standard the hinge is at the plate of the spindle, not at the standard

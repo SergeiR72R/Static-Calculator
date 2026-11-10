@@ -244,10 +244,10 @@ describe('ledger diagonals UBL', () => {
 
 describe('supports, mechanisms, parallel runs', () => {
   it('base standard over a standard below (spindle pair through a platform): load goes on to it', () => {
-    // standard of the tower at (0, 0) ends at 4.5 m; base standard 0.4 m above it, 1.5 cm off
+    // standard of the tower at (0, 0) ends at 4.5 m; base standard 0.3 m above it (a platform), 1.5 cm off
     const st = tower((p) => {
-      p.push({ art: 'UVB', rot: 'y', t: [0.08 + 0.015, -0.08, 4.9] });
-      p.push({ art: 'UVR', rot: 'y', t: [0.08 + 0.015, -0.08, 5.14] });
+      p.push({ art: 'UVB', rot: 'y', t: [0.08 + 0.015, -0.08, 4.8] });
+      p.push({ art: 'UVR', rot: 'y', t: [0.08 + 0.015, -0.08, 5.04] });
     });
     const m = buildScaffoldModel(st);
     expect(m.notes.find((n) => n.key === 'columnOnColumn')?.parts.length).toBe(1);
@@ -286,6 +286,32 @@ describe('supports, mechanisms, parallel runs', () => {
     expect(m.frame.members[first].ends?.[0]?.k).toBeUndefined();
     const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false });
     expect(r.combos.every((c) => c.ok && !c.stability)).toBe(true);
+  });
+
+  it('standards over standards: under 40 cm gap a platform (load through), from 40 cm a beam of the structure', () => {
+    // lower standard of the tower ends at 4.5 m; base jack with its plate `gap` above, 40 cm in the base standard
+    const stack = (gap: number) =>
+      buildScaffoldModel(
+        tower((p) => {
+          p.push({ art: 'UJB', rot: 'x', t: [-0.075, -0.075, 4.5 + gap] });
+          p.push({ art: 'UVB', rot: 'y', t: [0.08, -0.08, 4.9 + gap] });
+          p.push({ art: 'UVR', rot: 'y', t: [0.08, -0.08, 5.14 + gap] });
+        }),
+      );
+    const platform = stack(0.3);
+    expect(platform.notes.find((n) => n.key === 'columnOnColumn')?.parts.length).toBe(1);
+    expect(platform.notes.find((n) => n.key === 'columnOnBeam')).toBeUndefined();
+    expect(platform.members.filter((x) => x.link)).toHaveLength(1);
+    expect(platform.bases).toHaveLength(6);
+    const beam = stack(0.5);
+    expect(beam.notes.find((n) => n.key === 'columnOnBeam')?.parts.length).toBe(1);
+    expect(beam.notes.find((n) => n.key === 'columnOnColumn')).toBeUndefined();
+    expect(beam.members.filter((x) => x.link)).toHaveLength(0);
+    // the upper standard stands on the beam with its spindle: a seventh support at the plate
+    expect(beam.bases).toHaveLength(7);
+    const top = beam.bases.map((b) => beam.frame.nodes[b.node][2]).sort((x, y) => y - x)[0];
+    expect(top).toBeCloseTo(5.0, 6);
+    expect(beam.members.filter((x) => x.kind === 'jack')).toHaveLength(1);
   });
 
   it('a standard without anything under it stands on the structure; a mechanism is held by a weak spring and reported', () => {

@@ -934,13 +934,14 @@
         "ledgerLoose": "Riegel, die nur an einem gelenkigen Ende hängen ({n}) – nicht angesetzt.",
         "bracketFree": "Konsolen ohne Stiel ({n}) – nicht angesetzt.",
         "columnHanging": "Stiele ohne Auflager unten ({n}) – hängen an den Riegeln.",
-        "columnOnColumn": "Stiele auf dem Stiel darunter über eine Plattform (Spindelpaar, {n}) – Last auf den unteren Stiel, nur Druck.",
+        "columnOnColumn": "Stiele auf dem Stiel darunter über eine Plattform (Abstand unter 40 cm, Spindelpaar, {n}) – Last auf den unteren Stiel, nur Druck.",
         "baseOnStructure": "Stielauflager über der untersten Ebene ({n}) – auf einem Träger des Bauwerks angenommen; Auflagerung prüfen.",
         "floating": "Teile ohne Verbindung zum Gerüst ({n}) – nicht berücksichtigt (ihr Gewicht wird nicht abgetragen).",
         "jackAdded": "Spindeln unter den Basisstielen vom Programm ergänzt ({n}): nicht in der DXF (ältere PERI-CAD-Teile), Fuß auf den Bohlen unter dem Stiel, Länge von den Bohlen bis zum Stielfuß.",
         "jackLong": "Spindelauszug über 60 cm ({n}) – nach Zulassung nicht erlaubt, Unterbau prüfen.",
         "columnOnStructure": "Stiele ohne Auflager darunter ({n}) – als auf dem Bauwerk darunter aufgelagert angenommen; Auflagerung prüfen.",
-        "ublNoLedger": "UBL-Diagonalen ohne zwei gefundene Riegel ({n}) – an die Stielknoten angeschlossen, Tabelle nach dem überwiegenden Riegeltyp."
+        "ublNoLedger": "UBL-Diagonalen ohne zwei gefundene Riegel ({n}) – an die Stielknoten angeschlossen, Tabelle nach dem überwiegenden Riegeltyp.",
+        "columnOnBeam": "Stiele über Stielen mit 40 cm Abstand oder mehr ({n}) – dazwischen ist ein Träger des Bauwerks angenommen: der obere Stiel steht darauf, der untere ist darunter unbelastet und oben nicht gehalten."
       },
       "basis": "Grundlage: Zulassung Z-8.22-863 (Moment-Drehwinkel-Beziehungen, Beanspruchbarkeiten der Knoten, Diagonalen, Stöße), DIN EN 12811-1, Tabellenbuch PERI UP. Beläge wirken nicht aussteifend. Ersetzt nicht den Nachweis durch den Statiker; Abgleich mit RSTAB folgt.",
       "mechanismParts": "{n} Teile sind nicht gehalten (Mechanismus) – in der Berechnung durch weiche Federn gehalten. Bitte in der Zeichnung prüfen. Anzeigen.",

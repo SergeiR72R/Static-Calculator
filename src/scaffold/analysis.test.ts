@@ -92,10 +92,10 @@ describe('structural model of the scaffold', () => {
     expect(kinds.ledger).toBe(16);
     expect(kinds.girder).toBe(2);
     expect(kinds.ubk).toBe(4);
-    // ledgers at the base standard UVB 24 (Ø48.3×3.6, rosette 8 mm): variant 1b, above: 1a
+    // rosettes 6 mm: ledgers at the base standard UVB 24 (Ø48.3×3.6): variant 2b, above (Ø48.3×3.2): 2a
     const conns = m.members.filter((x) => x.kind === 'ledger').map((x) => x.conn!.join());
-    expect(conns.filter((c) => c === '1b,1b')).toHaveLength(7);
-    expect(conns.filter((c) => c === '1a,1a')).toHaveLength(9);
+    expect(conns.filter((c) => c === '2b,2b')).toHaveLength(7);
+    expect(conns.filter((c) => c === '2a,2a')).toHaveLength(9);
     // standard joints with the rotational spring
     expect(m.members.filter((x) => x.joint).length).toBe(10);
     expect(m.levels.map((l) => +l.area.toFixed(2))).toEqual([7.64, 7.64]);
@@ -213,7 +213,8 @@ describe('ledger diagonals UBL', () => {
           if (!v) return;
           const cz = m.frame.members[k].ends![e]!.k![2];
           if (has) {
-            expect(cz).toBeCloseTo(31.5e6, 0);
+            // rosette 6 mm (variant 2a): 8 kN/mm in tension at the start
+            expect(cz).toBeCloseTo(8e6, 0);
             soft++;
           } else {
             expect(cz).toBe(Infinity);

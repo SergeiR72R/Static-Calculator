@@ -100,12 +100,16 @@ export interface ScaffoldModel {
 const tubeSection = (t: keyof typeof TUBES): Section3 => ({ EA: E_STEEL * TUBES[t].A, EIy: E_STEEL * TUBES[t].I, EIz: E_STEEL * TUBES[t].I, GJ: G_STEEL * 2 * TUBES[t].I });
 const ledgerSection = (l: keyof typeof LEDGERS): Section3 => ({ EA: E_STEEL * LEDGERS[l].A, EIy: E_STEEL * LEDGERS[l].Iy, EIz: E_STEEL * LEDGERS[l].Iz, GJ: G_STEEL * LEDGERS[l].J });
 
+/**
+ * Variant of the standard after table 7 of the approval. The rosettes are 6 mm (Rosette-2) on all
+ * standards of the PERI UP Flex scaffolds calculated here: variant 2a (Ø48.3 × 3.2, ReH 320) for UVR /
+ * UVH, 2b (Ø48.3 × 3.6, S355) for the base standards UVB, 2c (Ø48.3 × 2.7) for the standards "-2".
+ */
 function standardVariant(w: WorldPart): Variant {
   const t = `${w.part.name} ${w.part.desc}`;
-  if (/UV[RH]-2/i.test(t)) return '2c';
-  if (/UVB\s*(25|50)\b/i.test(t)) return '2b';
-  if (/UVB/i.test(t)) return '1b';
-  return '1a';
+  if (/UV[RHB]-2/i.test(t)) return '2c';
+  if (/UVB/i.test(t)) return '2b';
+  return '2a';
 }
 
 function ledgerType(w: WorldPart): { head: LedgerHead; sec: keyof typeof LEDGERS } {

@@ -5,6 +5,8 @@ import { LOAD_CLASSES } from '../../scaffold/catalog';
 import { buildScaffoldModel, type ModelNote } from '../../scaffold/model';
 import { type CheckKind, type ScaffoldResult } from '../../scaffold/analysis';
 import { analyzeScaffoldParallel } from '../../scaffold/parallel';
+import { useProgress } from './progress';
+import { ProgressBar } from './ProgressBar';
 import { Button, Card, NumberField, SelectField, cx } from '../common';
 import { useFmt } from '../hooks';
 import { useStore } from '../../state/store';
@@ -36,6 +38,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
   const fmt = useFmt();
   const sc = useScaffold();
   const [busy, setBusy] = useState<{ done: number; total: number } | null>(null);
+  const calc = useProgress((s) => s.calc);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<CheckKind | 'all'>('all');
   const [showAll, setShowAll] = useState(false);
@@ -59,12 +62,15 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
   }, [st]);
 
   const start = async () => {
+    const setCalc = useProgress.getState().setCalc;
     setBusy({ done: 0, total: 1 });
     setError(null);
+    setCalc({ phase: 'scaffold.progress.model', frac: null });
     await new Promise((r) => setTimeout(r, 30));
     try {
       const t0 = performance.now();
       const model = buildScaffoldModel(st);
+      setCalc({ phase: 'scaffold.progress.prepare', frac: null });
       const result = await analyzeScaffoldParallel(
         model,
         {
@@ -79,7 +85,10 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           ice: outdoor && sc.ice ? sc.iceThickness : 0,
           secondOrder: sc.secondOrder,
         },
-        (done, total) => setBusy({ done, total }),
+        (pr) => {
+          setBusy({ done: pr.done, total: pr.total });
+          setCalc(pr.phase === 'prepare' ? { phase: 'scaffold.progress.prepare', frac: null } : { phase: 'scaffold.progress.run', params: { done: pr.done, total: pr.total }, frac: pr.frac });
+        },
       );
       setRun({ result, notes: model.notes, levels: model.levels, sig, ms: performance.now() - t0 });
     } catch (e) {
@@ -87,6 +96,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
       setRun(null);
     }
     setBusy(null);
+    setCalc(null);
   };
 
   const res = run?.result;
@@ -129,6 +139,11 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
         </Button>
       }
     >
+      {calc && (
+        <div className="mb-3">
+          <ProgressBar p={calc} testId="scaffold-calc-progress" />
+        </div>
+      )}
       <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.calc.intro')}</p>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         <SelectField
@@ -385,7 +400,15 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
               <ul className="space-y-0.5">
                 {run.notes.map((n) => (
                   <li key={n.key}>
-                    <button type="button" className="flex items-start gap-1.5 rounded px-1 text-start text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800" onClick={() => sc.select(n.parts)}>
+                    <button
+                      type="button"
+                      aria-pressed={sc.selected === n.parts}
+                      className={cx(
+                        'flex items-start gap-1.5 rounded px-1 text-start text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800',
+                        sc.selected === n.parts && 'bg-fuchsia-100 ring-1 ring-fuchsia-400 hover:bg-fuchsia-100 dark:bg-fuchsia-900/40',
+                      )}
+                      onClick={() => (sc.selected === n.parts ? sc.select([]) : sc.select(n.parts))}
+                    >
                       <IconInfo className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t(`scaffold.calc.note.${n.key}`, { ...n.params, n: n.parts.length })}
                     </button>
                   </li>

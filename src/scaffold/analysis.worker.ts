@@ -13,13 +13,18 @@ export interface WorkerJob {
   combos: number[];
 }
 
-export type WorkerMessage = { type: 'start'; total: number; names: string[] } | { type: 'done-one' } | { type: 'result'; result: ScaffoldResult } | { type: 'error'; message: string };
+export type WorkerMessage =
+  | { type: 'start'; total: number; names: string[] }
+  | { type: 'step'; it: number }
+  | { type: 'done-one' }
+  | { type: 'result'; result: ScaffoldResult }
+  | { type: 'error'; message: string };
 
 self.onmessage = (e: MessageEvent<WorkerJob>) => {
   const { model, opt, combos } = e.data;
   const post = (m: WorkerMessage) => (self as unknown as Worker).postMessage(m);
   try {
-    const a = prepareAnalysis(model, opt, weakDofs(model));
+    const a = prepareAnalysis(model, opt, weakDofs(model), (it) => post({ type: 'step', it }));
     post({ type: 'start', total: a.combos.length, names: a.combos.map((c) => c.name) });
     for (const k of combos) {
       if (k < a.combos.length) a.runCombo(a.combos[k]);

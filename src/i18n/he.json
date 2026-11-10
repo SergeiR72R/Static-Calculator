@@ -1013,6 +1013,16 @@
       "loaded": "רכיבים שנוספו מהייצוא של AutoCAD: {n}",
       "errFormat": "קובץ זה אינו ייצוא PERIEXPORT.",
       "errNoDxf": "יש לפתוח קודם את ה-DXF של השרטוט ואחר כך את הקובץ …_peri.txt."
-    }
+    },
+    "progress": {
+      "read": "קריאת הקובץ",
+      "parse": "ניתוח ה-DXF",
+      "export": "קריאת ייצוא PERIEXPORT",
+      "structure": "ניתוח המבנה…",
+      "model": "בניית מודל החישוב…",
+      "prepare": "הכנה: חיפוש מנגנונים…",
+      "run": "צירופים: {done} מתוך {total}"
+    },
+    "clearSelection": "ביטול הסימון ({n})"
   }
 }

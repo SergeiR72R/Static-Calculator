@@ -1013,6 +1013,16 @@
       "loaded": "Parts added from the AutoCAD export: {n}",
       "errFormat": "This file is not a PERIEXPORT file.",
       "errNoDxf": "Open the DXF of the drawing first, then the file …_peri.txt."
-    }
+    },
+    "progress": {
+      "read": "Reading the file",
+      "parse": "Reading the DXF",
+      "export": "Reading the PERIEXPORT file",
+      "structure": "Working out the structure…",
+      "model": "Building the analysis model…",
+      "prepare": "Preparing: looking for mechanisms…",
+      "run": "Combinations: {done} of {total}"
+    },
+    "clearSelection": "Clear highlighting ({n})"
   }
 }

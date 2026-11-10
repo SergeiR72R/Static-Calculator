@@ -324,7 +324,11 @@ interface Solved {
 }
 
 /** non-linear solution of one combination */
-function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder: boolean): Solved {
+/** most iterations of one combination */
+export const MAX_ITERATIONS = 14;
+
+/** non-linear solution of one combination; `onStep` after every iteration (its number) */
+function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder: boolean, onStep?: (it: number) => void): Solved {
   const { frame, members } = model;
   const nM = frame.members.length;
   const states: (MemberState | undefined)[] = new Array(nM).fill(undefined);
@@ -373,8 +377,9 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
   let r!: Solved['r'];
   let converged = false;
   let it = 0;
-  const MAX = 14;
+  const MAX = MAX_ITERATIONS;
   for (it = 1; it <= MAX; it++) {
+    if (it > 1) onStep?.(it - 1);
     makeStates(Ns, it === 1);
     try {
       r = fr.solve(loads, states, supActive, { reuse: true });
@@ -457,7 +462,7 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
 }
 
 /** set-up of the analysis: solver, combinations, check data; the combinations are run one by one */
-export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weakIn?: number[]) {
+export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weakIn?: number[], onStep?: (it: number) => void) {
   const { frame, members } = model;
   // mechanisms: weak springs keep the analysis going; their forces show what is not held
   const weak = weakIn ?? weakDofs(model);
@@ -548,7 +553,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
   const runCombo = (cb: Combo) => {
     let sol: Solved;
     try {
-      sol = solveCombo(fr, model, cb.loads, opt.secondOrder);
+      sol = solveCombo(fr, model, cb.loads, opt.secondOrder, onStep);
     } catch (e) {
       // a nearly free degree of freedom (some stiffness left, but far too little): held by a weak
       // spring as the free ones, and the combination again

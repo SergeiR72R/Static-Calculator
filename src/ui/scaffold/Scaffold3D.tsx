@@ -119,89 +119,109 @@ export default function Scaffold3D({ st, girderColor, partColor, selected, moved
     const mov = new Set(moved);
     const partGirder = new Map<string, string>();
     for (const g of st.girders) for (const id of g.parts) partGirder.set(id, g.key);
-    // with a selection the other parts fade towards the background
+    // with a selection (a note, a part): the selected parts bright, all others light grey and see-through
     const fade = sel.size > 0;
-    const bg = new THREE.Color(theme === 'dark' ? '#0f172a' : '#ffffff');
+    const GHOST = theme === 'dark' ? '#64748b' : '#cbd5e1';
     const colorOf = (id: string, kind: keyof typeof KIND_COLOR) => {
       if (sel.has(id)) return SEL;
+      if (fade) return GHOST;
       const g = partGirder.get(id);
-      const c = g && girderColor[g] ? girderColor[g] : partColor ? (partColor[id] ?? '#cbd5e1') : mov.has(id) ? MOVED : KIND_COLOR[kind];
-      return fade ? `#${new THREE.Color(c).lerp(bg, 0.75).getHexString()}` : c;
+      return g && girderColor[g] ? girderColor[g] : partColor ? (partColor[id] ?? '#cbd5e1') : mov.has(id) ? MOVED : KIND_COLOR[kind];
     };
+    /** material: the parts in the background of a selection see-through and not hiding the selected ones */
+    const material = (ghost: boolean, opacity = 1) =>
+      ghost ? new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.16 * opacity, depthWrite: false }) : new THREE.MeshLambertMaterial(opacity < 1 ? { transparent: true, opacity } : {});
 
     // tubes
-    const segs: { a: THREE.Vector3; b: THREE.Vector3; r: number; color: string; id: string }[] = [];
-    const decks: { min: THREE.Vector3; max: THREE.Vector3; color: string; id: string }[] = [];
-    const ros: { p: THREE.Vector3; id: string }[] = [];
-    const dots: { p: THREE.Vector3; color: string; id: string }[] = [];
+    type Seg = { a: THREE.Vector3; b: THREE.Vector3; r: number; color: string; id: string; ghost: boolean };
+    type Box = { min: THREE.Vector3; max: THREE.Vector3; color: string; id: string; ghost: boolean };
+    type Dot = { p: THREE.Vector3; color: string; id: string; ghost: boolean };
+    const segs: Seg[] = [];
+    const decks: Box[] = [];
+    const ros: { p: THREE.Vector3; id: string; ghost: boolean }[] = [];
+    const dots: Dot[] = [];
     for (const w of st.parts) {
       const color = colorOf(w.part.id, w.cls.kind);
+      const ghost = fade && !sel.has(w.part.id);
       if (w.cls.kind === 'deck') {
-        decks.push({ min: toThree(w.min, center), max: toThree(w.max, center), color, id: w.part.id });
+        decks.push({ min: toThree(w.min, center), max: toThree(w.max, center), color, id: w.part.id, ghost });
         continue;
       }
       for (const [a, b] of w.lines) {
         const len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
         if (len < 1e-4) continue;
         const r = w.cls.kind.startsWith('flex') || w.cls.kind === 'girder' ? (len > 0.6 ? 0.026 : 0.016) : 0.024;
-        segs.push({ a: toThree(a, center), b: toThree(b, center), r, color, id: w.part.id });
+        segs.push({ a: toThree(a, center), b: toThree(b, center), r: ghost ? r * 0.8 : sel.has(w.part.id) ? r * 1.25 : r, color, id: w.part.id, ghost });
       }
       // rosettes only on standards (circles of other parts' line blocks, e.g. the ULS Flex connector, are no nodes)
-      if (w.cls.kind === 'standard' || w.cls.kind === 'base') for (const p of w.rosettes) ros.push({ p: toThree(p, center), id: w.part.id });
+      if (w.cls.kind === 'standard' || w.cls.kind === 'base') for (const p of w.rosettes) ros.push({ p: toThree(p, center), id: w.part.id, ghost });
       // parts without system lines (couplers): a small block at their place
-      if (!w.lines.length) dots.push({ p: toThree([w.part.m[3], w.part.m[7], w.part.m[11]], center), color, id: w.part.id });
+      if (!w.lines.length) dots.push({ p: toThree([w.part.m[3], w.part.m[7], w.part.m[11]], center), color, id: w.part.id, ghost });
     }
     const m4 = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const up = new THREE.Vector3(0, 1, 0);
     const col = new THREE.Color();
-    if (segs.length) {
-      const geo = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
-      const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial(), segs.length);
-      segs.forEach((g, i) => {
-        const d = new THREE.Vector3().subVectors(g.b, g.a);
-        const l = d.length();
-        q.setFromUnitVectors(up, d.normalize());
-        m4.compose(new THREE.Vector3().addVectors(g.a, g.b).multiplyScalar(0.5), q, new THREE.Vector3(g.r, l, g.r));
-        mesh.setMatrixAt(i, m4);
-        mesh.setColorAt(i, col.set(g.color));
-      });
-      mesh.computeBoundingSphere();
-      s.content.add(mesh);
-      s.pick.push({ mesh, ids: segs.map((g) => g.id) });
-    }
-    if (decks.length) {
-      const geo = new THREE.BoxGeometry(1, 1, 1);
-      const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ transparent: true, opacity: 0.55 }), decks.length);
-      decks.forEach((d, i) => {
-        const size = new THREE.Vector3(Math.abs(d.max.x - d.min.x) || 0.01, 0.02, Math.abs(d.max.z - d.min.z) || 0.01);
-        m4.compose(new THREE.Vector3((d.min.x + d.max.x) / 2, d.min.y, (d.min.z + d.max.z) / 2), new THREE.Quaternion(), size);
-        mesh.setMatrixAt(i, m4);
-        mesh.setColorAt(i, col.set(d.color));
-      });
-      mesh.computeBoundingSphere();
-      s.content.add(mesh);
-      s.pick.push({ mesh, ids: decks.map((d) => d.id) });
-    }
-    if (dots.length) {
-      const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), new THREE.MeshLambertMaterial(), dots.length);
-      dots.forEach((d, i) => {
-        m4.makeTranslation(d.p.x, d.p.y, d.p.z);
-        mesh.setMatrixAt(i, m4);
-        mesh.setColorAt(i, col.set(d.color));
-      });
-      mesh.computeBoundingSphere();
-      s.content.add(mesh);
-      s.pick.push({ mesh, ids: dots.map((d) => d.id) });
-    }
-    if (ros.length) {
-      const geo = new THREE.CylinderGeometry(0.06, 0.06, 0.012, 12);
-      const mesh = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ color: 0x0f766e }), ros.length);
-      ros.forEach((r, i) => {
-        m4.makeTranslation(r.p.x, r.p.y, r.p.z);
-        mesh.setMatrixAt(i, m4);
-      });
-      s.content.add(mesh);
+    // the selected / normal parts first (opaque), the see-through background after them
+    for (const ghost of [false, true]) {
+      const sg = segs.filter((g) => g.ghost === ghost);
+      if (sg.length) {
+        const geo = new THREE.CylinderGeometry(1, 1, 1, 8, 1);
+        const mesh = new THREE.InstancedMesh(geo, material(ghost), sg.length);
+        sg.forEach((g, i) => {
+          const d = new THREE.Vector3().subVectors(g.b, g.a);
+          const l = d.length();
+          q.setFromUnitVectors(up, d.normalize());
+          m4.compose(new THREE.Vector3().addVectors(g.a, g.b).multiplyScalar(0.5), q, new THREE.Vector3(g.r, l, g.r));
+          mesh.setMatrixAt(i, m4);
+          mesh.setColorAt(i, col.set(g.color));
+        });
+        mesh.computeBoundingSphere();
+        if (ghost) mesh.renderOrder = 1;
+        s.content.add(mesh);
+        s.pick.push({ mesh, ids: sg.map((g) => g.id) });
+      }
+      const dk = decks.filter((d) => d.ghost === ghost);
+      if (dk.length) {
+        const geo = new THREE.BoxGeometry(1, 1, 1);
+        const mesh = new THREE.InstancedMesh(geo, material(ghost, 0.55), dk.length);
+        dk.forEach((d, i) => {
+          const size = new THREE.Vector3(Math.abs(d.max.x - d.min.x) || 0.01, 0.02, Math.abs(d.max.z - d.min.z) || 0.01);
+          m4.compose(new THREE.Vector3((d.min.x + d.max.x) / 2, d.min.y, (d.min.z + d.max.z) / 2), new THREE.Quaternion(), size);
+          mesh.setMatrixAt(i, m4);
+          mesh.setColorAt(i, col.set(d.color));
+        });
+        mesh.computeBoundingSphere();
+        if (ghost) mesh.renderOrder = 1;
+        s.content.add(mesh);
+        s.pick.push({ mesh, ids: dk.map((d) => d.id) });
+      }
+      const dt = dots.filter((d) => d.ghost === ghost);
+      if (dt.length) {
+        const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.07, 0.07, 0.07), material(ghost), dt.length);
+        dt.forEach((d, i) => {
+          m4.makeTranslation(d.p.x, d.p.y, d.p.z);
+          mesh.setMatrixAt(i, m4);
+          mesh.setColorAt(i, col.set(d.color));
+        });
+        mesh.computeBoundingSphere();
+        if (ghost) mesh.renderOrder = 1;
+        s.content.add(mesh);
+        s.pick.push({ mesh, ids: dt.map((d) => d.id) });
+      }
+      const rs = ros.filter((r) => r.ghost === ghost);
+      if (rs.length) {
+        const geo = new THREE.CylinderGeometry(0.06, 0.06, 0.012, 12);
+        const mat = ghost ? material(true) : new THREE.MeshLambertMaterial();
+        mat.color.set(ghost ? GHOST : 0x0f766e);
+        const mesh = new THREE.InstancedMesh(geo, mat, rs.length);
+        rs.forEach((r, i) => {
+          m4.makeTranslation(r.p.x, r.p.y, r.p.z);
+          mesh.setMatrixAt(i, m4);
+        });
+        if (ghost) mesh.renderOrder = 1;
+        s.content.add(mesh);
+      }
     }
     // girder labels (T1, T2, …) above the middle of the top chord
     for (const g of st.girders) {

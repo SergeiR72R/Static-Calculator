@@ -71,13 +71,15 @@ interface Rec {
 }
 
 /** DXF records (0-groups) by section */
-function readRecords(text: string): Map<string, Rec[]> {
+function readRecords(text: string, progress?: (frac: number) => void): Map<string, Rec[]> {
   const lines = text.split(/\r?\n/);
+  const step = 2 * Math.max(Math.floor(lines.length / 200), 1000);
   const out = new Map<string, Rec[]>();
   let sec = '';
   let cur: Rec | null = null;
   let list: Rec[] = [];
   for (let i = 0; i + 1 < lines.length; i += 2) {
+    if (progress && i % step === 0) progress(i / lines.length);
     const code = parseInt(lines[i], 10);
     if (Number.isNaN(code)) throw new ScaffoldImportError('scaffold.err.format');
     const v = lines[i + 1].trim();
@@ -249,12 +251,15 @@ function mul34(a: number[], b: number[]): number[] {
   return out;
 }
 
-/** Parse the text of a PERI CAD DXF. Throws ScaffoldImportError with an i18n key. */
-export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
+/**
+ * Parse the text of a PERI CAD DXF. Throws ScaffoldImportError with an i18n key. `progress` gets the
+ * share of the records read (0…1).
+ */
+export function parsePeriCadDxf(text: string, fileName = '', progress?: (frac: number) => void): ScaffoldDoc {
   const head = text.slice(0, 32);
   if (head.startsWith('AC10')) throw new ScaffoldImportError('scaffold.err.dwg');
   if (head.startsWith('AutoCAD Binary DXF')) throw new ScaffoldImportError('scaffold.err.binary');
-  const secs = readRecords(text);
+  const secs = readRecords(text, progress);
   if (!secs.has('ENTITIES')) throw new ScaffoldImportError('scaffold.err.format');
 
   // handle → record (objects, tables and blocks)

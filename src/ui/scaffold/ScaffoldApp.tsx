@@ -14,6 +14,30 @@ import { downloadExportScript, openScaffoldFiles } from './openDxf';
 import { SiteCard } from './SiteCard';
 import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './AnalysisCard';
 import { ScaffoldReport } from './ScaffoldReport';
+import { useProgress } from './progress';
+import { ProgressBar } from './ProgressBar';
+
+/** end of the highlighting of a note / part: all parts in their colours again */
+export function ClearSelection() {
+  const fmt = useFmt();
+  const sc = useScaffold();
+  return (
+    <Button size="sm" onClick={() => sc.select([])} data-testid="scaffold-clear-selection">
+      <IconX /> {fmt.t('scaffold.clearSelection', { n: sc.selected.length })}
+    </Button>
+  );
+}
+
+/** progress of opening a drawing: above the page */
+function LoadBar() {
+  const load = useProgress((s) => s.load);
+  if (!load) return null;
+  return (
+    <div className="no-print fixed left-1/2 top-16 z-40 w-[min(480px,calc(100vw-32px))] -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+      <ProgressBar p={load} testId="scaffold-load-progress" />
+    </div>
+  );
+}
 
 const Scaffold3D = lazy(() => import('./Scaffold3D'));
 
@@ -176,6 +200,11 @@ export default function ScaffoldApp() {
   const sums = useMemo(() => models.map(({ m }) => beamSummary(m)), [models]);
   const girderColor = useMemo(() => Object.fromEntries(models.map(({ g }, k) => [g.key, etaColor(sums[k])])), [models, sums]);
   const shown = useMemo(() => (st ? { ...st, parts: st.parts.filter((w) => !hidden.has(w.cls.kind)) } : null), [st, hidden]);
+  // opening a drawing ends when its structure has been worked out
+  useEffect(() => {
+    const p = useProgress.getState();
+    if (p.load?.phase === 'scaffold.progress.structure') p.setLoad(null);
+  }, [st]);
 
   const partColor = useMemo(() => (run && byEta ? Object.fromEntries(Object.entries(run.result.eta).map(([id, e]) => [id, partEtaColor(e)])) : null), [run, byEta]);
   // a new drawing: the results of the old one are gone
@@ -185,7 +214,13 @@ export default function ScaffoldApp() {
     if (run) setRun(null);
   }
 
-  if (!doc || !st || !shown) return <Welcome />;
+  if (!doc || !st || !shown)
+    return (
+      <>
+        <LoadBar />
+        <Welcome />
+      </>
+    );
 
   const partGirder = new Map<string, Girder>();
   for (const g of st.girders) for (const id of g.parts) partGirder.set(id, g);
@@ -218,6 +253,7 @@ export default function ScaffoldApp() {
 
   return (
     <>
+    <LoadBar />
     <main className="no-print grid flex-1 grid-cols-1 md:grid-cols-[minmax(300px,380px)_1fr]" data-testid="scaffold-app">
       <aside className="space-y-3 border-e border-slate-200 bg-slate-100/60 p-3 dark:border-slate-800 dark:bg-slate-900/40">
         <Card
@@ -276,7 +312,11 @@ export default function ScaffoldApp() {
           )}
         </Card>
 
-        <Card title={<span>{fmt.t('scaffold.issues.title')} {warnings > 0 && <span className="ms-1 rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{warnings}</span>}</span>} testId="scaffold-issues">
+        <Card
+          title={<span>{fmt.t('scaffold.issues.title')} {warnings > 0 && <span className="ms-1 rounded-full bg-amber-500 px-1.5 text-[10px] text-white">{warnings}</span>}</span>}
+          testId="scaffold-issues"
+          actions={sc.selected.length > 0 && <ClearSelection />}
+        >
           {!st.issues.length && <p className="text-xs text-slate-500">{fmt.t('scaffold.issues.none')}</p>}
           <ul className="space-y-1">
             {st.issues.map((i, k) => (
@@ -284,10 +324,12 @@ export default function ScaffoldApp() {
                 <button
                   type="button"
                   disabled={!i.parts.length}
-                  onClick={() => sc.select(i.parts)}
+                  onClick={() => (sc.selected === i.parts ? sc.select([]) : sc.select(i.parts))}
+                  aria-pressed={sc.selected === i.parts}
                   className={cx(
                     'flex w-full items-start gap-1.5 rounded px-1 py-0.5 text-start text-xs enabled:hover:bg-slate-100 dark:enabled:hover:bg-slate-800',
                     i.severity === 'warning' ? 'text-amber-800 dark:text-amber-300' : 'text-slate-600 dark:text-slate-300',
+                    sc.selected === i.parts && 'bg-fuchsia-100 ring-1 ring-fuchsia-400 enabled:hover:bg-fuchsia-100 dark:bg-fuchsia-900/40 dark:enabled:hover:bg-fuchsia-900/40',
                   )}
                   data-testid={`scaffold-issue-${i.key}`}
                 >
@@ -305,9 +347,12 @@ export default function ScaffoldApp() {
           title={fmt.t('scaffold.view.title')}
           testId="scaffold-view"
           actions={
-            <Button size="sm" onClick={() => setResetKey((k) => k + 1)}>
-              {fmt.t('view3d.reset')}
-            </Button>
+            <span className="flex gap-1.5">
+              {sc.selected.length > 0 && <ClearSelection />}
+              <Button size="sm" onClick={() => setResetKey((k) => k + 1)}>
+                {fmt.t('view3d.reset')}
+              </Button>
+            </span>
           }
         >
           <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px]">
@@ -439,48 +484,6 @@ export default function ScaffoldApp() {
           )}
         </Card>
 
-        <Card title={fmt.t('scaffold.bom.title')} testId="scaffold-bom">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-slate-200 text-[11px] text-slate-500 dark:border-slate-700">
-                  <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.bom.article')}</th>
-                  <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.bom.name')}</th>
-                  <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.bom.kind')}</th>
-                  <th className="px-1.5 py-1 text-end font-medium">{fmt.t('scaffold.bom.count')}</th>
-                  <th className="px-1.5 py-1 text-end font-medium">{fmt.t('scaffold.bom.weight')}, kg</th>
-                </tr>
-              </thead>
-              <tbody>
-                {st.bom.map((b) => (
-                  <tr
-                    key={b.article}
-                    className="cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60"
-                    onClick={() => sc.select(st.parts.filter((w) => w.part.article === b.article).map((w) => w.part.id))}
-                  >
-                    <td className="num px-1.5 py-1">{b.article}</td>
-                    <td className="px-1.5 py-1">{b.desc || b.name}</td>
-                    <td className="px-1.5 py-1">
-                      <span className="me-1 inline-block h-2 w-3 rounded-sm align-middle" style={{ background: KIND_COLOR[b.kind] }} />
-                      {fmt.t(`scaffold.kind.${b.kind}`)}
-                    </td>
-                    <td className="num px-1.5 py-1 text-end font-semibold">{b.count}</td>
-                    <td className="num px-1.5 py-1 text-end">{b.weight !== undefined ? fmt.num(b.weight * b.count, 1) : '–'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-2 text-xs font-medium" data-testid="scaffold-bom-total">
-            {fmt.t('scaffold.bom.total', {
-              kg: fmt.num(
-                st.bom.reduce((a, b) => a + (b.weight ?? 0) * b.count, 0),
-                0,
-              ),
-              n: st.bom.filter((b) => b.weight === undefined).reduce((a, b) => a + b.count, 0),
-            })}
-          </p>
-        </Card>
       </section>
     </main>
       {printing && <ScaffoldReport st={st} run={run} />}

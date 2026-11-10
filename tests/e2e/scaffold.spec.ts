@@ -25,7 +25,16 @@ test('scaffold mode: PERI CAD DXF → 3D, girders, parts list → girder in the 
   await expect(page.getByTestId('scaffold-3d').locator('canvas')).toBeVisible();
   await expect(page.getByTestId('scaffold-issue-healed')).toContainText('1 деталей');
   await expect(page.getByTestId('scaffold-issue-noDiagonals')).toBeVisible();
-  await expect(page.getByTestId('scaffold-bom')).toContainText('Stahlbelag UDG 25 x 200');
+  // the parts list is only in the report, not on the page
+  await expect(page.getByTestId('scaffold-bom')).toHaveCount(0);
+  // a note highlights its parts (the others grey); the highlighting is cleared again
+  await expect(page.getByTestId('scaffold-clear-selection')).toHaveCount(0);
+  await page.getByTestId('scaffold-issue-healed').click();
+  await expect(page.getByTestId('scaffold-issue-healed')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('scaffold-clear-selection').first()).toContainText('(1)');
+  await page.getByTestId('scaffold-clear-selection').first().click();
+  await expect(page.getByTestId('scaffold-clear-selection')).toHaveCount(0);
+  await expect(page.getByTestId('scaffold-issue-healed')).toHaveAttribute('aria-pressed', 'false');
 
   // girders with result
   await expect(page.getByTestId('scaffold-girder-T1')).toContainText('ULS Flex 50 + 150 + 150 + 50');
@@ -139,6 +148,9 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await expect(page.getByTestId('scaffold-calc')).toBeVisible();
   await page.getByTestId('scaffold-calc-run').click();
   await expect(page.getByTestId('scaffold-calc-result')).toBeVisible({ timeout: 20_000 });
+  // the progress bars of opening and of the analysis are gone when done
+  await expect(page.getByTestId('scaffold-calc-progress')).toHaveCount(0);
+  await expect(page.getByTestId('scaffold-load-progress')).toHaveCount(0);
   const eta = Number((await page.getByTestId('scaffold-calc-max').innerText()).replace(/[^\d]/g, ''));
   expect(eta).toBeGreaterThan(10);
   // four working combinations, checks of nodes and standards, bases

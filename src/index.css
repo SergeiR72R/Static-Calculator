@@ -108,6 +108,19 @@ body {
   @apply px-1.5 py-0 font-mono text-[11px];
 }
 
+/* progress bar without a known share: a piece running to and fro */
+@keyframes progress-indeterminate {
+  from {
+    left: -33%;
+  }
+  to {
+    left: 100%;
+  }
+}
+.progress-indeterminate {
+  animation: progress-indeterminate 1.2s ease-in-out infinite;
+}
+
 .print-only {
   display: none;
 }

@@ -1013,6 +1013,16 @@
       "loaded": "Teile aus dem AutoCAD-Export ergänzt: {n}",
       "errFormat": "Diese Datei ist kein PERIEXPORT.",
       "errNoDxf": "Zuerst die DXF der Zeichnung öffnen, dann die Datei …_peri.txt."
-    }
+    },
+    "progress": {
+      "read": "Datei lesen",
+      "parse": "DXF auswerten",
+      "export": "PERIEXPORT lesen",
+      "structure": "Konstruktion auswerten…",
+      "model": "Rechenmodell aufbauen…",
+      "prepare": "Vorbereitung: Mechanismen suchen…",
+      "run": "Kombinationen: {done} von {total}"
+    },
+    "clearSelection": "Hervorhebung aufheben ({n})"
   }
 }

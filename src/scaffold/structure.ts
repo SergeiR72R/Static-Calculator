@@ -10,7 +10,7 @@ import { baseModel, makeSupport, udl } from '../core/defaults';
 import { FLEX, LATTICE_TYPES, flexLength, type LatticeId } from '../sections/lattice';
 import { periMaterial } from '../sections/peri';
 import { classifyPart, PART_KINDS, type PartClass } from './catalog';
-import { partKg } from './weights';
+import { findPart, partKg } from './weights';
 import { healParts, type PartMove } from './heal';
 import { place, type ScaffoldDoc, type ScaffoldPart, type V3 } from './pericad';
 
@@ -108,7 +108,10 @@ const r3 = (v: number) => Math.round(v * 1000) / 1000;
 const isVert = (a: V3, b: V3) => Math.hypot(b[0] - a[0], b[1] - a[1]) < 1e-3 && Math.abs(b[2] - a[2]) > 1e-3;
 const isHor = (a: V3, b: V3) => Math.abs(b[2] - a[2]) < 1e-3;
 
-function worldPart(doc: ScaffoldDoc, p: ScaffoldPart): WorldPart {
+function worldPart(doc: ScaffoldDoc, p0: ScaffoldPart): WorldPart {
+  // exploded parts of the older kind carry only their article: name from the parts database
+  const db = p0.name === p0.article && !p0.desc ? findPart(p0.article) : undefined;
+  const p = db ? { ...p0, name: db.name, desc: db.name } : p0;
   const g = doc.geom[p.article] ?? { lines: [], rosettes: [] };
   const lines = g.lines.map(([a, b]) => [place(p.m, a), place(p.m, b)] as [V3, V3]);
   const rosettes = g.rosettes.map((q) => place(p.m, q));

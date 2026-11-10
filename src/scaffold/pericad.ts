@@ -167,6 +167,80 @@ function flatten(blocks: Map<string, RawBlock>, name: string, depth = 0): PartGe
   return g;
 }
 
+const DISPLAY_BLOCK = /^PERI_(\d{6}(?:-\d+)?)_PartDisplayName_(.+)$/;
+
+/**
+ * Parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL) are not written to DXF. Exploded in
+ * AutoCAD they become references of their display block "PERI_<article>_PartDisplayName_3D"; the
+ * axis comes from the block "…_Line". Returns the parts with the placement of the block (rotation
+ * only; the uniform scale of the reference is returned separately) in drawing units.
+ */
+function readInsertedParts(ents: Rec[], blocks: Map<string, RawBlock>): { part: ScaffoldPart; scale: number; size: number }[] {
+  const out: { part: ScaffoldPart; scale: number; size: number }[] = [];
+  const seen = new Set<string>();
+  const visit = (name: string, M: number[], layer: string, id: string, depth: number) => {
+    const mt = DISPLAY_BLOCK.exec(name);
+    if (mt) {
+      const article = mt[1];
+      if (!blocks.has(`PERI_${article}_PartDisplayName_Line`)) return;
+      // rotation and uniform scale of the reference
+      const col = (j: number) => Math.hypot(M[j], M[4 + j], M[8 + j]);
+      const scale = (col(0) + col(1) + col(2)) / 3 || 1;
+      const m = M.map((v, i) => (i % 4 === 3 ? v : v / scale));
+      // the same part shown in several views: once
+      const key = `${article}|${[m[3], m[7], m[11]].map((v) => Math.round(v / scale * 1000)).join(',')}|${[m[2], m[6], m[10]].map((v) => Math.round(v * 10)).join(',')}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const g = flatten(blocks, `PERI_${article}_PartDisplayName_Line`);
+      let size = 0;
+      for (const [a, b] of g.lines) size = Math.max(size, Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) * scale);
+      // the name comes from the parts database (analyzeScaffold): the reference carries none
+      out.push({ part: { id, article, name: article, desc: '', layer, m }, scale, size });
+      return;
+    }
+    // a block holding exploded parts
+    const b = blocks.get(name);
+    if (!b || depth > 3) return;
+    b.inserts.forEach((ins, k) => visit(ins.name, mul34(M, insertMatrix(ins.p, ins.s, ins.rot, [0, 0, 1])), layer, `${id}.${k}`, depth + 1));
+  };
+  for (const r of ents) {
+    if (r.type !== 'INSERT') continue;
+    const name = first(r, 2) ?? '';
+    if (!DISPLAY_BLOCK.test(name) && !blocks.get(name)?.inserts.some((i) => DISPLAY_BLOCK.test(i.name))) continue;
+    const p: V3 = [num(first(r, 10)), num(first(r, 20)), num(first(r, 30))];
+    const sc: V3 = [num(first(r, 41), 1), num(first(r, 42), 1), num(first(r, 43), 1)];
+    const ex: V3 = [num(first(r, 210)), num(first(r, 220)), num(first(r, 230), 1)];
+    visit(name, insertMatrix(p, sc, num(first(r, 50)), ex), first(r, 8) ?? '', first(r, 5) ?? `I${out.length}`, 0);
+  }
+  return out;
+}
+
+/** placement (row-major 3 × 4) of a block reference: OCS of the extrusion, rotation about it, scale */
+export function insertMatrix(p: V3, s: V3, rotDeg: number, extrusion: V3): number[] {
+  const nl = Math.hypot(...extrusion) || 1;
+  const N: V3 = [extrusion[0] / nl, extrusion[1] / nl, extrusion[2] / nl];
+  // arbitrary axis algorithm of the DXF reference
+  const ax0: V3 = Math.abs(N[0]) < 1 / 64 && Math.abs(N[1]) < 1 / 64 ? [N[2], 0, -N[0]] : [-N[1], N[0], 0];
+  const al = Math.hypot(...ax0);
+  const Ax: V3 = [ax0[0] / al, ax0[1] / al, ax0[2] / al];
+  const Ay: V3 = [N[1] * Ax[2] - N[2] * Ax[1], N[2] * Ax[0] - N[0] * Ax[2], N[0] * Ax[1] - N[1] * Ax[0]];
+  const c = Math.cos((rotDeg * Math.PI) / 180);
+  const sn = Math.sin((rotDeg * Math.PI) / 180);
+  // OCS axes of the block: x' = c·Ax + s·Ay, y' = −s·Ax + c·Ay, z' = N; insertion point in OCS
+  const X: V3 = [c * Ax[0] + sn * Ay[0], c * Ax[1] + sn * Ay[1], c * Ax[2] + sn * Ay[2]];
+  const Y: V3 = [-sn * Ax[0] + c * Ay[0], -sn * Ax[1] + c * Ay[1], -sn * Ax[2] + c * Ay[2]];
+  const P: V3 = [p[0] * Ax[0] + p[1] * Ay[0] + p[2] * N[0], p[0] * Ax[1] + p[1] * Ay[1] + p[2] * N[1], p[0] * Ax[2] + p[1] * Ay[2] + p[2] * N[2]];
+  return [X[0] * s[0], Y[0] * s[1], N[0] * s[2], P[0], X[1] * s[0], Y[1] * s[1], N[1] * s[2], P[1], X[2] * s[0], Y[2] * s[1], N[2] * s[2], P[2]];
+}
+
+/** a · b for row-major 3 × 4 placements */
+function mul34(a: number[], b: number[]): number[] {
+  const out = new Array<number>(12);
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 4; j++) out[i * 4 + j] = a[i * 4] * b[j] + a[i * 4 + 1] * b[4 + j] + a[i * 4 + 2] * b[8 + j] + (j === 3 ? a[i * 4 + 3] : 0);
+  return out;
+}
+
 /** Parse the text of a PERI CAD DXF. Throws ScaffoldImportError with an i18n key. */
 export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
   const head = text.slice(0, 32);
@@ -237,7 +311,9 @@ export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
     });
   }
   const aecParts = aecPartCount(text);
-  if (!raws.length) {
+  // parts of the older kind exploded in AutoCAD: references of their display blocks
+  const inserted = readInsertedParts(secs.get('ENTITIES') ?? [], blocks);
+  if (!raws.length && !inserted.length) {
     const proxies = (secs.get('ENTITIES') ?? []).some((r) => r.type === 'ACAD_PROXY_ENTITY');
     throw new ScaffoldImportError(aecParts ? 'scaffold.err.aec' : proxies ? 'scaffold.err.proxy' : 'scaffold.err.noParts');
   }
@@ -255,6 +331,25 @@ export function parsePeriCadDxf(text: string, fileName = ''): ScaffoldDoc {
       g.rosettes = g.rosettes.map((p) => p.map((v) => v * s) as V3);
     }
     for (const r of raws) for (const i of [3, 7, 11]) r.part.m[i] *= s;
+  }
+  // exploded parts: the display blocks are in metres; the drawing unit follows from the parts above,
+  // or else from the size of the placed parts
+  if (inserted.length) {
+    let u = ext > 50 ? 1e-3 : 1;
+    if (!raws.length) {
+      const sizes = inserted.map((q) => q.size).sort((a, b) => a - b);
+      u = sizes[Math.floor(sizes.length / 2)] > 50 ? 1e-3 : 1;
+    }
+    for (const q of inserted) {
+      const key = q.part.article;
+      if (!geom[key]) {
+        const g = flatten(blocks, `PERI_${key}_PartDisplayName_Line`);
+        const k = q.scale * u;
+        geom[key] = { lines: g.lines.map(([a, b]) => [a.map((v) => v * k) as V3, b.map((v) => v * k) as V3]), rosettes: g.rosettes.map((c) => c.map((v) => v * k) as V3) };
+      }
+      for (const i of [3, 7, 11]) q.part.m[i] *= u;
+      raws.push({ part: q.part, lineBlock: '' });
+    }
   }
   // vertical axis: PERI CAD drawings may be modelled with y (or another axis) up; the system lines of the
   // standards run along their local z axis. Rotate the drawing so that this direction becomes +z.

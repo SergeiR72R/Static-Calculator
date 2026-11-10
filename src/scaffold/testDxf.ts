@@ -103,6 +103,20 @@ export const ARTS: Record<string, Art> = {
       [[0.125, 0.015, -0.217], [0.125, 0.015, 0.06]],
     ],
   },
+  // base jack UJB 50 as the display block of PERI CAD: base plate 15 × 15 cm from the origin, spindle 0.505 m
+  UJB: {
+    article: '100412',
+    name: '100412',
+    desc: '',
+    layer: '0',
+    lines: [
+      [[0, 0, 0], [0.15, 0, 0]],
+      [[0.15, 0, 0], [0.15, 0.15, 0]],
+      [[0.15, 0.15, 0], [0, 0.15, 0]],
+      [[0, 0.15, 0], [0, 0, 0]],
+      [[0.075, 0.075, 0], [0.075, 0.075, 0.505]],
+    ],
+  },
   TUBE: { article: '026411', name: 'TUBE 1m', desc: 'Gerüstrohr 48,3x3,2mm 1m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [1, 0, 0]]] },
   TUBE2: { article: '026412', name: 'TUBE 2m', desc: 'Gerüstrohr 48,3x3,2mm 2m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [2, 0, 0]]] },
   RA: { article: '017020', name: 'RA 48/48', desc: 'Normalkupplung RA Ø48/48mm vz', layer: 'PERI_Coupler', lines: [], circles: [[0.076, 0.05, 0.05]] },
@@ -161,8 +175,10 @@ export function towerParts(): TestPart[] {
 /**
  * DXF text in the structure of PERI CAD; `scale` 1000 writes millimetres, `yUp` writes the drawing
  * with the y axis vertical (as PERI CAD drawings modelled in a rotated coordinate system).
+ * `exploded`: parts of these kinds are written as older PERI CAD parts exploded in AutoCAD, i.e.
+ * references of the display block "PERI_<article>_PartDisplayName_3D" (blocks in metres, scaled).
  */
-export function periDxf(parts: TestPart[], scale = 1, yUp = false): string {
+export function periDxf(parts: TestPart[], scale = 1, yUp = false, exploded: (keyof typeof ARTS)[] = []): string {
   const out: string[] = [];
   const tag = (c: number, v: string | number) => out.push(String(c).padStart(3, ' '), String(v));
   let h = 0x100;
@@ -197,10 +213,10 @@ export function periDxf(parts: TestPart[], scale = 1, yUp = false): string {
   tag(0, 'ENDSEC');
   tag(0, 'SECTION');
   tag(2, 'BLOCKS');
-  const pt = (c: number, p: V3) => {
-    tag(c, p[0] * scale);
-    tag(c + 10, p[1] * scale);
-    tag(c + 20, p[2] * scale);
+  const pt = (c: number, p: V3, f = scale) => {
+    tag(c, p[0] * f);
+    tag(c + 10, p[1] * f);
+    tag(c + 20, p[2] * f);
   };
   // rosette block
   tag(0, 'BLOCK');
@@ -213,36 +229,57 @@ export function periDxf(parts: TestPart[], scale = 1, yUp = false): string {
   tag(40, 0.08 * scale);
   tag(0, 'ENDBLK');
   for (const a of used) {
+    // display blocks of exploded parts are in metres
+    const f = exploded.includes(a as keyof typeof ARTS) ? 1 : scale;
     tag(0, 'BLOCK');
     tag(5, handle());
     tag(2, blockName(a));
-    pt(10, [0, 0, 0]);
+    pt(10, [0, 0, 0], f);
     for (const [p, q] of ARTS[a].lines) {
       tag(0, 'LINE');
       tag(5, handle());
       tag(8, '0');
-      pt(10, p);
-      pt(11, q);
+      pt(10, p, f);
+      pt(11, q, f);
     }
     for (const c of ARTS[a].circles ?? []) {
       tag(0, 'CIRCLE');
       tag(5, handle());
-      pt(10, c);
-      tag(40, 0.08 * scale);
+      pt(10, c, f);
+      tag(40, 0.08 * f);
     }
     for (const r of ARTS[a].rosettes ?? []) {
       tag(0, 'INSERT');
       tag(5, handle());
       tag(2, '100001_Line');
-      pt(10, r);
+      pt(10, r, f);
+      if (f !== scale) for (const c of [41, 42, 43]) tag(c, f / scale);
     }
     tag(0, 'ENDBLK');
+    if (f !== scale) {
+      // the 3D view block the reference points to (its own geometry is not used)
+      tag(0, 'BLOCK');
+      tag(5, handle());
+      tag(2, `PERI_${ARTS[a].article}_PartDisplayName_3D`);
+      pt(10, [0, 0, 0], 1);
+      tag(0, 'ENDBLK');
+    }
   }
   tag(0, 'ENDSEC');
   tag(0, 'SECTION');
   tag(2, 'ENTITIES');
   for (const p of parts) {
     const R = ROT[p.rot];
+    if (exploded.includes(p.art)) {
+      tag(0, 'INSERT');
+      tag(5, handle());
+      tag(8, ARTS[p.art].layer);
+      tag(2, `PERI_${ARTS[p.art].article}_PartDisplayName_3D`);
+      pt(10, p.t);
+      for (const c of [41, 42, 43]) tag(c, scale);
+      tag(50, { x: 0, y: 90, nx: 180 }[p.rot]);
+      continue;
+    }
     tag(0, 'PERI_PARTS_AC_DB_CONSTRUCTED_SINGLE_PIECE');
     tag(5, handle());
     tag(330, '1F');

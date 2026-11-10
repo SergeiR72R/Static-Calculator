@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { parsePeriCadDxf, ScaffoldImportError } from './pericad';
+import { insertMatrix, parsePeriCadDxf, place, ScaffoldImportError } from './pericad';
+import { buildScaffoldModel } from './model';
 import { analyzeScaffold, girderBeamModel } from './structure';
 import { classifyPart } from './catalog';
 import { PARTS_DB_SIZE, findPart } from './weights';
@@ -39,6 +40,50 @@ describe('PERI CAD DXF reader', () => {
     expect(b.columns).toHaveLength(6);
     expect(b.girders.map((g) => [g.L, g.supports, g.loads, g.zTop])).toEqual(a.girders.map((g) => [g.L, g.supports, g.loads, g.zTop]));
     expect(b.max[2] - b.min[2]).toBeCloseTo(a.max[2] - a.min[2], 6);
+  });
+
+  it('older PERI CAD parts exploded in AutoCAD: references of their display blocks', () => {
+    // base standards UVB and base jacks UJB 50 as exploded parts (display blocks in metres), the rest as usual
+    const jacks = (p: TestPart[]) => {
+      for (const ax of [0, 2, 4]) for (const ay of [0, 2]) p.push({ art: 'UJB', rot: 'x', t: [ax - 0.075, ay - 0.075, -0.205] });
+    };
+    for (const scale of [1, 1000]) {
+      const parts = towerParts();
+      jacks(parts);
+      const doc = parsePeriCadDxf(periDxf(parts, scale, false, ['UVB', 'UJB']), 'tower.dxf');
+      expect(doc.parts).toHaveLength(parts.length);
+      const st = analyzeScaffold(doc);
+      // names from the parts database, kinds from them
+      const ujb = st.parts.filter((w) => w.part.article === '100412');
+      expect(ujb).toHaveLength(6);
+      expect(ujb[0].part.name).toBe('Fußspindel UJB 50');
+      expect(ujb[0].cls.kind).toBe('jack');
+      expect(st.parts.filter((w) => w.part.article === '100014').every((w) => w.cls.kind === 'base')).toBe(true);
+      // placed in metres: the spindle under the standard at (0, 0) from −0.205 m to +0.3 m
+      const j = ujb.find((w) => Math.hypot(w.min[0] + 0.075, w.min[1] + 0.075) < 1e-6)!;
+      const axis = j.lines.find(([a, b]) => Math.abs(b[2] - a[2]) > 0.1)!;
+      expect(axis[0][0]).toBeCloseTo(0, 6);
+      expect(axis[0][1]).toBeCloseTo(0, 6);
+      expect(Math.min(axis[0][2], axis[1][2])).toBeCloseTo(-0.205, 6);
+      expect(Math.max(axis[0][2], axis[1][2])).toBeCloseTo(0.3, 6);
+      // the base standards stand on the axes as before
+      expect(st.columns).toHaveLength(6);
+      // the bases are at the feet of the spindles, with the spindle as a member
+      const m = buildScaffoldModel(st);
+      expect(m.bases).toHaveLength(6);
+      for (const b of m.bases) expect(m.frame.nodes[b.node][2]).toBeCloseTo(-0.205, 6);
+      expect(m.members.filter((x) => x.kind === 'jack')).toHaveLength(6);
+    }
+  });
+
+  it('placement of a block reference: rotation, scale and the extrusion direction (OCS)', () => {
+    const q: [number, number, number] = [1, 0, 0];
+    expect(place(insertMatrix([5, 6, 7], [2, 2, 2], 90, [0, 0, 1]), q).map((v) => +v.toFixed(9))).toEqual([5, 8, 7]);
+    // extrusion −y: local z → world −y, local y → world z; the insertion point is in the OCS
+    const M = insertMatrix([1, 2, 3], [1, 1, 1], 0, [0, -1, 0]);
+    expect(place(M, [0, 0, 1]).map((v, i) => +(v - place(M, [0, 0, 0])[i]).toFixed(9))).toEqual([0, -1, 0]);
+    expect(place(M, [0, 1, 0]).map((v, i) => +(v - place(M, [0, 0, 0])[i]).toFixed(9))).toEqual([0, 0, 1]);
+    expect(place(M, [0, 0, 0]).map((v) => +v.toFixed(9))).toEqual([1, -3, 2]);
   });
 
   it('rejects DWG, foreign DXF and DXF without PERI parts with a message key', () => {

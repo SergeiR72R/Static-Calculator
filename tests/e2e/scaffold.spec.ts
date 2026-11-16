@@ -67,6 +67,24 @@ test('scaffold mode: PERI CAD DXF → 3D, girders, parts list → girder in the 
   await expect(page.getByTestId('batch-active')).toContainText('T1');
 });
 
+test('scaffold mode: both files are asked for; a DXF with older parts without its …_peri.txt asks for it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('mode-scaffold').click();
+  const welcome = page.getByTestId('scaffold-welcome');
+  await expect(welcome).toContainText('_peri.txt');
+  await expect(welcome).toContainText('PERIEXPORT');
+  await expect(page.getByTestId('scaffold-drop-hint')).toContainText('оба файла');
+  await expect(page.getByTestId('scaffold-steps-script')).toBeVisible();
+  await expect(page.getByTestId('scaffold-open')).toHaveText(/Выбрать файлы/);
+  // the DXF says (CLASSES) that it has parts of the older kind, which AutoCAD does not write
+  const classes = '  0\r\nSECTION\r\n  2\r\nCLASSES\r\n  0\r\nCLASS\r\n  1\r\nPERI_AEC_DB_BAUTEIL\r\n  2\r\nAecDbBauteil\r\n  3\r\nPERI\r\n 90\r\n0\r\n 91\r\n7\r\n  0\r\nENDSEC\r\n';
+  const dxf = periDxf(towerParts()).replace('  0\r\nSECTION\r\n  2\r\nTABLES', classes + '  0\r\nSECTION\r\n  2\r\nTABLES');
+  await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(dxf) });
+  await expect(page.getByTestId('toast')).toContainText('_peri.txt');
+  await expect(page.getByTestId('toast')).toContainText('до 7 деталей');
+  await expect(page.getByTestId('scaffold-drop-hint')).toContainText('_peri.txt');
+});
+
 test('scaffold mode: a DWG is rejected with the hint to save as DXF', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('mode-scaffold').click();

@@ -709,29 +709,31 @@
   },
   "scaffold": {
     "title": "Scaffold from PERI CAD",
-    "intro": "Open a PERI CAD drawing saved as DXF. The program recognises the PERI UP parts, builds the system in 3D, finds the lattice girders ULA / ULS / ULS Flex with their supports and deck loads and calculates them as a member model (as in RSTAB).",
-    "open": "Open DXF…",
-    "loading": "Reading DXF…",
+    "intro": "Open a PERI CAD drawing – two files: the DXF and the PERIEXPORT file (…⁠_peri.txt). The program recognises the PERI UP parts, builds the system in 3D, finds the lattice girders ULA / ULS / ULS Flex with their supports and loads and analyses the scaffold as a space frame.",
+    "open": "Choose files…",
+    "loading": "Reading files…",
     "loaded": "Drawing loaded: {n} parts",
     "close": "Close drawing",
     "closeConfirm": "Close the drawing? It can be opened again from the DXF.",
     "back": "Back to the scaffold (3D, all girders)",
     "movedBy": "snapped into place (moved {d} mm)",
     "selected": "Selected",
-    "next": "Next step: spatial analysis of the whole scaffold (standards, ledgers, rosette nodes, wind, second order).",
+    "next": "Preliminary design: utilisations above 70 % are checked by the structural engineer.",
     "drop": {
-      "title": "Open a PERI CAD drawing as DXF",
-      "hint": "Drop a DXF file here or choose one",
-      "stepsTitle": "How to save the drawing in PERI CAD",
+      "title": "Open both files of the drawing: .dxf and …⁠_peri.txt",
+      "hint": "Drop both files here or choose them together (Ctrl + click): the drawing .dxf and the export …⁠_peri.txt.",
+      "stepsTitle": "How to prepare the files in AutoCAD",
       "step1": "Open the drawing in AutoCAD with PERI CAD loaded.",
-      "step2": "“Save as…” → file type “AutoCAD 2018 DXF (*.dxf)”.",
-      "step3": "Open the DXF here – everything else is recognised automatically.",
-      "dwgNote": "DWG cannot be read directly: the PERI parts in it are readable for PERI CAD only. In the DXF they are written completely.",
+      "step2": "Load the script PERIEXPORT.lsp (command APPLOAD) and run the command PERIEXPORT. The file “<drawing name>⁠_peri.txt” with the parts of the older PERI CAD kind (spindles, diagonals, girders etc.) appears next to the drawing. The drawing is not changed.",
+      "step3": "“Save as…” → file type “AutoCAD 2018 DXF (*.dxf)”.",
+      "dwgNote": "DWG is not read directly. Without the file …⁠_peri.txt the parts of the older PERI CAD kind are missing from the model: AutoCAD does not write them to the DXF.",
       "whatTitle": "What the program does",
-      "what1": "3D model of the scaffold from the system lines of the parts, parts list.",
-      "what2": "Imprecisely placed parts (a gap of a few centimetres) are set onto their connection points.",
-      "what3": "Lattice girders ULA / ULS / ULS Flex: length and elements, supports on the standards, deck load by service class.",
-      "what4": "Calculation of the girders with the PERI checks and a link to the beam calculator for every girder."
+      "what1": "3D model of the scaffold from all parts of the drawing (DXF + export), parts list with weights.",
+      "what2": "Parts placed inaccurately are moved to their connection points; the remarks on the drawing show what to correct.",
+      "what3": "Space-frame analysis of the whole scaffold by the approval Z-8.22-863: standards, ledgers, rosette nodes, diagonals, wind at the site, second order – with the answer whether the scaffold works and recommendations.",
+      "what4": "Lattice girders ULA / ULS / ULS Flex with the PERI checks in the beam calculator; printable report.",
+      "hintAdd": "Drop another drawing here (.dxf with …⁠_peri.txt) or only the …⁠_peri.txt for the open drawing.",
+      "step4": "Open both files here together: .dxf and …⁠_peri.txt."
     },
     "file": {
       "title": "Drawing",
@@ -880,7 +882,7 @@
       "healed": "{n} parts set onto their connection points (up to {d} mm).",
       "anchors": "{n} anchors (tube with a coupler at the standard, a flange coupler on the steel beam of the structure or nothing at the other end).",
       "healCheck": "{name}: placed imprecisely, but {n} connected parts would have to move with it – not corrected automatically, please check the drawing.",
-      "aecParts": "The drawing has up to {n} parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL: e.g. spindles, diagonals, girders) – AutoCAD did not write them to the DXF, they are missing from the model. In a copy: QSELECT → type PERI_AEC_DB_BAUTEIL_GRUPPE → EXPLODE; then QSELECT → type PERI_AEC_DB_BAUTEIL → EXPLODE; save the DXF – the program then reads them from the PERI blocks.",
+      "aecParts": "The drawing has up to {n} parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL: e.g. spindles, diagonals, girders) – AutoCAD does not write them to the DXF, they are missing from the model. Run the command PERIEXPORT in AutoCAD and open the file …⁠_peri.txt here (drop it on the “Drawing” card).",
       "exported": "{n} parts of the older kind added from the export {file}: axis from the bounding box, name and weight by the article number.",
       "exportedGroups": "{n} PERI groups of the older kind: the parts inside the groups are not in the export – explode the groups and run PERIEXPORT again.",
       "exportedGuessed": "{n} inclined parts from the export: which diagonal of the bounding box is not known – please check."
@@ -1186,11 +1188,12 @@
       "capSix": "nodes and diagonals with rosette 6 mm"
     },
     "export": {
-      "hint": "Parts of the older PERI CAD kind (e.g. base jacks) are not in the DXF: load the script in AutoCAD (APPLOAD), run PERIEXPORT and open the file …_peri.txt here together with the DXF.",
+      "hint": "The file …⁠_peri.txt is made by the command PERIEXPORT in AutoCAD:",
       "download": "Download the script PERIEXPORT.lsp",
       "loaded": "Parts added from the AutoCAD export: {n}",
       "errFormat": "This file is not a PERIEXPORT file.",
-      "errNoDxf": "Open the DXF of the drawing first, then the file …_peri.txt."
+      "errNoDxf": "Open the DXF of the drawing first, then the file …⁠_peri.txt.",
+      "missing": "Drawing loaded: {n} parts. It has up to {m} more parts of the older PERI CAD kind that are not in the DXF – open the file …⁠_peri.txt for it (command PERIEXPORT)."
     },
     "progress": {
       "read": "Reading the file",

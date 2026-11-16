@@ -57,7 +57,7 @@ async function readText(f: File): Promise<string> {
 }
 
 /** Read a DXF of PERI CAD and make it the drawing of the scaffold mode (part of the lazily loaded scaffold mode). */
-export async function openDxfFile(f: File): Promise<boolean> {
+export async function openDxfFile(f: File, withExport = false): Promise<boolean> {
   const app = useStore.getState();
   if (/\.dwg$/i.test(f.name)) {
     app.showToast('scaffold.err.dwg');
@@ -72,7 +72,9 @@ export async function openDxfFile(f: File): Promise<boolean> {
     await frame();
     useScaffold.getState().setDoc(doc);
     if (app.appMode !== 'scaffold') app.setPrefs({ appMode: 'scaffold' });
-    app.showToast('scaffold.loaded', { n: doc.parts.length });
+    // old-kind parts not in the DXF and no export file with it: ask for the …_peri.txt
+    if (doc.aecParts && !withExport) app.showToast('scaffold.export.missing', { n: doc.parts.length, m: doc.aecParts });
+    else app.showToast('scaffold.loaded', { n: doc.parts.length });
     return true;
   } catch (e) {
     setLoad(null);
@@ -109,7 +111,7 @@ export async function openExportFile(f: File): Promise<boolean> {
 export async function openScaffoldFiles(files: File[]): Promise<void> {
   const dxf = files.filter((f) => !/\.txt$/i.test(f.name));
   const txt = files.filter((f) => /\.txt$/i.test(f.name));
-  for (const f of dxf.slice(0, 1)) if (!(await openDxfFile(f))) return;
+  for (const f of dxf.slice(0, 1)) if (!(await openDxfFile(f, txt.length > 0))) return;
   for (const f of txt) await openExportFile(f);
 }
 

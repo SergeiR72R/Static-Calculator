@@ -27,14 +27,16 @@ function Toast() {
   const toast = useStore((s) => s.toast);
   useEffect(() => {
     if (!toast) return;
-    const id = setTimeout(() => useStore.setState({ toast: null }), 3500);
+    // long messages stay longer (time to read them)
+    const ms = Math.min(15000, Math.max(3500, fmt.t(toast.key, toast.params).length * 70));
+    const id = setTimeout(() => useStore.setState({ toast: null }), ms);
     return () => clearTimeout(id);
-  }, [toast]);
+  }, [toast, fmt]);
   if (!toast) return null;
   return (
     <div
       role="status"
-      className="no-print fixed bottom-4 right-4 z-50 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-slate-100 dark:text-slate-900"
+      className="no-print fixed bottom-4 right-4 z-50 max-w-[min(28rem,calc(100vw-2rem))] rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg dark:bg-slate-100 dark:text-slate-900"
       data-testid="toast"
     >
       {fmt.t(toast.key, toast.params)}

@@ -709,29 +709,31 @@
   },
   "scaffold": {
     "title": "Gerüst aus PERI CAD",
-    "intro": "Öffnen Sie eine als DXF gespeicherte PERI-CAD-Zeichnung. Das Programm erkennt die PERI-UP-Teile, baut das System in 3D auf, findet die Gitterträger ULA / ULS / ULS Flex mit ihren Auflagern und Belaglasten und berechnet sie als Stabwerk (wie in RSTAB).",
-    "open": "DXF öffnen…",
-    "loading": "DXF wird gelesen…",
+    "intro": "Öffnen Sie eine PERI-CAD-Zeichnung – zwei Dateien: DXF und den PERIEXPORT (…⁠_peri.txt). Das Programm erkennt die PERI-UP-Teile, baut das System in 3D auf, findet die Gitterträger ULA / ULS / ULS Flex mit Auflagern und Lasten und berechnet das Gerüst als räumliches Stabwerk.",
+    "open": "Dateien auswählen…",
+    "loading": "Dateien werden gelesen…",
     "loaded": "Zeichnung geladen: {n} Teile",
     "close": "Zeichnung schließen",
     "closeConfirm": "Zeichnung schließen? Sie kann aus der DXF wieder geöffnet werden.",
     "back": "Zurück zum Gerüst (3D, alle Träger)",
     "movedBy": "eingerastet (verschoben um {d} mm)",
     "selected": "Ausgewählt",
-    "next": "Nächster Schritt: räumliche Berechnung des ganzen Gerüsts (Stiele, Riegel, Rosettenknoten, Wind, Theorie II. Ordnung).",
+    "next": "Vorbemessung: Ausnutzungen über 70 % prüft der Tragwerksplaner.",
     "drop": {
-      "title": "PERI-CAD-Zeichnung als DXF öffnen",
-      "hint": "DXF-Datei hierher ziehen oder auswählen",
-      "stepsTitle": "So speichern Sie die Zeichnung in PERI CAD",
+      "title": "Beide Dateien der Zeichnung öffnen: .dxf und …⁠_peri.txt",
+      "hint": "Beide Dateien hierher ziehen oder zusammen auswählen (Strg + Klick): die Zeichnung .dxf und den Export …⁠_peri.txt.",
+      "stepsTitle": "So bereiten Sie die Dateien in AutoCAD vor",
       "step1": "Zeichnung in AutoCAD mit geladenem PERI CAD öffnen.",
-      "step2": "»Speichern unter…« → Dateityp »AutoCAD 2018 DXF (*.dxf)«.",
-      "step3": "Die DXF hier öffnen – alles Weitere wird automatisch erkannt.",
-      "dwgNote": "DWG wird nicht direkt gelesen: die PERI-Teile sind darin nur für PERI CAD lesbar. In der DXF werden sie vollständig geschrieben.",
+      "step2": "Skript PERIEXPORT.lsp laden (Befehl APPLOAD) und den Befehl PERIEXPORT ausführen. Neben der Zeichnung entsteht die Datei „<Zeichnungsname>⁠_peri.txt“ mit den Teilen des älteren PERI-CAD-Typs (Spindeln, Diagonalen, Träger u. a.). Die Zeichnung wird nicht verändert.",
+      "step3": "„Speichern unter…“ → Dateityp „AutoCAD 2018 DXF (*.dxf)“.",
+      "dwgNote": "DWG wird nicht direkt gelesen. Ohne die Datei …⁠_peri.txt fehlen im Modell die Teile des älteren PERI-CAD-Typs: AutoCAD schreibt sie nicht in die DXF.",
       "whatTitle": "Was das Programm macht",
-      "what1": "3D-Modell des Gerüsts aus den Systemlinien der Teile, Stückliste.",
-      "what2": "Ungenau gesetzte Teile (einige Zentimeter Spalt) werden an ihren Anschlusspunkt gesetzt.",
-      "what3": "Gitterträger ULA / ULS / ULS Flex: Länge und Elemente, Auflager auf den Stielen, Belaglast nach Lastklasse.",
-      "what4": "Berechnung der Träger mit den PERI-Nachweisen und Übergang in den Trägerrechner zu jedem Träger."
+      "what1": "3D-Modell des Gerüsts aus allen Teilen der Zeichnung (DXF + Export), Stückliste mit Gewichten.",
+      "what2": "Ungenau sitzende Teile werden an ihre Anschlusspunkte gesetzt; die Hinweise zur Zeichnung zeigen, was zu korrigieren ist.",
+      "what3": "Räumliche Berechnung des ganzen Gerüsts nach Zulassung Z-8.22-863: Stiele, Riegel, Rosettenknoten, Diagonalen, Wind am Standort, Theorie II. Ordnung – mit der Antwort, ob das Gerüst trägt, und Empfehlungen.",
+      "what4": "Gitterträger ULA / ULS / ULS Flex mit den PERI-Nachweisen im Balkenrechner; Bericht zum Drucken.",
+      "hintAdd": "Eine andere Zeichnung (.dxf mit …⁠_peri.txt) oder nur …⁠_peri.txt zur geöffneten Zeichnung hierher ziehen.",
+      "step4": "Hier beide Dateien zusammen öffnen: .dxf und …⁠_peri.txt."
     },
     "file": {
       "title": "Zeichnung",
@@ -880,7 +882,7 @@
       "healed": "{n} Teile an ihren Anschlusspunkt gesetzt (bis {d} mm).",
       "anchors": "{n} Verankerungen (Rohr mit Kupplung am Stiel, am anderen Ende Flanschkupplung am Träger des Bauwerks oder nichts).",
       "healCheck": "{name}: ungenau gesetzt, aber mit ihm müssten {n} verbundene Teile verschoben werden – nicht automatisch korrigiert, bitte in der Zeichnung prüfen.",
-      "aecParts": "Die Zeichnung enthält bis zu {n} Teile des älteren PERI-CAD-Typs (PERI_AEC_DB_BAUTEIL: z. B. Spindeln, Diagonalen, Träger) – AutoCAD hat sie nicht in die DXF geschrieben, sie fehlen im Modell. In einer Kopie: SSCHNELL → Typ PERI_AEC_DB_BAUTEIL_GRUPPE → URSPRUNG; dann SSCHNELL → Typ PERI_AEC_DB_BAUTEIL → URSPRUNG; DXF speichern – das Programm liest sie dann über die PERI-Blöcke.",
+      "aecParts": "Die Zeichnung enthält bis zu {n} Teile des älteren PERI-CAD-Typs (PERI_AEC_DB_BAUTEIL: z. B. Spindeln, Diagonalen, Träger) – AutoCAD schreibt sie nicht in die DXF, sie fehlen im Modell. Führen Sie in AutoCAD den Befehl PERIEXPORT aus und öffnen Sie hier die Datei …⁠_peri.txt (in die Karte „Zeichnung“ ziehen).",
       "exported": "{n} Teile des älteren Typs aus dem Export {file} ergänzt: Achse aus der Umhüllenden, Bezeichnung und Gewicht über die Artikelnummer.",
       "exportedGroups": "{n} PERI-Gruppen des älteren Typs: die Teile in den Gruppen fehlen im Export – Gruppen auflösen und PERIEXPORT wiederholen.",
       "exportedGuessed": "{n} schräge Teile aus dem Export: welche Diagonale der Umhüllenden, ist nicht bestimmt – bitte prüfen."
@@ -1186,11 +1188,12 @@
       "capSix": "Knoten und Diagonalen mit Rosette 6 mm"
     },
     "export": {
-      "hint": "Teile des älteren PERI-CAD-Typs (z. B. Spindeln) kommen nicht in die DXF: Skript in AutoCAD laden (APPLOAD), PERIEXPORT ausführen und hier die Datei …_peri.txt zusammen mit der DXF öffnen.",
+      "hint": "Die Datei …⁠_peri.txt erzeugt der Befehl PERIEXPORT in AutoCAD:",
       "download": "Skript PERIEXPORT.lsp herunterladen",
       "loaded": "Teile aus dem AutoCAD-Export ergänzt: {n}",
       "errFormat": "Diese Datei ist kein PERIEXPORT.",
-      "errNoDxf": "Zuerst die DXF der Zeichnung öffnen, dann die Datei …_peri.txt."
+      "errNoDxf": "Zuerst die DXF der Zeichnung öffnen, dann die Datei …⁠_peri.txt.",
+      "missing": "Zeichnung geladen: {n} Teile. Sie enthält bis zu {m} weitere Teile des älteren PERI-CAD-Typs, die nicht in der DXF stehen – öffnen Sie dazu die Datei …⁠_peri.txt (Befehl PERIEXPORT)."
     },
     "progress": {
       "read": "Datei lesen",

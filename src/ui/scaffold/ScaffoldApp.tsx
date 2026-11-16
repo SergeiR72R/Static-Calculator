@@ -92,7 +92,7 @@ function DropZone({ big }: { big?: boolean }) {
     >
       {big && <IconUpload width={40} height={40} className="text-accent-700 dark:text-accent-300" />}
       {big && <p className="text-lg font-semibold">{fmt.t('scaffold.drop.title')}</p>}
-      <p className="text-sm text-slate-600 dark:text-slate-300">{fmt.t('scaffold.drop.hint')}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-300" data-testid="scaffold-drop-hint">{fmt.t(big ? 'scaffold.drop.hint' : 'scaffold.drop.hintAdd')}</p>
       <Button variant="primary" onClick={() => ref.current?.click()} disabled={busy} data-testid="scaffold-open">
         <IconUpload /> {busy ? fmt.t('scaffold.loading') : fmt.t('scaffold.open')}
       </Button>
@@ -131,8 +131,14 @@ function Welcome() {
         <Card title={fmt.t('scaffold.drop.stepsTitle')}>
           <ol className="list-decimal space-y-1 ps-5 text-sm">
             <li>{fmt.t('scaffold.drop.step1')}</li>
-            <li>{fmt.t('scaffold.drop.step2')}</li>
+            <li>
+              {fmt.t('scaffold.drop.step2')}{' '}
+              <button type="button" className="font-medium text-accent-700 underline dark:text-accent-300" onClick={downloadExportScript} data-testid="scaffold-steps-script">
+                {fmt.t('scaffold.export.download')}
+              </button>
+            </li>
             <li>{fmt.t('scaffold.drop.step3')}</li>
+            <li>{fmt.t('scaffold.drop.step4')}</li>
           </ol>
           <p className="mt-2 text-xs text-slate-500">{fmt.t('scaffold.drop.dwgNote')}</p>
         </Card>

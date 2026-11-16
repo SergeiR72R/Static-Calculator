@@ -452,5 +452,20 @@ database (`noWeight`), not in the model (`none`). Calibration drawings 18_007, 1
 - **Head jack of the lower standard in a column link** (spindle pair through a platform) is part of
   the link member (its weight on it).
 
-Effect on 18_011 with the loads of the comparison script (A / R, dh): ±x 8.7 / 9.9 → 9.4 / 10.5 mm,
-R ±x 12.4 / 12.6 → 14.0 / 14.4 mm (the platform ledgers now in the frame).
+Check against PERI ForceControl after this change (same loads and options as the calibration;
+before → after, FC in brackets; dh in mm):
+
+| Drawing | Combination | before | after | FC |
+|---|---|---|---|---|
+| 18_011 | A ±x | 22.0 / 22.4 | 23.3 / 23.1 | 23.7 / 24.4 |
+| 18_011 | A ±y | 21.7 / 21.7 | 22.1 / 22.1 | 19.5 / 19.7 |
+| 18_011 | max base, kN / η base jack | 55.0 / 0.55 | 55.4 / 0.56 | 56.9 / 0.63 |
+| 18_012 | A ±x | 15.3 / 10.5 | 12.6 / 10.5 | 11.5 / 8.1 |
+| 18_012 | A ±y | 31.1 / 29.1 | 31.2 / 29.0 | 30 |
+| 18_012 | R ±x | 25.0 / 22.5 | 23.3 / 18.4 | 17.4 |
+| 18_013 | R ±x | 63.8 / 64.8 | 63.7 / 64.8 | 64.9 / 65.0 |
+| 18_013 | R ±y | 40.3 / 39.9 | 40.2 / 39.9 | 43.6 / 43.7 |
+| 18_007 | A, base reactions (mean deviation) | 15.0 % | 14.9 % | – |
+
+18_011: the platform at +4.38 m now in the frame; 18_012: the SRU beams continuous at the UK 70
+splices (stiffer in x). 18_013 and 18_007 practically unchanged (nothing was lost there).

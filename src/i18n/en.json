@@ -964,6 +964,12 @@
       "basesMax": "Largest vertical force {v}, horizontal force {h} (design values).",
       "uplift": "Uplift (tension) at {n} bases – ballast or anchoring needed. Show.",
       "anchors": "Anchors: {n} (force along the tube, coupler 13.65 kN)",
+      "defects": {
+        "title": "Error building the analysis model (an error of the program, not of the drawing) – do not use the results, please report:",
+        "carrierBroken": "beam / ledger not continuous ({n} parts)",
+        "zeroMember": "members without length ({n} parts)",
+        "badNode": "members without a valid node ({n} parts)"
+      },
       "audit": {
         "title": "Completeness of the import",
         "summary": "Parts of the drawing: {n}.",

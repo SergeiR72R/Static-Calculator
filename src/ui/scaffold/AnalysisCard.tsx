@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { siteWind, useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import { LOAD_CLASSES } from '../../scaffold/catalog';
-import { PART_FATES, buildScaffoldModel, type ImportAudit, type ModelNote } from '../../scaffold/model';
+import { PART_FATES, buildScaffoldModel, type ImportAudit, type ModelNote, type ScaffoldModel } from '../../scaffold/model';
 import { LIFT_TOL, type CheckKind, type ScaffoldResult } from '../../scaffold/analysis';
 import { analyzeScaffoldParallel } from '../../scaffold/parallel';
 import { useProgress } from './progress';
@@ -19,6 +19,7 @@ export interface ScaffoldRun {
   result: ScaffoldResult;
   notes: ModelNote[];
   audit: ImportAudit;
+  defects: ScaffoldModel['defects'];
   levels: { z: number; area: number }[];
   sig: string;
   ms: number;
@@ -97,7 +98,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           setCalc(pr.phase === 'prepare' ? { phase: 'scaffold.progress.prepare', frac: null } : { phase: 'scaffold.progress.run', params: { done: pr.done, total: pr.total }, frac: pr.frac });
         },
       );
-      setRun({ result, notes: model.notes, audit: model.audit, levels: model.levels, sig, ms: performance.now() - t0 });
+      setRun({ result, notes: model.notes, audit: model.audit, defects: model.defects, levels: model.levels, sig, ms: performance.now() - t0 });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setRun(null);
@@ -458,6 +459,16 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
             </div>
           )}
 
+          {(run.defects ?? []).length > 0 && (
+            <div data-testid="scaffold-calc-defects" className="rounded border border-red-300 bg-red-50 p-2 text-xs text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+              <p className="font-semibold">{fmt.t('scaffold.calc.defects.title')}</p>
+              {run.defects.map((d) => (
+                <button key={d.key} type="button" className="flex items-start gap-1 text-start underline" onClick={() => sc.select(d.parts)}>
+                  <IconAlert className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t(`scaffold.calc.defects.${d.key}`, { n: d.parts.length })}
+                </button>
+              ))}
+            </div>
+          )}
           <div data-testid="scaffold-calc-audit" className="text-xs">
             <p className="mb-0.5 font-semibold">{fmt.t('scaffold.calc.audit.title')}</p>
             <p className="text-slate-600 dark:text-slate-300">

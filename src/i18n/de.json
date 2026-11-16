@@ -964,6 +964,12 @@
       "basesMax": "Größte Vertikalkraft {v}, Horizontalkraft {h} (Bemessungswerte).",
       "uplift": "Abheben (Zug) an {n} Fußpunkten – Ballast oder Verankerung nötig. Zeigen.",
       "anchors": "Verankerungen: {n} (Kraft in Rohrachse, Kupplung 13,65 kN)",
+      "defects": {
+        "title": "Fehler beim Aufbau des Rechenmodells (Fehler des Programms, nicht der Zeichnung) – Ergebnisse nicht verwenden, bitte melden:",
+        "carrierBroken": "Träger / Riegel nicht durchgehend ({n} Teile)",
+        "zeroMember": "Stäbe ohne Länge ({n} Teile)",
+        "badNode": "Stäbe ohne gültigen Knoten ({n} Teile)"
+      },
       "audit": {
         "title": "Vollständigkeit des Imports",
         "summary": "Teile der Zeichnung: {n}.",

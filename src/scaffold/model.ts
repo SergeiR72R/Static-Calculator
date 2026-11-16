@@ -19,9 +19,9 @@ import type { PartKind } from './catalog';
 import { partKg } from './weights';
 import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 import { planBlockLoads, type PlanLoads } from './planLoads';
-import { orderedAxis, type UserLoad, type UserLoadWhen } from './userLoads';
+import { orderedAxis, type UserFixing, type UserLoad, type UserLoadWhen } from './userLoads';
 
-export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'ubl' | 'tube' | 'anchor' | 'jack';
+export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'ubl' | 'tube' | 'anchor' | 'jack' | 'link';
 
 /** a user load applied to the model: nodal forces (point loads) and member loads (line loads), N and N/m downwards */
 export interface UserLoadApplied {
@@ -126,6 +126,13 @@ export interface ScaffoldModel {
   plan: PlanLoads | null;
   /** what became of every part of the drawing in the model (nothing may be dropped silently) */
   audit: ImportAudit;
+  /**
+   * defects of the model found by its self check (an error of the program, not of the drawing): a
+   * carrier not continuous from end to end, a member without length, a member to a missing node
+   */
+  defects: { key: 'carrierBroken' | 'zeroMember' | 'badNode'; parts: string[] }[];
+  /** fixings to the building: node, held axes and their supports (index in frame.supports) */
+  fixings: { id: string; part: string; node: number; sups: { dir: 'x' | 'y' | 'z'; sup: number }[]; limit?: number }[];
 }
 
 /**
@@ -253,6 +260,9 @@ interface Carrier {
  * ForceControl (18_007, 18_013: M / V = 10 cm in the check of UVB) */
 const TUBE_ABOVE_PIN = 0.1;
 
+/** rigid link of a part hanging on a point of a carrier (≈ 20 tubes Ø48.3 × 3.2) */
+const LINK_SEC: Section3 = { EA: 2.1e11 * 1e-2, EIy: 2.1e11 * 2.4e-6, EIz: 2.1e11 * 2.4e-6, GJ: 8.1e10 * 4.8e-6 };
+
 /** a ledger / diagonal end at a rosette of a ULS Flex connector: horizontal distance, m */
 const FLEX_ROSETTE = 0.1;
 
@@ -274,6 +284,8 @@ export interface ModelOptions {
   rosette6?: boolean;
   /** resistance of the rosette connections and diagonals by the article of the standard (table 6), as PERI ForceControl (default); false: as the stiffness */
   capByArticle?: boolean;
+  /** fixings to the building set by the user */
+  fixings?: UserFixing[];
 }
 
 export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
@@ -843,6 +855,41 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     }
   });
 
+  // ---- fixings to the building set by the user: supports at a node of the part (as the point loads)
+  const fixings: ScaffoldModel['fixings'] = [];
+  for (const f of opts.fixings ?? []) {
+    const dirs = [...new Set(f.dirs)].filter((d) => d === 'x' || d === 'y' || d === 'z');
+    if (!dirs.length) continue;
+    for (const id of f.parts) {
+      const at = Math.min(Math.max(f.at, 0), 1);
+      let node = -1;
+      const car = carriers.find((c) => c.part === id);
+      if (car) {
+        const [A, B] = orderedAxis(car.a, car.b);
+        const P: V3 = [A[0] + at * (B[0] - A[0]), A[1] + at * (B[1] - A[1]), A[2] + at * (B[2] - A[2])];
+        node = interAt(car, P, Math.min(Math.max(project(car, P).t, 0), 1));
+      } else {
+        const k = cols.findIndex((c) => c.parts.some((p) => p.w.part.id === id));
+        if (k >= 0) {
+          const p = cols[k].parts.find((q) => q.w.part.id === id)!;
+          node = colNode(k, p.zb + at * (p.zt - p.zb), 0.01);
+        } else {
+          const h = heads.find((x) => x.part === id);
+          if (h) node = h.head;
+        }
+      }
+      if (node < 0) {
+        note('fixingIgnored', id, { name: f.name });
+        continue;
+      }
+      const sups = dirs.map((d) => {
+        supports.push({ node, dof: 'xyz'.indexOf(d), k: Infinity });
+        return { dir: d, sup: supports.length - 1 };
+      });
+      fixings.push({ id: f.id, part: id, node, sups, ...(f.limit && f.limit > 0 ? { limit: f.limit } : {}) });
+    }
+  }
+
   const memberLength = (m: Member3): number => {
     const oi = m.ends?.[0]?.offset ?? [0, 0, 0];
     const oj = m.ends?.[1]?.offset ?? [0, 0, 0];
@@ -923,19 +970,33 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       }
     }
     if (c.kind === 'beam' && assumedSupports.some((s) => s.part === c.part)) note('beamAssumed', c.part);
-    const pts = [c.end[0]!, ...c.inter.filter((a) => a.t > 0.002 && a.t < 0.998).sort((a, b) => a.t - b.t), c.end[1]!];
-    // attachments at the very ends share the end node through a rigid arm
-    for (const a of c.inter) if (a.t <= 0.002 || a.t >= 0.998) pts.splice(a.t <= 0.002 ? 1 : pts.length - 1, 0, a);
+    const pts = [c.end[0]!, ...c.inter.sort((a, b) => a.t - b.t), c.end[1]!];
+    // the chain of the carrier: points closer than 2 cm along it are one point (the ends of the carrier
+    // always in the chain, they hold its connections); every other part attached there hangs on that
+    // point by a short rigid link with its own connection — the carrier is never broken there
+    const axisAt = (a: Attach): V3 => [nodes[a.node][0] + a.offset[0], nodes[a.node][1] + a.offset[1], nodes[a.node][2] + a.offset[2]];
+    const chain: Attach[] = [];
+    const hang: { rep: Attach; p: Attach }[] = [];
+    pts.forEach((p, i) => {
+      const r = chain[chain.length - 1];
+      if (!r || (r.node !== p.node && len3(axisAt(r), axisAt(p)) >= 0.02)) {
+        chain.push(p);
+        return;
+      }
+      if (r.node === p.node) return;
+      if (i === pts.length - 1) {
+        // the end of the carrier takes the place of the point next to it
+        chain[chain.length - 1] = p;
+        for (const h of hang) if (h.rep === r) h.rep = p;
+        hang.push({ rep: p, p: r });
+      } else hang.push({ rep: r, p });
+    });
     const members: number[] = [];
-    for (let i = 0; i + 1 < pts.length; i++) {
-      const A = pts[i];
-      const B = pts[i + 1];
-      if (A.node === B.node) continue;
-      const pa: V3 = [nodes[A.node][0] + A.offset[0], nodes[A.node][1] + A.offset[1], nodes[A.node][2] + A.offset[2]];
-      const pb: V3 = [nodes[B.node][0] + B.offset[0], nodes[B.node][1] + B.offset[1], nodes[B.node][2] + B.offset[2]];
-      if (len3(pa, pb) < 0.02) continue;
+    for (let i = 0; i + 1 < chain.length; i++) {
+      const A = chain[i];
+      const B = chain[i + 1];
       const first = i === 0;
-      const last = i + 2 === pts.length;
+      const last = i + 2 === chain.length;
       const ea: MemberEnd = { offset: A.offset, k: first ? A.k : undefined };
       const eb: MemberEnd = { offset: B.offset, k: last ? B.k : undefined };
       members.push(fm.length);
@@ -951,6 +1012,21 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         g: c.g,
         carrier: carrierOut.length,
       });
+    }
+    // parts hanging on a point of the chain: rigid link from the axis there to their node
+    for (const { rep, p } of hang) {
+      const fromAxis = Math.hypot(...p.offset) > 1e-3;
+      const toNode = Math.hypot(...rep.offset) > 1e-3;
+      // two nodes at the same place (no arm on either side): the link 5 mm along the carrier
+      const L = len3(c.a, c.b) || 1;
+      const nudge: V3 = [((c.b[0] - c.a[0]) / L) * 0.005, ((c.b[1] - c.a[1]) / L) * 0.005, ((c.b[2] - c.a[2]) / L) * 0.005];
+      const ends: [MemberEnd, MemberEnd] = fromAxis
+        ? [{ offset: rep.offset }, { offset: [0, 0, 0], k: p.k }]
+        : toNode
+          ? [{ offset: [0, 0, 0] }, { offset: [0, 0, 0], k: p.k }]
+          : [{ offset: [0, 0, 0] }, { offset: nudge, k: p.k }];
+      fm.push({ i: rep.node, j: p.node, sec: LINK_SEC, ends });
+      mm.push({ kind: 'link', part: c.part, g: 0, link: true });
     }
     carrierIndex.set(c, carrierOut.length);
     const points: BeamPoint[] | undefined =
@@ -1370,6 +1446,21 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       listed.get(k)!.parts.push(id);
     }
   }
+  // ---- self check of the model (an error here is one of the program: reported, tested)
+  const defects: ScaffoldModel['defects'] = [];
+  const defect = (key: ScaffoldModel['defects'][number]['key'], part: string) => {
+    const d = defects.find((x) => x.key === key);
+    if (d) {
+      if (!d.parts.includes(part)) d.parts.push(part);
+    } else defects.push({ key, parts: [part] });
+  };
+  for (const c of carrierOut)
+    for (let i = 1; i < c.members.length; i++) if (fm[c.members[i]].i !== fm[c.members[i - 1]].j) defect('carrierBroken', c.part);
+  fm.forEach((x, k) => {
+    if (x.i < 0 || x.j < 0 || x.i >= nodes.length || x.j >= nodes.length || x.i === x.j) defect('badNode', mm[k].part);
+    else if (memberLength(x) < 1e-4) defect('zeroMember', mm[k].part);
+  });
+
   const audit: ImportAudit = {
     total: st.parts.length,
     counts,
@@ -1420,5 +1511,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     dhbNodes,
     plan,
     audit,
+    defects,
+    fixings,
   };
 }

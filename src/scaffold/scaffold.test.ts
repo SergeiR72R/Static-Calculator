@@ -439,3 +439,19 @@ describe('every part of the drawing in the model', () => {
     expect(ms.at(-1)!.conn?.[1]).toBeTruthy();
   });
 });
+
+describe('self check of the model', () => {
+  it('every carrier continuous, no member without length: on all the test structures', () => {
+    const variants: ((p: TestPart[]) => void)[] = [
+      () => {},
+      (p) => p.push({ art: 'UH', rot: 'y', t: [2.015, 0.042, 3.715] }),
+      (p) => p.push({ art: 'SRU', rot: 'x', t: [0, 1, 5] }, { art: 'SRU', rot: 'x', t: [2.25, 1, 5] }, { art: 'UK70', rot: 'x', t: [1.9, 1, 4.95] }),
+      (p) => p.push({ art: 'UEV', rot: 'x', t: [0, 0, 1.6] }, { art: 'UH', rot: 'x', t: [-1.958, -0.015, 1.6] }),
+      (p) => {
+        // diagonals on both sides of the same ledgers at the same place
+        for (const ay of [0, 2]) for (const ax of [0, 2]) p.push({ art: 'UBL', rot: 'x', t: [ax + 0.125, ay, 0.25] }, { art: 'UBL', rot: 'x', t: [ax + 0.125, ay - 0.1, 0.25] });
+      },
+    ];
+    for (const v of variants) expect(buildScaffoldModel(analyzeScaffold(tower(v))).defects).toEqual([]);
+  });
+});

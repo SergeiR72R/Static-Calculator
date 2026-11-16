@@ -775,7 +775,9 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // ---- ledger diagonals UBL / UBL-2 (annex A, pages 22 and 23): fixed to the ledgers 12.5 cm from the
   // standards, 1.4 cm beside the ledger axis; all connections of these ledgers get the vertical
   // spring c_z (flexibility of the rosettes)
-  const ublEnds = new Map<string, [{ node: number; c: Carrier }, { node: number; c: Carrier }]>();
+  /** ends of the UBL on their ledgers: node on the ledger axis (shared by UBL on both sides of it) and the
+   * eccentricity UBL_EY of the diagonal beside the axis (rigid arm of the diagonal) */
+  const ublEnds = new Map<string, [{ node: number; c: Carrier; off: V3 }, { node: number; c: Carrier; off: V3 }]>();
   for (const w of st.parts) {
     if (w.cls.kind !== 'diagonal' || !/UBL/i.test(`${w.part.name} ${w.part.desc}`)) continue;
     const ml = longestLine(w);
@@ -795,10 +797,9 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       const { c, pr, P } = f!;
       const d = dist2(P, pr.q);
       const n: [number, number] = d > 1e-6 ? [(P[0] - pr.q[0]) / d, (P[1] - pr.q[1]) / d] : [0, 0];
-      const node = addNode([pr.q[0] + n[0] * UBL_EY, pr.q[1] + n[1] * UBL_EY, pr.q[2]]);
-      c.inter.push({ node, offset: [-n[0] * UBL_EY, -n[1] * UBL_EY, 0], t: pr.t });
+      const node = interAt(c, pr.q, pr.t);
       for (const e of c.end) if (e?.conn && e.k) e.k[2] = connCz(e.conn, 0);
-      return { node, c };
+      return { node, c, off: [n[0] * UBL_EY, n[1] * UBL_EY, 0] as V3 };
     });
     ublEnds.set(w.part.id, [ends[0], ends[1]]);
   }
@@ -1001,11 +1002,13 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     const ue = kind === 'ubl' ? ublEnds.get(w.part.id) : undefined;
     if (ue) {
       const [A, B] = ue;
-      const L = len3(nodes[A.node], nodes[B.node]);
+      const pa: V3 = [nodes[A.node][0] + A.off[0], nodes[A.node][1] + A.off[1], nodes[A.node][2]];
+      const pb: V3 = [nodes[B.node][0] + B.off[0], nodes[B.node][1] + B.off[1], nodes[B.node][2]];
+      const L = len3(pa, pb);
       const dims = ublDims(w);
       const plus = A.c.head === 'PLUS' && B.c.head === 'PLUS';
       const d = ublData(dims ? Number(dims[1]) / 100 : dist2(nodes[A.node], nodes[B.node]), dims ? Number(dims[2]) / 100 : Math.abs(nodes[B.node][2] - nodes[A.node][2]), plus, L);
-      fm.push({ i: A.node, j: B.node, sec: trussSec(d.eaT), truss: true });
+      fm.push({ i: A.node, j: B.node, sec: trussSec(d.eaT), truss: true, ends: [{ offset: A.off }, { offset: B.off }] });
       mm.push({ kind, part: w.part.id, diag: d, g: (partKg(w.part) ?? 3.5 * L) / L });
       continue;
     }

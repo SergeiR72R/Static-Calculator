@@ -73,6 +73,8 @@ const ARTICLES: Record<string, PartClass> = {
   '124781': { kind: 'flexElement', flexLength: 1.5 },
   // spindle of the spindle head SRU (109630) under the SRU beams
   '109952': { kind: 'jack' },
+  // spindle head SRU as a whole (group of the older PERI CAD parts: spindle 109952 + head)
+  '109630': { kind: 'jack' },
   // cross head spindle TR 38-70/50 (U head)
   '715608': { kind: 'jack' },
   // universal coupling UK 70: splice of two SRU / RCS beams (no description in the drawing)

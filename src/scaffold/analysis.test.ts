@@ -300,6 +300,23 @@ describe('ledger diagonals UBL', () => {
     for (const ay of [0, 2]) for (const ax of [0, 2]) p.push({ art: 'UBL', rot: 'x', t: [ax + 0.125, ay, 0.25] });
   };
 
+  it('on both sides of the same ledgers at the same place: the ledgers stay continuous (no mechanism)', () => {
+    // a second diagonal 5 cm on the other side of the ledgers, attached at the same points (as in a
+    // stack of bays, where the diagonals of two bays meet on one ledger from both sides)
+    const crossed = (p: TestPart[]) => {
+      ubl(p);
+      for (const ay of [0, 2]) for (const ax of [0, 2]) p.push({ art: 'UBL', rot: 'x', t: [ax + 0.125, ay - 0.1, 0.25] });
+    };
+    const m = buildScaffoldModel(tower(crossed));
+    expect(m.members.filter((x) => x.kind === 'ubl')).toHaveLength(8);
+    for (const c of m.carriers.filter((q) => q.kind === 'ledger')) {
+      const ms = c.members.map((k) => m.frame.members[k]);
+      for (let i = 1; i < ms.length; i++) expect(ms[i].i).toBe(ms[i - 1].j);
+    }
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 600 });
+    expect(r.checks.filter((c) => c.check === 'unstable')).toHaveLength(0);
+  });
+
   it('fixed to the two ledgers 12.5 cm from the standards; their connections get the spring c_z', () => {
     const m = buildScaffoldModel(tower(ubl));
     const ks = m.members.map((x, k) => (x.kind === 'ubl' ? k : -1)).filter((k) => k >= 0);
@@ -307,13 +324,15 @@ describe('ledger diagonals UBL', () => {
     expect(m.notes.find((n) => n.key === 'ublNoLedger')).toBeUndefined();
     for (const k of ks) {
       const f = m.frame.members[k];
-      // nodes on the ledgers, not on the standards: 12.5 cm from the axes, 1.4 cm beside the ledger axis
+      // nodes on the ledger axes (shared by diagonals on both sides), not on the standards: 12.5 cm
+      // from the axes; the diagonal 1.4 cm beside the ledger axis (rigid arms of the diagonal)
       expect(m.nodeColumn[f.i]).toBe(-1);
       expect(m.nodeColumn[f.j]).toBe(-1);
       const [a, b] = [m.frame.nodes[f.i], m.frame.nodes[f.j]].sort((p, q) => p[2] - q[2]);
       expect(a[0] % 2).toBeCloseTo(0.125, 6);
       expect(b[0] % 2).toBeCloseTo(1.875, 6);
-      expect(Math.abs(a[1] - Math.round(a[1]))).toBeCloseTo(0.014, 6);
+      expect(Math.abs(a[1] - Math.round(a[1]))).toBeCloseTo(0, 6);
+      for (const e of f.ends!) expect(Math.hypot(...e!.offset!)).toBeCloseTo(0.014, 6);
       expect(a[2]).toBeCloseTo(0.25, 6);
       expect(b[2]).toBeCloseTo(2.25, 6);
       // ledgers UH Plus on both sides: table 17, 2.00 × 2.00

@@ -361,6 +361,12 @@ describe('snapping of imprecisely placed parts', () => {
   });
 });
 
+describe('catalogue', () => {
+  it('spindle head SRU of the PERIEXPORT (group 109630: spindle + head) is a spindle', () => {
+    expect(classifyPart('109630', 'Spindlehead SRU').kind).toBe('jack');
+  });
+});
+
 describe('every part of the drawing in the model', () => {
   const build = (edit: (p: TestPart[]) => void) => buildScaffoldModel(analyzeScaffold(tower(edit)));
   const memberParts = (m: ReturnType<typeof buildScaffoldModel>) => new Set(m.members.map((x) => x.part));

@@ -167,6 +167,8 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   // second order: the standards by their tube check (no separate χ buckling check)
   await expect(page.getByTestId('scaffold-calc-filter-tube')).toBeVisible();
   await expect(page.getByTestId('scaffold-calc-bases')).toContainText('Опоры стоек: 6');
+  // every part of the drawing is in the model
+  await expect(page.getByTestId('scaffold-calc-audit')).toContainText('Все детали учтены в модели');
   await expect(page.getByTestId('scaffold-color-eta')).toBeVisible();
   // a row selects its part
   await page.getByTestId('scaffold-calc-row').click();

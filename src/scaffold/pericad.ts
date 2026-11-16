@@ -152,7 +152,7 @@ const marker = (r: Rec, name: string) => r.tags.findIndex((t) => t[0] === 100 &&
 interface RawBlock {
   lines: [V3, V3][];
   circles: V3[];
-  inserts: { name: string; p: V3; s: V3; rot: number }[];
+  inserts: { name: string; p: V3; s: V3; rot: number; ex?: V3 }[];
   /** base point; bodies (handle, SAT text of older DXF); vertices of faces; attribute defaults */
   base?: V3;
   solids?: { handle: string; sat: string[] }[];
@@ -175,21 +175,25 @@ function readBlocks(recs: Rec[]): Map<string, RawBlock> {
     }
     if (!cur) continue;
     const p = (c: number): V3 => [num(first(r, c)), num(first(r, c + 10)), num(first(r, c + 20))];
+    // circles and polylines are given in the object coordinate system of their extrusion direction
+    const ex: V3 = [num(first(r, 210)), num(first(r, 220)), num(first(r, 230), 1)];
+    const ocs = ex[0] === 0 && ex[1] === 0 && ex[2] > 0 ? null : insertMatrix([0, 0, 0], [1, 1, 1], 0, ex);
+    const wcs = (q: V3): V3 => (ocs ? xf(ocs, q) : q);
     if (r.type === 'LINE') cur.lines.push([p(10), p(11)]);
     else if (r.type === '3DSOLID') (cur.solids ??= []).push({ handle: first(r, 5) ?? '', sat: r.tags.filter((t) => t[0] === 1 || t[0] === 3).map((t) => t[1]) });
     else if (r.type === '3DFACE') (cur.pts ??= []).push(p(10), p(11), p(12), p(13));
     else if (r.type === 'ATTDEF') (cur.attdefs ??= {})[first(r, 2) ?? ''] = first(r, 1) ?? '';
-    else if (r.type === 'CIRCLE') cur.circles.push(p(10));
+    else if (r.type === 'CIRCLE') cur.circles.push(wcs(p(10)));
     else if (r.type === 'LWPOLYLINE') {
       const xs = r.tags.filter((t) => t[0] === 10).map((t) => num(t[1]));
       const ys = r.tags.filter((t) => t[0] === 20).map((t) => num(t[1]));
       const z = num(first(r, 38));
-      const pts: V3[] = xs.map((x, k) => [x, ys[k] ?? 0, z]);
+      const pts: V3[] = xs.map((x, k) => wcs([x, ys[k] ?? 0, z]));
       const closed = (num(first(r, 70)) & 1) === 1;
       for (let k = 1; k < pts.length; k++) cur.lines.push([pts[k - 1], pts[k]]);
       if (closed && pts.length > 2) cur.lines.push([pts[pts.length - 1], pts[0]]);
     } else if (r.type === 'INSERT')
-      cur.inserts.push({ name: first(r, 2) ?? '', p: p(10), s: [num(first(r, 41), 1), num(first(r, 42), 1), num(first(r, 43), 1)], rot: num(first(r, 50)) });
+      cur.inserts.push({ name: first(r, 2) ?? '', p: p(10), s: [num(first(r, 41), 1), num(first(r, 42), 1), num(first(r, 43), 1)], rot: num(first(r, 50)), ...(ocs ? { ex } : {}) });
   }
   return blocks;
 }
@@ -203,13 +207,8 @@ function flatten(blocks: Map<string, RawBlock>, name: string, depth = 0): PartGe
   g.rosettes.push(...b.circles.map((c) => [...c] as V3));
   for (const ins of b.inserts) {
     const sub = flatten(blocks, ins.name, depth + 1);
-    const c = Math.cos((ins.rot * Math.PI) / 180);
-    const s = Math.sin((ins.rot * Math.PI) / 180);
-    const tf = (q: V3): V3 => {
-      const x = q[0] * ins.s[0];
-      const y = q[1] * ins.s[1];
-      return [ins.p[0] + c * x - s * y, ins.p[1] + s * x + c * y, ins.p[2] + q[2] * ins.s[2]];
-    };
+    const M = insertMatrix(ins.p, ins.s, ins.rot, ins.ex ?? [0, 0, 1]);
+    const tf = (q: V3): V3 => xf(M, q);
     g.lines.push(...sub.lines.map(([a, e]) => [tf(a), tf(e)] as [V3, V3]));
     g.rosettes.push(...sub.rosettes.map(tf));
   }
@@ -304,6 +303,11 @@ export function insertMatrix(p: V3, s: V3, rotDeg: number, extrusion: V3): numbe
   const Y: V3 = [-sn * Ax[0] + c * Ay[0], -sn * Ax[1] + c * Ay[1], -sn * Ax[2] + c * Ay[2]];
   const P: V3 = [p[0] * Ax[0] + p[1] * Ay[0] + p[2] * N[0], p[0] * Ax[1] + p[1] * Ay[1] + p[2] * N[1], p[0] * Ax[2] + p[1] * Ay[2] + p[2] * N[2]];
   return [X[0] * s[0], Y[0] * s[1], N[0] * s[2], P[0], X[1] * s[0], Y[1] * s[1], N[1] * s[2], P[1], X[2] * s[0], Y[2] * s[1], N[2] * s[2], P[2]];
+}
+
+/** point q placed by a row-major 3 × 4 placement */
+function xf(m: number[], q: V3): V3 {
+  return [0, 1, 2].map((i) => m[i * 4] * q[0] + m[i * 4 + 1] * q[1] + m[i * 4 + 2] * q[2] + m[i * 4 + 3]) as V3;
 }
 
 /** a · b for row-major 3 × 4 placements */

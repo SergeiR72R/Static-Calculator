@@ -420,3 +420,37 @@ Fußpunkten, R ±y 5 mm (10,3).
   Knotenverschiebung des Gerüsts; sie sind mit `dh` nicht vergleichbar.
 - Windlasten 18_012: Arbeitswind x 29,0 kN (28,9), y 19,8 + DHB 30 (50,6), maximaler Wind x 47,9
   (47,7), y 32,6 (34,0).
+
+## Import completeness (every part of the drawing in the model)
+
+The model records the fate of every part (`ScaffoldModel.audit`), shown under the analysis and in
+the report: member, deck, joint (splice), weight only, included in the weight of another part
+(spindle nut), load-bearing part not in the frame (`loose`), accessory without weight in the parts
+database (`noWeight`), not in the model (`none`). Calibration drawings 18_007, 18_011, 18_012,
+18_013: no part lost.
+
+- **OCS of circles, polylines and nested inserts.** CIRCLE / LWPOLYLINE / nested INSERT in a block
+  are given in the object coordinate system of their extrusion direction (210/220/230). Ignored
+  before: the rosettes of the ULS Flex connector (124806, extrusion −z) were read at −0.125 / −0.625
+  instead of +0.125 / +0.625 (bottom and top chord), toe boards lay flat, spindles of nested blocks
+  pointed the wrong way.
+- **ULS Flex connector rosettes.** Ledgers and horizontal diagonals ending at a rosette of a
+  connector hang on the girder: a node at the rosette joined to the girder axis by the post of the
+  connector (tube Ø48.3 × 3.2). 18_011: the 9 ledgers and 4 UBH of the platform at +4.38 m.
+- **Universal coupling UK 70 (103737)** — splice of two SRU / RCS beams (no description in the
+  drawing): the beams ending in it are joined rigidly (continuous beam). 18_012: 6 splices.
+  Weight not in the parts database (not in the total).
+- **Clamp rosette UEV (Klemmrosette)** on a standard: a rosette at its height.
+- **Ledgers are never hinged.** Every ledger end sits with its wedge head in a rosette (standard,
+  clamp rosette, connector, bracket tip, ledger receiver UHA): semi-rigid springs of the approval
+  and the connection check. An end at a standard without a rosette of the drawing at that height
+  is taken in a rosette there (note `ledgerNoRosette`).
+- **Ledger held at one end only:** without decks on it a guardrail (cantilever, own weight only, no
+  deck loads); with decks on it the connection at the other end was forgotten in the drawing —
+  warning at import (`ledgerOneEndDecked`) and a wedge head in a rosette fixed in space assumed
+  there for the analysis.
+- **Head jack of the lower standard in a column link** (spindle pair through a platform) is part of
+  the link member (its weight on it).
+
+Effect on 18_011 with the loads of the comparison script (A / R, dh): ±x 8.7 / 9.9 → 9.4 / 10.5 mm,
+R ±x 12.4 / 12.6 → 14.0 / 14.4 mm (the platform ledgers now in the frame).

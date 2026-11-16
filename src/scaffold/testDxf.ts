@@ -12,6 +12,8 @@ interface Art {
   lines: [V3, V3][];
   circles?: V3[];
   rosettes?: V3[];
+  /** rosettes written with the extrusion direction −z (points in that OCS, as PERI CAD writes some parts) */
+  rosettesDown?: boolean;
 }
 
 const ROS = (z: number): V3 => [0.08, 0.08, z];
@@ -69,10 +71,12 @@ export const ARTS: Record<string, Art> = {
       [[0.20415, 0.02415, 0.16], [0.04865, 0.02415, 0.16]],
       [[0.21415, 0.02415, 0.66], [0.05865, 0.02415, 0.66]],
     ],
+    // in the OCS of the extrusion −z: (0.02415, 0.02415, 0.125 / 0.625) in the block (at the chords)
     rosettes: [
       [-0.02415, 0.02415, -0.125],
       [-0.02415, 0.02415, -0.625],
     ],
+    rosettesDown: true,
   },
   E150: {
     article: '124781',
@@ -123,6 +127,23 @@ export const ARTS: Record<string, Art> = {
   TUBE: { article: '026411', name: 'TUBE 1m', desc: 'Gerüstrohr 48,3x3,2mm 1m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [1, 0, 0]]] },
   TUBE2: { article: '026412', name: 'TUBE 2m', desc: 'Gerüstrohr 48,3x3,2mm 2m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [2, 0, 0]]] },
   RA: { article: '017020', name: 'RA 48/48', desc: 'Normalkupplung RA Ø48/48mm vz', layer: 'PERI_Coupler', lines: [], circles: [[0.076, 0.05, 0.05]] },
+  // steel beam SRU U120 2.22 m along x (axis at 6 cm), and the universal coupling UK 70 joining two
+  // of them (no description in the drawing, as PERI CAD writes it)
+  SRU: { article: '103898', name: 'SRU U120 222', desc: 'Stahlriegel Universal SRU U120, L = 2,22 m', layer: '0', lines: [[[0, 0, 0.06], [2.22, 0, 0.06]]] },
+  UK70: {
+    article: '103737',
+    name: '103737',
+    desc: '',
+    layer: '0',
+    lines: [
+      [[0, 0, 0], [0.685, 0, 0]],
+      [[0.685, 0, 0], [0.685, 0, 0.21]],
+      [[0.685, 0, 0.21], [0, 0, 0.21]],
+      [[0, 0, 0.21], [0, 0, 0]],
+    ],
+  },
+  // clamp rosette UEV 180° (clamped on the standard at any height; centre at the origin)
+  UEV: { article: '116306', name: 'Klemmrosette', desc: 'Klemmrosette UEV 180°', layer: '0', lines: [[[-0.09, -0.065, 0], [0.09, 0.065, 0]]] },
   UEC: { article: '113726', name: 'UEC', desc: 'Flanschkupplung UEC', layer: '0', lines: [[[0.074, 0.032, 0.113], [0.019, 0.032, 0.113]]], circles: [[-0.032, 0.032, -0.019]] },
 };
 
@@ -259,6 +280,7 @@ export function periDxf(parts: TestPart[], scale = 1, yUp = false, exploded: (ke
       tag(2, '100001_Line');
       pt(10, r, f);
       if (f !== scale) for (const c of [41, 42, 43]) tag(c, f / scale);
+      if (ARTS[a].rosettesDown) for (const [c, v] of [[210, 0], [220, 0], [230, -1]]) tag(c, v);
     }
     tag(0, 'ENDBLK');
     if (f !== scale) {

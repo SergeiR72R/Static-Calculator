@@ -14,7 +14,8 @@
 import type { FrameModel3, Member3, MemberEnd, Section3, V3 } from '../core/frame3d';
 import { latticeEquivalent } from '../sections/lattice';
 import { findPeriProduct, periSI } from '../sections/peri';
-import type { ScaffoldStructure, WorldPart } from './structure';
+import { deckedLedger, type ScaffoldStructure, type WorldPart } from './structure';
+import type { PartKind } from './catalog';
 import { partKg } from './weights';
 import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 import { planBlockLoads, type PlanLoads } from './planLoads';
@@ -118,6 +119,27 @@ export interface ScaffoldModel {
   dhbNodes: number[];
   /** loads from the bodies of the drawing (ballast), null when not taken */
   plan: PlanLoads | null;
+  /** what became of every part of the drawing in the model (nothing may be dropped silently) */
+  audit: ImportAudit;
+}
+
+/**
+ * Role of a part in the model: member(s), deck (load and area), joint of two members (splice),
+ * weight only at the nearest node (accessories), included in the weight of another part (spindle
+ * nut); `loose`: a load-bearing part that is not a member (its weight only, if known); `noWeight`: an
+ * accessory without a weight in the parts database; `none`: nothing of the part in the model.
+ */
+export type PartFate = 'member' | 'deck' | 'joint' | 'weight' | 'included' | 'loose' | 'noWeight' | 'none';
+export const PART_FATES: PartFate[] = ['member', 'deck', 'joint', 'weight', 'included', 'loose', 'noWeight', 'none'];
+/** fates reported part by part (the drawing should be checked there) */
+export const FATES_LISTED: PartFate[] = ['loose', 'none', 'noWeight'];
+const LOAD_BEARING = new Set<PartKind>(['standard', 'base', 'ledger', 'diagonal', 'bracket', 'jack', 'flexEnd', 'flexElement', 'flexConnector', 'girder', 'beam', 'beamSplice', 'tube', 'anchor']);
+
+export interface ImportAudit {
+  total: number;
+  counts: Record<PartFate, number>;
+  /** parts with a fate of FATES_LISTED, by fate and name */
+  listed: { fate: PartFate; name: string; parts: string[] }[];
 }
 
 const tubeSection = (t: keyof typeof TUBES): Section3 => ({ EA: E_STEEL * TUBES[t].A, EIy: E_STEEL * TUBES[t].I, EIz: E_STEEL * TUBES[t].I, GJ: G_STEEL * 2 * TUBES[t].I });
@@ -220,6 +242,12 @@ interface Carrier {
   inter: Attach[];
 }
 
+/** a ledger / diagonal end at a rosette of a ULS Flex connector: horizontal distance, m */
+const FLEX_ROSETTE = 0.1;
+
+/** a beam end lies in a splice UK 70 when it is inside its outline grown by this, m */
+const SPLICE_GROW = 0.08;
+
 /** eccentricity of a ledger diagonal UBL beside the axis of its ledger (annex A, page 22), m */
 const UBL_EY = 0.014;
 
@@ -257,6 +285,10 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   const byId = new Map(st.parts.map((w) => [w.part.id, w]));
 
   // ---- standards
+  // clamp rosettes (UEV) on a standard: a rosette at their height
+  const clampRos: V3[] = st.parts
+    .filter((w) => w.cls.kind === 'accessory' && /klemmrosette|\bUEV\b/i.test(`${w.part.name} ${w.part.desc}`))
+    .map((w) => [(w.min[0] + w.max[0]) / 2, (w.min[1] + w.max[1]) / 2, (w.min[2] + w.max[2]) / 2]);
   const cols: Col[] = st.columns.map((c) => {
     const parts = c.parts
       .map((id) => byId.get(id)!)
@@ -272,7 +304,10 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       })
       .filter((p) => Number.isFinite(p.zb))
       .sort((a, b) => a.zb - b.zb);
-    const ros = [...new Set(parts.flatMap((p) => p.w.rosettes.map((r) => Math.round(r[2] * 1000) / 1000)))].sort((a, b) => a - b);
+    const zLo = Math.min(...parts.map((p) => p.zb));
+    const zHi = Math.max(...parts.map((p) => p.zt));
+    const clamps = clampRos.filter((r) => Math.hypot(r[0] - c.x, r[1] - c.y) < 0.15 && r[2] > zLo && r[2] < zHi);
+    const ros = [...new Set([...parts.flatMap((p) => p.w.rosettes), ...clamps].map((r) => Math.round(r[2] * 1000) / 1000))].sort((a, b) => a - b);
     const zs = [...new Set([...parts.map((p) => Math.round(p.zb * 1000) / 1000), Math.round(Math.max(...parts.map((p) => p.zt)) * 1000) / 1000, ...ros])].sort((a, b) => a - b);
     // merge points closer than 5 mm
     const z2: number[] = [];
@@ -327,24 +362,37 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     return [(b[0] - a[0]) / d, (b[1] - a[1]) / d];
   };
   /** rosette connection of a ledger end P (other end Q) at a standard */
-  const rosetteEnd = (P: V3, Q: V3, head: LedgerHead): Attach | null => {
-    const k = colAt(P, 0.12);
-    if (k < 0) return null;
-    const zr = rosetteNear(k, P[2] - 0.03, 0.08);
-    const u = dir2(P, Q);
-    if (zr === null) {
-      // no rosette at this height: hinged at the standard
-      return { node: colNode(k, P[2], 0.03), offset: [u[0] * 0.025, u[1] * 0.025, 0], t: 0, conn: null, k: HINGE };
-    }
-    const v = variantAt(k, zr);
+  /**
+   * Springs of the wedge head of a ledger end (P, other end Q) in a rosette of variant v: a ledger is
+   * never hinged, its wedge head sits in a rosette (standard, clamp rosette, ULS Flex connector, bracket
+   * tip, ledger receiver UHA)
+   */
+  const wedge = (P: V3, Q: V3, head: LedgerHead, v: Variant): number[] => {
     // ledgers of 25 cm: vertical spring c_z of the connection (annex A pages 9, 10 and 16), initial stiffness in tension
     const cz = dist2(P, Q) <= 0.3 ? connCz(v, 0) : Infinity;
+    return [Infinity, Infinity, cz, connKx(head, 0), connKy(head, v, 0), connKz(head, v, 0)];
+  };
+  /** variant of a rosette not on a standard (the standards of the drawing as a whole) */
+  const looseVariant: Variant = (opts.rosette6 ?? true) ? '2a' : '1a';
+  /** rosette connection of a ledger end P (other end Q) at a standard */
+  const rosetteEnd = (P: V3, Q: V3, head: LedgerHead, part: string): Attach | null => {
+    const k = colAt(P, 0.12);
+    if (k < 0) return null;
+    const u = dir2(P, Q);
+    const zr = rosetteNear(k, P[2] - 0.03, 0.08);
+    if (zr === null) {
+      // no rosette of the drawing at this height: the wedge head sits in one there all the same
+      const v = variantAt(k, P[2] - 0.03);
+      note('ledgerNoRosette', part);
+      return { node: colNode(k, P[2] - 0.03, 0.03), offset: [u[0] * 0.025, u[1] * 0.025, 0.035], t: 0, conn: v, k: wedge(P, Q, head, v) };
+    }
+    const v = variantAt(k, zr);
     return {
       node: colNode(k, zr, 0.006),
       offset: [u[0] * 0.025, u[1] * 0.025, 0.035],
       t: 0,
       conn: v,
-      k: [Infinity, Infinity, cz, connKx(head, 0), connKy(head, v, 0), connKz(head, v, 0)],
+      k: wedge(P, Q, head, v),
     };
   };
 
@@ -408,7 +456,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       head,
       ledger: sec,
       g: (partKg(w.part) ?? LEDGERS[sec].g * L) / L,
-      end: [rosetteEnd(ml[0], ml[1], head), rosetteEnd(ml[1], ml[0], head)],
+      end: [rosetteEnd(ml[0], ml[1], head, w.part.id), rosetteEnd(ml[1], ml[0], head, w.part.id)],
       inter: [],
     });
   }
@@ -450,6 +498,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // lattice girders as equivalent beams along their top chord
   const trussSec = (ea: number): Section3 => ({ EA: ea, EIy: 1, EIz: 1, GJ: 1 });
   const girderPanels: { part: string; m: { i: number; j: number; sec: Section3; truss: boolean }[] }[] = [];
+  const flexRosettes: { p: V3; car: Carrier; part: string; t: number }[] = [];
+  const connectorPosts: { i: number; j: number; part: string }[] = [];
   for (const g of st.girders) {
     const eq = latticeEquivalent(g.product);
     const E = g.product.startsWith('ULA') ? 70e9 : E_STEEL;
@@ -499,7 +549,26 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       else car.inter.push(at);
     }
     carriers.push(car);
+    if (g.product === 'ULSFLEX')
+      for (const id of g.parts) {
+        const w = byId.get(id);
+        if (w?.cls.kind === 'flexConnector') for (const r of w.rosettes) flexRosettes.push({ p: r as V3, car, part: id, t: ((r[0] - a[0]) * g.u[0] + (r[1] - a[1]) * g.u[1]) / g.L });
+      }
   }
+
+  // rosettes of the ULS Flex connectors (at the chords): ledgers and diagonals ending there hang on the
+  // girder. A node at each such rosette, joined to the girder axis by the post of the connector.
+  const partEnds = st.parts.filter((w) => w.cls.kind === 'ledger' || w.cls.kind === 'diagonal').flatMap((w) => w.lines.flat());
+  const flexNodes: { p: V3; node: number }[] = [];
+  for (const r of flexRosettes) {
+    if (r.t < -0.02 || r.t > 1.02 || !partEnds.some((q) => dist2(q, r.p) <= FLEX_ROSETTE && Math.abs(q[2] - r.p[2]) <= 0.1)) continue;
+    const q: V3 = [r.car.a[0] + (r.car.b[0] - r.car.a[0]) * r.t, r.car.a[1] + (r.car.b[1] - r.car.a[1]) * r.t, r.car.a[2]];
+    const top = interAt(r.car, q, r.t);
+    const n = addNode(r.p);
+    flexNodes.push({ p: r.p, node: n });
+    connectorPosts.push({ i: top, j: n, part: r.part });
+  }
+  const flexRosetteAt = (P: V3) => flexNodes.find((f) => dist2(f.p, P) <= FLEX_ROSETTE && Math.abs(f.p[2] - P[2]) <= 0.1);
 
   /** point of a carrier axis next to P: parameter t, point and distances */
   const project = (c: Carrier, P: V3) => {
@@ -521,22 +590,27 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     return best;
   };
 
-  // ledger ends without a standard: bracket tip, ledger receiver on another ledger / beam, or free
+  // ledger ends without a standard: ULS Flex connector, bracket tip, ledger receiver on another ledger /
+  // beam (all with the wedge head in a rosette: semi-rigid, never hinged)
   for (const c of carriers) {
     if (c.kind !== 'ledger') continue;
     for (const e of [0, 1] as const) {
       if (c.end[e]) continue;
       const P = e === 0 ? c.a : c.b;
+      const Q = e === 0 ? c.b : c.a;
+      const end = (node: number, at: V3): Attach => ({ node, offset: [P[0] - at[0], P[1] - at[1], P[2] - at[2]], t: e, conn: looseVariant, k: wedge(P, Q, c.head ?? 'PLUS', looseVariant) });
+      const fr = flexRosetteAt(P);
+      if (fr) {
+        c.end[e] = end(fr.node, fr.p);
+        continue;
+      }
       const tip = tips.find((t) => dist2(t.p, P) <= 0.15 && Math.abs(t.p[2] - P[2]) <= 0.15);
       if (tip) {
-        c.end[e] = { node: tip.node, offset: [P[0] - tip.p[0], P[1] - tip.p[1], P[2] - tip.p[2]], t: e, conn: null, k: HINGE };
+        c.end[e] = end(tip.node, tip.p);
         continue;
       }
       const u = carrierUnder(P, c, -0.06, 0.4, ['ledger', 'beam', 'girder', 'bracket']);
-      if (u) {
-        const n = interAt(u.c, u.pr.q, u.pr.t);
-        c.end[e] = { node: n, offset: [P[0] - u.pr.q[0], P[1] - u.pr.q[1], P[2] - u.pr.q[2]], t: e, conn: null, k: HINGE };
-      }
+      if (u) c.end[e] = end(interAt(u.c, u.pr.q, u.pr.t), u.pr.q);
     }
   }
 
@@ -552,7 +626,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // ground: the lowest standard or spindle (not the lowest part: a part may lie far off by mistake)
   const ground = Math.min(...cols.map((c) => c.z0), ...jacks.map((w) => w.min[2]));
   /** `foot`: lowest point of the spindle clamped in the upper standard (its plate), null without a spindle */
-  const links: { lower: number; upper: number; part: string; foot: number | null }[] = [];
+  const links: { lower: number; upper: number; part: string; foot: number | null; head: string[] }[] = [];
   /** spindles under base supports: foot below the bottom of the standard (virtual: added by the program) */
   const feet: { col: number; foot: number; part: string; virtual?: boolean }[] = [];
   /**
@@ -620,7 +694,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         return;
       }
       if (best >= 0) {
-        links.push({ lower: best, upper: k, part: under[0]?.part.id ?? c.parts[0].w.part.id, foot: under.length ? foot : null });
+        links.push({ lower: best, upper: k, part: under[0]?.part.id ?? c.parts[0].w.part.id, foot: under.length ? foot : null, head: jackOver(cols[best]).map((w) => w.part.id) });
         // with a spindle in the standard the hinge is at the plate of the spindle, not at the standard
         c.onCarrier = !under.length;
         note('columnOnColumn', c.parts[0].w.part.id);
@@ -762,6 +836,30 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   const carrierOut: ScaffoldModel['carriers'] = [];
   const assumedSupports: ScaffoldModel['assumedSupports'] = [];
   const carrierIndex = new Map<Carrier, number>();
+  const spliced = new Set<string>();
+  /** ledgers held at one end only (guardrails): no deck loads on them */
+  const guardrails = new Set<Carrier>();
+  const deckWs = st.parts.filter((w) => w.cls.kind === 'deck');
+  // splices UK 70: the beams whose ends lie in the coupling are joined rigidly there (continuous beam)
+  for (const w of st.parts) {
+    if (w.cls.kind !== 'beamSplice') continue;
+    const inBox = (p: V3) => [0, 1, 2].every((i) => p[i] > w.min[i] - SPLICE_GROW && p[i] < w.max[i] + SPLICE_GROW);
+    const ends: { c: Carrier; e: 0 | 1; P: V3 }[] = [];
+    for (const c of carriers)
+      if (c.kind === 'beam')
+        for (const e of [0, 1] as const) {
+          const P = e === 0 ? c.a : c.b;
+          if (!c.end[e] && inBox(P)) ends.push({ c, e, P });
+        }
+    if (new Set(ends.map((x) => x.c)).size < 2) {
+      note('spliceFree', w.part.id);
+      continue;
+    }
+    const m: V3 = [0, 1, 2].map((i) => ends.reduce((s, x) => s + x.P[i], 0) / ends.length) as V3;
+    const n = addNode(m);
+    for (const x of ends) x.c.end[x.e] = { node: n, offset: [x.P[0] - m[0], x.P[1] - m[1], x.P[2] - m[2]], t: x.e };
+    spliced.add(w.part.id);
+  }
   for (const c of carriers) {
     // something attached right at a free end becomes that end
     for (const e of [0, 1] as const) {
@@ -769,12 +867,29 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       const k = c.inter.findIndex((a) => (e === 0 ? a.t <= 0.02 : a.t >= 0.98));
       if (k >= 0) c.end[e] = { ...c.inter.splice(k, 1)[0], t: e, k: undefined };
     }
-    // a ledger held at one hinged end only (the other end hangs in the air) cannot carry anything
+    // a ledger with no end held (both ends in the air) cannot carry anything
     if (c.kind === 'ledger' && !c.inter.length) {
       const held = c.end.filter((e) => e);
-      if (!held.length || (held.length === 1 && held[0]!.k === HINGE)) {
+      if (!held.length) {
         note('ledgerLoose', c.part);
         continue;
+      }
+      if (held.length === 1) {
+        if (c.w && deckedLedger(c.w, deckWs)) {
+          // decks on it: the connection at the other end is missing in the drawing; taken there as a
+          // wedge head in a rosette fixed in space
+          const e = c.end[0] ? 1 : 0;
+          const P = e === 0 ? c.a : c.b;
+          const Q = e === 0 ? c.b : c.a;
+          const n = addNode(P);
+          for (const dof of [0, 1, 2, 3, 4, 5]) supports.push({ node: n, dof, k: Infinity });
+          c.end[e] = { node: n, offset: [0, 0, 0], t: e, conn: looseVariant, k: wedge(P, Q, c.head ?? 'PLUS', looseVariant) };
+          note('ledgerFixedAssumed', c.part);
+        } else {
+          // no decks: a guardrail (cantilever in its wedge head), no loads on it but its weight
+          note('ledgerGuardrail', c.part);
+          guardrails.add(c);
+        }
       }
     }
     // ends without a node
@@ -840,6 +955,11 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     return best;
   };
 
+  // ---- posts of the ULS Flex connectors (girder axis to the rosette)
+  for (const cp of connectorPosts) {
+    fm.push({ i: cp.i, j: cp.j, sec: tubeSection('t32') });
+    mm.push({ kind: 'girder', part: cp.part, g: 0 });
+  }
   // ---- end panels of the lattice girders
   for (const gp of girderPanels)
     for (const x of gp.m) {
@@ -1066,7 +1186,21 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // the lower standard (head jack, bearing plates, a beam): that piece is clamped in the lower standard
   // and hinged under the plate (the only hinge of the joint).
   const PIN = (): MemberEnd => ({ offset: [0, 0, 0], k: [Infinity, Infinity, Infinity, Infinity, 0, 0] });
+  /** parts that are a piece of a member of another part (head jack in a link): weight with that member */
+  const absorbed = new Set<string>();
   for (const l of links) {
+    const first = fm.length;
+    linkMembers(l);
+    // the head jack of the lower standard is part of the link (its weight on the link)
+    const heads = l.head.filter((id) => id !== l.part);
+    const kg = heads.reduce((t, id) => t + jackKg(id), 0);
+    if (fm.length > first && heads.length) {
+      const last = fm.length - 1;
+      mm[last].g += kg / Math.max(memberLength(fm[last]), 0.05);
+      for (const id of heads) absorbed.add(id);
+    }
+  }
+  function linkMembers(l: (typeof links)[number]) {
     const lo = cols[l.lower];
     const up = cols[l.upper];
     const a = lo.ns[lo.ns.length - 1];
@@ -1086,13 +1220,12 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         fm.push({ i: b, j: a, sec: JACK_SEC, ends: [undefined, PIN()] });
         mm.push({ kind: 'jack', jack: 'foot', part: l.part, g: kg / L, link: true });
       }
-      continue;
+      return;
     }
     const L = Math.max(len3(nodes[a], nodes[b]), 0.05);
     fm.push({ i: a, j: b, sec: JACK_SEC, ends: [undefined, PIN()] });
     mm.push({ kind: 'jack', jack: 'foot', part: l.part, g: kg / L, link: true });
   }
-
 
   // ---- decks
   const levels: ScaffoldModel['levels'] = [];
@@ -1122,7 +1255,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       let best: Carrier | null = null;
       let bd = Infinity;
       for (const c of carriers) {
-        if (!carrierIndex.has(c)) continue;
+        if (!carrierIndex.has(c) || guardrails.has(c)) continue;
         const dl = Math.abs(c.b[long] - c.a[long]);
         const ds = Math.abs(c.b[short] - c.a[short]);
         if (dl > 0.1 || ds < 0.2) continue;
@@ -1149,16 +1282,19 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   }
 
   // ---- weight of the parts that are not members
-  const modelled = new Set(mm.map((m) => m.part));
+  const modelled = new Set([...mm.map((m) => m.part), ...absorbed]);
   for (const g of st.girders) for (const id of g.parts) modelled.add(id);
   const masses: ScaffoldModel['masses'] = [];
+  const weighed = new Set<string>();
   for (const w of st.parts) {
     if (modelled.has(w.part.id) || w.cls.kind === 'deck') continue;
     const kg = partKg(w.part) ?? 0;
     if (!kg) continue;
     const n = nearestNode([(w.min[0] + w.max[0]) / 2, (w.min[1] + w.max[1]) / 2, (w.min[2] + w.max[2]) / 2], 1.5);
-    if (n >= 0) masses.push({ node: n, kg });
-    else lostKg += kg;
+    if (n >= 0) {
+      masses.push({ node: n, kg });
+      weighed.add(w.part.id);
+    } else lostKg += kg;
   }
 
   // groups of members without any support (not connected to the scaffold): left out, reported
@@ -1179,6 +1315,34 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     note('floating', id);
     lostKg += partKg(byId.get(id)!.part) ?? 0;
   }
+
+  // ---- fate of every part
+  const counts = Object.fromEntries(PART_FATES.map((f) => [f, 0])) as Record<PartFate, number>;
+  const listed = new Map<string, { fate: PartFate; name: string; parts: string[] }>();
+  for (const w of st.parts) {
+    const id = w.part.id;
+    const kg = partKg(w.part);
+    let f: PartFate;
+    if (w.cls.kind === 'deck') f = 'deck';
+    else if (modelled.has(id) && !floating.has(id)) f = 'member';
+    else if (spliced.has(id)) f = 'joint';
+    else if (LOAD_BEARING.has(w.cls.kind)) f = 'loose';
+    else if (weighed.has(id)) f = 'weight';
+    else if (kg === 0) f = 'included';
+    else if (kg === undefined) f = 'noWeight';
+    else f = 'none';
+    counts[f]++;
+    if (FATES_LISTED.includes(f)) {
+      const k = `${f}|${w.part.name}`;
+      if (!listed.has(k)) listed.set(k, { fate: f, name: w.part.name, parts: [] });
+      listed.get(k)!.parts.push(id);
+    }
+  }
+  const audit: ImportAudit = {
+    total: st.parts.length,
+    counts,
+    listed: [...listed.values()].sort((a, b) => FATES_LISTED.indexOf(a.fate) - FATES_LISTED.indexOf(b.fate)),
+  };
 
   // ---- line loads of the user on the members of the parts (not on truss members)
   userLoads.forEach((l, li) => {
@@ -1223,5 +1387,6 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     user,
     dhbNodes,
     plan,
+    audit,
   };
 }

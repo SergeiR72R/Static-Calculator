@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { siteWind, useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import { LOAD_CLASSES } from '../../scaffold/catalog';
-import { buildScaffoldModel, type ModelNote } from '../../scaffold/model';
+import { PART_FATES, buildScaffoldModel, type ImportAudit, type ModelNote } from '../../scaffold/model';
 import { LIFT_TOL, type CheckKind, type ScaffoldResult } from '../../scaffold/analysis';
 import { analyzeScaffoldParallel } from '../../scaffold/parallel';
 import { useProgress } from './progress';
@@ -18,6 +18,7 @@ import { IconAlert, IconCheck, IconChevronRight, IconInfo } from '../icons';
 export interface ScaffoldRun {
   result: ScaffoldResult;
   notes: ModelNote[];
+  audit: ImportAudit;
   levels: { z: number; area: number }[];
   sig: string;
   ms: number;
@@ -96,7 +97,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           setCalc(pr.phase === 'prepare' ? { phase: 'scaffold.progress.prepare', frac: null } : { phase: 'scaffold.progress.run', params: { done: pr.done, total: pr.total }, frac: pr.frac });
         },
       );
-      setRun({ result, notes: model.notes, levels: model.levels, sig, ms: performance.now() - t0 });
+      setRun({ result, notes: model.notes, audit: model.audit, levels: model.levels, sig, ms: performance.now() - t0 });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setRun(null);
@@ -447,6 +448,40 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
             </div>
           )}
 
+          <div data-testid="scaffold-calc-audit" className="text-xs">
+            <p className="mb-0.5 font-semibold">{fmt.t('scaffold.calc.audit.title')}</p>
+            <p className="text-slate-600 dark:text-slate-300">
+              {fmt.t('scaffold.calc.audit.summary', { n: run.audit.total })}{' '}
+              {PART_FATES.filter((f) => run.audit.counts[f] > 0)
+                .map((f) => fmt.t(`scaffold.calc.audit.${f}`, { n: run.audit.counts[f] }))
+                .join(' · ')}
+            </p>
+            {run.audit.listed.length > 0 ? (
+              <ul className="mt-0.5 space-y-0.5">
+                {run.audit.listed.map((x) => (
+                  <li key={x.fate + x.name}>
+                    <button
+                      type="button"
+                      data-testid="scaffold-calc-audit-none"
+                      aria-pressed={sc.selected === x.parts}
+                      className={cx(
+                        'flex items-start gap-1.5 rounded px-1 text-start',
+                        x.fate === 'noWeight' ? 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800' : 'text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950/40',
+                        sc.selected === x.parts && 'bg-fuchsia-100 ring-1 ring-fuchsia-400 dark:bg-fuchsia-900/40',
+                      )}
+                      onClick={() => (sc.selected === x.parts ? sc.select([]) : sc.select(x.parts))}
+                    >
+                      {x.fate === 'noWeight' ? <IconInfo className="mt-0.5 shrink-0" width={12} height={12} /> : <IconAlert className="mt-0.5 shrink-0" width={12} height={12} />} {fmt.t(`scaffold.calc.audit.list.${x.fate}`, { n: x.parts.length, name: x.name })}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+                <IconCheck width={12} height={12} /> {fmt.t('scaffold.calc.audit.complete')}
+              </p>
+            )}
+          </div>
           {run.notes.length > 0 && (
             <div data-testid="scaffold-calc-notes">
               <p className="mb-1 text-xs font-semibold">{fmt.t('scaffold.calc.notes')}</p>

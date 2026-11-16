@@ -18,6 +18,7 @@ export type PartKind =
   | 'flexConnector'
   | 'girder'
   | 'beam'
+  | 'beamSplice'
   | 'tube'
   | 'anchor'
   | 'coupler'
@@ -41,6 +42,7 @@ export const PART_KINDS: PartKind[] = [
   'flexConnector',
   'girder',
   'beam',
+  'beamSplice',
   'tube',
   'anchor',
   'coupler',
@@ -73,6 +75,8 @@ const ARTICLES: Record<string, PartClass> = {
   '109952': { kind: 'jack' },
   // cross head spindle TR 38-70/50 (U head)
   '715608': { kind: 'jack' },
+  // universal coupling UK 70: splice of two SRU / RCS beams (no description in the drawing)
+  '103737': { kind: 'beamSplice' },
 };
 
 export function classifyPart(article: string, name: string, desc = ''): PartClass {
@@ -91,6 +95,7 @@ export function classifyPart(article: string, name: string, desc = ''): PartClas
   if (g && !flex) return { kind: 'girder', girder: g[1].toUpperCase() === 'A' ? (g[2] === '50' ? 'ULA50HD' : 'ULA70HD') : g[2] === '50' ? 'ULS50' : 'ULS70' };
   if (/treppe|leiter|durchstieg|podest|\bUAS\b|\bUA[ACFILW]\b/i.test(text) && !/geländer|belag|tafel/i.test(text)) return { kind: 'stair' };
   if (/geländer|holm\b|rückenschutz|schutzwand|sicherheitstür|\bUP[AGSK]\b|\bUA[GH]\b/i.test(text)) return { kind: 'guard' };
+  if (/universalkupplung|\bUK ?70\b/i.test(text)) return { kind: 'beamSplice' };
   if (/\b(SRU|RCS)\b|stahlriegel|kletterschiene|multiträger|\b(HEB|HEA|IPE|UPE|GT ?24|VT ?20)\b/i.test(text) && !/spindelkopf/i.test(text)) return { kind: 'beam' };
   if (/klemmrosette|rohrverbinder|verbinder ULT|\bULT\b|schr(aube)?\b|mutter|bolzen|stecker|\bM ?\d+ ?x ?\d+|polyschutz|keder|dübel|ringschraube|spindelkopf|spindelsicherung|distanzhalter|richtstütz|traverse/i.test(text))
     return { kind: 'accessory' };
@@ -125,6 +130,7 @@ export const KIND_COLOR: Record<PartKind, string> = {
   flexConnector: '#f97316',
   girder: '#0d9488',
   beam: '#b45309',
+  beamSplice: '#f59e0b',
   tube: '#a16207',
   anchor: '#e11d48',
   coupler: '#ca8a04',

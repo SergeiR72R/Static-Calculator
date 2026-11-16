@@ -8,6 +8,7 @@ import { useFmt } from '../hooks';
 import { BRAND, FullLogo } from '../Brand';
 import { LANG_LOCALE } from '../../units/format';
 import type { ScaffoldRun } from './AnalysisCard';
+import { PART_FATES } from '../../scaffold/model';
 
 const th = 'border border-slate-400 px-1.5 py-0.5 text-start font-semibold';
 const td = 'border border-slate-400 px-1.5 py-0.5';
@@ -339,6 +340,26 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
             </>
           )}
 
+          {run.audit && (
+            <div data-testid="scaffold-report-audit">
+              <h3 className="mt-2 font-semibold">{fmt.t('scaffold.calc.audit.title')}</h3>
+              <p>
+                {fmt.t('scaffold.calc.audit.summary', { n: run.audit.total })}{' '}
+                {PART_FATES.filter((f) => run.audit.counts[f] > 0)
+                  .map((f) => fmt.t(`scaffold.calc.audit.${f}`, { n: run.audit.counts[f] }))
+                  .join(' · ')}
+              </p>
+              {run.audit.listed.length > 0 ? (
+                <ul className="list-disc ps-5">
+                  {run.audit.listed.map((x) => (
+                    <li key={x.fate + x.name}>{fmt.t(`scaffold.calc.audit.list.${x.fate}`, { n: x.parts.length, name: x.name })}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p>{fmt.t('scaffold.calc.audit.complete')}</p>
+              )}
+            </div>
+          )}
           {run.notes.length > 0 && (
             <>
               <h3 className="mt-2 font-semibold">{fmt.t('scaffold.calc.notes')}</h3>

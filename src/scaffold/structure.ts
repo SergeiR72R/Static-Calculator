@@ -323,6 +323,26 @@ function findSupports(g: Girder, cols: Column[]) {
   } else g.supports = xs;
 }
 
+/**
+ * Decks lie on the ledger w: the ledger runs across a deck at one of its ends (as the decks are
+ * carried), up to 30 cm below the deck.
+ */
+export function deckedLedger(w: Pick<WorldPart, 'lines'>, decks: Pick<WorldPart, 'min' | 'max'>[]): boolean {
+  const hs = w.lines.filter(([a, b]) => isHor(a, b) && Math.hypot(b[0] - a[0], b[1] - a[1]) > 0.2);
+  if (!hs.length) return false;
+  const [a, b] = hs.reduce((p, q) => (Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]) > Math.hypot(p[1][0] - p[0][0], p[1][1] - p[0][1]) ? q : p));
+  return decks.some((d) => {
+    const long = d.max[0] - d.min[0] >= d.max[1] - d.min[1] ? 0 : 1;
+    const short = 1 - long;
+    if (Math.abs(b[long] - a[long]) > 0.1 || Math.abs(b[short] - a[short]) < 0.2) return false;
+    const mid = (d.min[short] + d.max[short]) / 2;
+    if (mid < Math.min(a[short], b[short]) - 0.05 || mid > Math.max(a[short], b[short]) + 0.05) return false;
+    const pos = (a[long] + b[long]) / 2;
+    if (Math.abs(pos - d.min[long]) > 0.2 && Math.abs(pos - d.max[long]) > 0.2) return false;
+    return a[2] <= d.min[2] + 0.1 && a[2] >= d.min[2] - 0.3;
+  });
+}
+
 export function connectorPositions(elements: number[]): number[] {
   const out = [FLEX.endLength];
   for (const e of elements) out.push(r3(out[out.length - 1] + e));
@@ -418,6 +438,8 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
 
   // ledgers: both ends at a standard (or carried by another part)
   const carriers = parts.filter((w) => w.cls.kind === 'accessory' || w.cls.kind === 'ledger' || w.cls.kind === 'beam' || w.cls.kind === 'bracket');
+  const flexRos = parts.filter((w) => w.cls.kind === 'flexConnector').flatMap((w) => w.rosettes);
+  const oneEnd: WorldPart[] = [];
   const free = parts.filter((w) => {
     if (w.cls.kind !== 'ledger') return false;
     const hs = w.lines.filter(([a, b]) => isHor(a, b) && Math.hypot(b[0] - a[0], b[1] - a[1]) > 0.2);
@@ -425,11 +447,19 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
     const [a, b] = hs.reduce((p, q) => (Math.hypot(q[1][0] - q[0][0], q[1][1] - q[0][1]) > Math.hypot(p[1][0] - p[0][0], p[1][1] - p[0][1]) ? q : p));
     const at = (p: V3) =>
       columns.some((c) => Math.hypot(c.x - p[0], c.y - p[1]) < 0.1 && p[2] > c.z0 - 0.1 && p[2] < c.z1 + 0.1) ||
+      // rosette of a ULS Flex connector
+      flexRos.some((r) => Math.hypot(r[0] - p[0], r[1] - p[1]) < 0.1 && Math.abs(r[2] - p[2]) < 0.1) ||
       // ledger receiver UHA (ledger on ledger) or a ledger / beam / bracket just below the end
       carriers.some((q) => q !== w && p[0] > q.min[0] - 0.12 && p[0] < q.max[0] + 0.12 && p[1] > q.min[1] - 0.12 && p[1] < q.max[1] + 0.12 && p[2] > q.min[2] - 0.05 && p[2] < q.max[2] + 0.35);
-    return !at(a) || !at(b);
+    const n = (at(a) ? 1 : 0) + (at(b) ? 1 : 0);
+    if (n === 1) oneEnd.push(w);
+    return n < 2;
   });
   if (free.length) issues.push({ key: 'ledgerFree', params: { n: free.length }, parts: free.map((w) => w.part.id), severity: 'info' });
+  // held at one end with decks on it: the connection at the other end is missing in the drawing
+  const deckParts = parts.filter((w) => w.cls.kind === 'deck');
+  const decked = oneEnd.filter((w) => deckedLedger(w, deckParts));
+  if (decked.length) issues.push({ key: 'ledgerOneEndDecked', params: { n: decked.length }, parts: decked.map((w) => w.part.id), severity: 'warning' });
   const anchors = findAnchors(parts, columns);
   if (anchors.length)
     issues.push({ key: 'anchors', params: { n: anchors.length }, parts: anchors.flatMap((a) => [a.id, ...a.couplers, ...a.flange]), severity: 'info' });

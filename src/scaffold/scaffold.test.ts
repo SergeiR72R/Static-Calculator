@@ -360,3 +360,76 @@ describe('snapping of imprecisely placed parts', () => {
     expect(s.moves).toHaveLength(0);
   });
 });
+
+describe('every part of the drawing in the model', () => {
+  const build = (edit: (p: TestPart[]) => void) => buildScaffoldModel(analyzeScaffold(tower(edit)));
+  const memberParts = (m: ReturnType<typeof buildScaffoldModel>) => new Set(m.members.map((x) => x.part));
+
+  it('rosettes written in the OCS of their extrusion (ULS Flex connector): at the chords', () => {
+    const r = tower().geom['124806'].rosettes;
+    expect(r.map((p) => p[2])).toEqual([0.125, 0.625]);
+    expect(r[0][0]).toBeCloseTo(0.02415, 6);
+  });
+
+  it('a ledger at a rosette of a ULS Flex connector hangs on the girder, semi-rigid', () => {
+    const m = build((p) => p.push({ art: 'UH', rot: 'y', t: [2.015, 0.042, 3.715] }));
+    const st = analyzeScaffold(tower((p) => p.push({ art: 'UH', rot: 'y', t: [2.015, 0.042, 3.715] })));
+    const id = st.parts.filter((w) => w.cls.kind === 'ledger').at(-1)!.part.id;
+    expect(memberParts(m).has(id)).toBe(true);
+    const ms = m.members.map((x, k) => [x, m.frame.members[k]] as const).filter(([x]) => x.part === id);
+    // wedge heads at both ends: connection checked, bending springs of the approval (no hinge)
+    expect(ms[0][0].conn?.[0]).toBeTruthy();
+    expect(ms.at(-1)![0].conn?.[1]).toBeTruthy();
+    expect(ms[0][1].ends?.[0]?.k?.[4]).toBeGreaterThan(0);
+    expect(m.audit.counts.loose).toBe(0);
+    expect(m.notes.some((n) => n.key === 'ledgerLoose')).toBe(false);
+  });
+
+  it('beams joined by a universal coupling UK 70 are continuous there', () => {
+    const m = build((p) => {
+      p.push({ art: 'SRU', rot: 'x', t: [0, 1, 5] }, { art: 'SRU', rot: 'x', t: [2.25, 1, 5] });
+      p.push({ art: 'UK70', rot: 'x', t: [1.9, 1, 4.95] });
+    });
+    expect(m.audit.counts.joint).toBe(1);
+    const beams = m.carriers.filter((c) => c.kind === 'beam');
+    expect(beams).toHaveLength(2);
+    const [a, b] = beams.map((c) => c.points!);
+    const joint = a.at(-1)!.node;
+    expect(b[0].node).toBe(joint);
+    // the joint is not a support by assumption, the far ends are
+    expect(m.assumedSupports.some((s) => s.node === joint)).toBe(false);
+    expect(m.assumedSupports).toHaveLength(2);
+  });
+
+  it('a ledger in a clamp rosette held at one end only: guardrail, no hinge, in the model', () => {
+    const edit = (p: TestPart[]) => {
+      p.push({ art: 'UEV', rot: 'x', t: [0, 0, 1.6] });
+      p.push({ art: 'UH', rot: 'x', t: [-1.958, -0.015, 1.6] });
+    };
+    const st = analyzeScaffold(tower(edit));
+    const id = st.parts.filter((w) => w.cls.kind === 'ledger').at(-1)!.part.id;
+    const m = buildScaffoldModel(st);
+    expect(memberParts(m).has(id)).toBe(true);
+    expect(m.notes.find((n) => n.key === 'ledgerGuardrail')?.parts).toEqual([id]);
+    expect(m.notes.find((n) => n.key === 'ledgerNoRosette')?.parts ?? []).not.toContain(id);
+    expect(m.audit.counts.loose).toBe(0);
+    expect(m.audit.total).toBe(st.parts.length);
+    expect(Object.values(m.audit.counts).reduce((s, n) => s + n, 0)).toBe(st.parts.length);
+  });
+
+  it('a ledger held at one end with decks on it: warned at import, connected at both ends for the analysis', () => {
+    const edit = (p: TestPart[]) => {
+      p.push({ art: 'UH', rot: 'x', t: [-1.958, -0.015, 2.22] });
+      for (let k = 0; k < 7; k++) p.push({ art: 'UDG', rot: 'x', t: [-1.95 + 0.25 * k, 0.025, 2.233] });
+    };
+    const st = analyzeScaffold(tower(edit));
+    const id = st.parts.filter((w) => w.cls.kind === 'ledger').at(-1)!.part.id;
+    expect(st.issues.find((i) => i.key === 'ledgerOneEndDecked')).toMatchObject({ severity: 'warning', parts: [id] });
+    const m = buildScaffoldModel(st);
+    expect(m.notes.find((n) => n.key === 'ledgerFixedAssumed')?.parts).toEqual([id]);
+    expect(m.notes.some((n) => n.key === 'ledgerGuardrail')).toBe(false);
+    const ms = m.members.filter((x) => x.part === id);
+    expect(ms[0].conn?.[0]).toBeTruthy();
+    expect(ms.at(-1)!.conn?.[1]).toBeTruthy();
+  });
+});

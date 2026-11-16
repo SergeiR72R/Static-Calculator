@@ -12,6 +12,8 @@
  * Only plain text parsing, no external libraries.
  */
 
+import { decodeSat, hexBytes, sabBox, satBox, type Box } from './acis';
+
 export type V3 = [number, number, number];
 
 /** system geometry of a part type in its local coordinates */
@@ -43,8 +45,10 @@ export interface ScaffoldDoc {
   geom: Record<string, PartGeom>;
   /** parts of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL) in the drawing: AutoCAD does not write them to DXF */
   aecParts?: number;
-  /** other block references of the drawing (timber planks, blocks …): name and insertion point, m */
-  blocks?: { name: string; p: V3 }[];
+  /** other block references of the drawing (timber planks, ballast blocks …): name and insertion point, m;
+   * extent of the body (3D solid or the lines of the block) and weight (attribute "Gewicht", else volume
+   * × density by the name), kg */
+  blocks?: PlanBlock[];
   /** rotation (row-major 3 × 3) that turned the drawing upright (y up in PERI CAD) */
   up?: number[];
   /** parts added from the PERIEXPORT file of AutoCAD */
@@ -56,6 +60,33 @@ export function aecPartCount(text: string): number {
   const head = text.slice(0, 4_000_000);
   const m = /\n\s*1\r?\nPERI_AEC_DB_BAUTEIL\r?\n(?:\s*\d+\r?\n[^\n]*\n){0,6}?\s*91\r?\n\s*(\d+)/.exec(head);
   return m ? Number(m[1]) : 0;
+}
+
+export interface PlanBlock {
+  name: string;
+  p: V3;
+  box?: Box;
+  kg?: number;
+}
+
+/** density by the name of a block, kg/m³ (concrete blocks, timber, steel) */
+export function blockDensity(name: string): number | null {
+  if (/beton|concrete|b(ü|ue|u|Ã¼)scher|ballast|block|stein/i.test(name)) return 2400;
+  if (/stahl|steel|platte/i.test(name)) return 7850;
+  if (/holz|diele|bohle|timber|wood|kantholz/i.test(name)) return 600;
+  return null;
+}
+
+/** weight of a block reference: attribute Gewicht (kg, times FAKTOR), else volume × density */
+export function blockKg(name: string, attrs: Record<string, string>, box?: Box): number | undefined {
+  const get = (re: RegExp) => Object.entries(attrs).find(([k]) => re.test(k))?.[1];
+  const kgA = Number((get(/^(gewicht|weight|masse|mass)$/i) ?? '').replace(',', '.'));
+  const f = Number((get(/^faktor$/i) ?? '1').replace(',', '.'));
+  if (Number.isFinite(kgA) && kgA > 0) return kgA * (Number.isFinite(f) && f > 0 ? f : 1);
+  const rho = blockDensity(name);
+  if (!rho || !box) return undefined;
+  const v = (box.max[0] - box.min[0]) * (box.max[1] - box.min[1]) * (box.max[2] - box.min[2]);
+  return v > 0 ? v * rho : undefined;
 }
 
 export class ScaffoldImportError extends Error {
@@ -122,6 +153,11 @@ interface RawBlock {
   lines: [V3, V3][];
   circles: V3[];
   inserts: { name: string; p: V3; s: V3; rot: number }[];
+  /** base point; bodies (handle, SAT text of older DXF); vertices of faces; attribute defaults */
+  base?: V3;
+  solids?: { handle: string; sat: string[] }[];
+  pts?: V3[];
+  attdefs?: Record<string, string>;
 }
 
 function readBlocks(recs: Rec[]): Map<string, RawBlock> {
@@ -129,7 +165,7 @@ function readBlocks(recs: Rec[]): Map<string, RawBlock> {
   let cur: RawBlock | null = null;
   for (const r of recs) {
     if (r.type === 'BLOCK') {
-      cur = { lines: [], circles: [], inserts: [] };
+      cur = { lines: [], circles: [], inserts: [], base: [num(first(r, 10)), num(first(r, 20)), num(first(r, 30))] };
       blocks.set(first(r, 2) ?? '', cur);
       continue;
     }
@@ -140,6 +176,9 @@ function readBlocks(recs: Rec[]): Map<string, RawBlock> {
     if (!cur) continue;
     const p = (c: number): V3 => [num(first(r, c)), num(first(r, c + 10)), num(first(r, c + 20))];
     if (r.type === 'LINE') cur.lines.push([p(10), p(11)]);
+    else if (r.type === '3DSOLID') (cur.solids ??= []).push({ handle: first(r, 5) ?? '', sat: r.tags.filter((t) => t[0] === 1 || t[0] === 3).map((t) => t[1]) });
+    else if (r.type === '3DFACE') (cur.pts ??= []).push(p(10), p(11), p(12), p(13));
+    else if (r.type === 'ATTDEF') (cur.attdefs ??= {})[first(r, 2) ?? ''] = first(r, 1) ?? '';
     else if (r.type === 'CIRCLE') cur.circles.push(p(10));
     else if (r.type === 'LWPOLYLINE') {
       const xs = r.tags.filter((t) => t[0] === 10).map((t) => num(t[1]));
@@ -402,29 +441,88 @@ export function parsePeriCadDxf(text: string, fileName = '', progress?: (frac: n
   }
   const up = [...ups.values()].sort((a, b) => b.n - a.n)[0]?.v;
   // other block references (planks under the spindles …) in metres
-  let others: { name: string; p: V3 }[] = [];
-  for (const r of secs.get('ENTITIES') ?? []) {
-    const name = r.type === 'INSERT' ? (first(r, 2) ?? '') : '';
-    if (!name || DISPLAY_BLOCK.test(name) || name.startsWith('*')) continue;
-    const M = insertMatrix([num(first(r, 10)), num(first(r, 20)), num(first(r, 30))], [1, 1, 1], 0, [num(first(r, 210)), num(first(r, 220)), num(first(r, 230), 1)]);
-    others.push({ name, p: [M[3] * unit, M[7] * unit, M[11] * unit] });
+  // bodies in the ACDSDATA section (AutoCAD 2013 and later), by the handle of the 3DSOLID
+  const asm = new Map<string, Rec>();
+  for (const r of secs.get('ACDSDATA') ?? []) {
+    if (r.type !== 'ACDSRECORD' || !r.tags.some((t) => t[0] === 2 && t[1] === 'ASM_Data')) continue;
+    const h = first(r, 320);
+    if (h) asm.set(h, r);
   }
+  const localBox = new Map<string, Box | null>();
+  /** extent of a block in its own coordinates (bodies, else faces and lines) */
+  const blockBox = (name: string): Box | null => {
+    if (localBox.has(name)) return localBox.get(name)!;
+    const b = blocks.get(name);
+    let box: Box | null = null;
+    const add = (q: Box | null) => {
+      if (!q) return;
+      if (!box) box = { min: [...q.min], max: [...q.max] };
+      else
+        for (let i = 0; i < 3; i++) {
+          box.min[i] = Math.min(box.min[i], q.min[i]);
+          box.max[i] = Math.max(box.max[i], q.max[i]);
+        }
+    };
+    for (const so of b?.solids ?? []) {
+      const rec = asm.get(so.handle);
+      if (rec) add(sabBox(hexBytes(rec.tags.filter((t) => t[0] === 310).map((t) => t[1]).join(''))));
+      else if (so.sat.length) add(satBox(decodeSat(so.sat)));
+    }
+    if (!box && b) {
+      const pts = [...(b.pts ?? []), ...b.lines.flat()];
+      if (pts.length) add({ min: [0, 1, 2].map((i) => Math.min(...pts.map((q) => q[i]))) as V3, max: [0, 1, 2].map((i) => Math.max(...pts.map((q) => q[i]))) as V3 });
+    }
+    const bb = box as Box | null;
+    if (bb && b?.base)
+      for (let i = 0; i < 3; i++) {
+        bb.min[i] -= b.base[i];
+        bb.max[i] -= b.base[i];
+      }
+    localBox.set(name, bb);
+    return bb;
+  };
+  let others: (PlanBlock & { corners?: V3[]; attrs: Record<string, string> })[] = [];
+  const ents = secs.get('ENTITIES') ?? [];
+  ents.forEach((r, idx) => {
+    const name = r.type === 'INSERT' ? (first(r, 2) ?? '') : '';
+    if (!name || DISPLAY_BLOCK.test(name) || name.startsWith('*')) return;
+    const ex: V3 = [num(first(r, 210)), num(first(r, 220)), num(first(r, 230), 1)];
+    const ip: V3 = [num(first(r, 10)), num(first(r, 20)), num(first(r, 30))];
+    const M = insertMatrix(ip, [1, 1, 1], 0, ex);
+    // attributes: the ATTRIB records after the reference, else the defaults of the block
+    const attrs: Record<string, string> = { ...(blocks.get(name)?.attdefs ?? {}) };
+    for (let k = idx + 1; k < ents.length && ents[k].type === 'ATTRIB'; k++) attrs[first(ents[k], 2) ?? ''] = first(ents[k], 1) ?? '';
+    const lb = blockBox(name);
+    let corners: V3[] | undefined;
+    if (lb) {
+      const Mf = insertMatrix(ip, [num(first(r, 41), 1), num(first(r, 42), 1), num(first(r, 43), 1)], num(first(r, 50)), ex);
+      corners = [];
+      for (const x of [lb.min[0], lb.max[0]]) for (const y of [lb.min[1], lb.max[1]]) for (const z of [lb.min[2], lb.max[2]]) corners.push(place(Mf, [x, y, z]).map((v) => v * unit) as V3);
+    }
+    others.push({ name, p: [M[3] * unit, M[7] * unit, M[11] * unit], corners, attrs });
+  });
   // PERI parts may be placed in metres in a drawing in millimetres (and the ordinary blocks in mm):
   // the blocks are scaled to the parts when their positions are about a thousand times larger
   if (others.length && raws.length) {
     const med = (v: number[]) => v.sort((a, b) => a - b)[Math.floor(v.length / 2)];
     const parts = med(raws.map((r) => Math.hypot(r.part.m[3], r.part.m[7])));
     const blocksAt = med(others.map((o) => Math.hypot(o.p[0], o.p[1])));
-    if (parts > 1 && blocksAt / parts > 300) others = others.map((o) => ({ name: o.name, p: o.p.map((v) => v * 1e-3) as V3 }));
+    if (parts > 1 && blocksAt / parts > 300) others = others.map((o) => ({ ...o, p: o.p.map((v) => v * 1e-3) as V3, corners: o.corners?.map((c) => c.map((v) => v * 1e-3) as V3) }));
   }
   let upR: number[] | undefined;
   if (up && up[2] < 0.999) {
     const R = rotationTo(up, [0, 0, 1]);
     upR = R;
     for (const r of raws) r.part.m = mulRT(R, r.part.m);
-    others = others.map((o) => ({ name: o.name, p: [0, 1, 2].map((i) => R[i * 3] * o.p[0] + R[i * 3 + 1] * o.p[1] + R[i * 3 + 2] * o.p[2]) as V3 }));
+    const rot = (q: V3) => [0, 1, 2].map((i) => R[i * 3] * q[0] + R[i * 3 + 1] * q[1] + R[i * 3 + 2] * q[2]) as V3;
+    others = others.map((o) => ({ ...o, p: rot(o.p), corners: o.corners?.map(rot) }));
   }
-  return { fileName, parts: raws.map((r) => r.part), geom, ...(aecParts ? { aecParts } : {}), ...(others.length ? { blocks: others } : {}), ...(upR ? { up: upR } : {}) };
+  const planBlocks: PlanBlock[] = others.map((o) => {
+    const box = o.corners?.length ? { min: [0, 1, 2].map((i) => Math.min(...o.corners!.map((c) => c[i]))) as V3, max: [0, 1, 2].map((i) => Math.max(...o.corners!.map((c) => c[i]))) as V3 } : undefined;
+    const kg = blockKg(o.name, o.attrs, box);
+    return { name: o.name, p: o.p, ...(box ? { box } : {}), ...(kg ? { kg } : {}) };
+  });
+  return { fileName, parts: raws.map((r) => r.part), geom, ...(aecParts ? { aecParts } : {}), ...(planBlocks.length ? { blocks: planBlocks } : {}), ...(upR ? { up: upR } : {}) };
 }
 
 /** rotation matrix (row major 3 × 3) turning the unit vector a onto the unit vector b */

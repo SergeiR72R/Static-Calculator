@@ -45,7 +45,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
   const outdoor = sc.exposure === 'outdoor';
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
   const wind = siteWind(sc, Math.max(st.max[2] - st.min[2], 1));
-  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack]);
+  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack, sc.planLoads]);
   const stale = !!run && run.sig !== sig;
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
   const levels = useMemo(() => {
@@ -69,7 +69,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
     await new Promise((r) => setTimeout(r, 30));
     try {
       const t0 = performance.now();
-      const model = buildScaffoldModel(st, sc.loads, sc.dhbParts, { ubk: sc.ubkModel });
+      const model = buildScaffoldModel(st, sc.loads, sc.dhbParts, { ubk: sc.ubkModel, planLoads: sc.planLoads });
       setCalc({ phase: 'scaffold.progress.prepare', frac: null });
       const result = await analyzeScaffoldParallel(
         model,

@@ -12,7 +12,7 @@ import { periMaterial } from '../sections/peri';
 import { classifyPart, PART_KINDS, type PartClass } from './catalog';
 import { findPart, partKg } from './weights';
 import { healParts, type PartMove } from './heal';
-import { place, type ScaffoldDoc, type ScaffoldPart, type V3 } from './pericad';
+import { place, type PlanBlock, type ScaffoldDoc, type ScaffoldPart, type V3 } from './pericad';
 
 export interface WorldPart {
   part: ScaffoldPart;
@@ -106,6 +106,8 @@ export interface ScaffoldStructure {
   max: V3;
   /** timber planks and blocks under the scaffold (block references): insertion point and thickness, m */
   pads: { name: string; p: V3; t: number }[];
+  /** block references of the drawing with their body and weight (ballast …) */
+  blocks: PlanBlock[];
 }
 
 /** thickness of a plank / block from its name ("Holzdiele 45x240x1000": the smallest dimension, mm) */
@@ -479,7 +481,7 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
     const t = PAD.test(b.name) ? padThickness(b.name) : null;
     return t ? [{ name: b.name, p: b.p, t }] : [];
   });
-  return { parts, columns, anchors, girders, bom, issues, moves, min, max, pads };
+  return { parts, columns, anchors, girders, bom, issues, moves, min, max, pads, blocks: doc.blocks ?? [] };
 }
 
 /**

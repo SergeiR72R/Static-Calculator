@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { planBlockLoads } from '../../scaffold/planLoads';
 import { useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import { DHB_SHARE, userLoadTotal, type UserLoad } from '../../scaffold/userLoads';
@@ -44,6 +45,9 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
     sc.addLoad(l);
     setName('');
   };
+  // bodies of the drawing with a weight (ballast …) on the scaffold
+  const plan = useMemo(() => (st.blocks?.some((b) => b.kg && b.box) ? planBlockLoads(st) : null), [st]);
+  const planParts = useMemo(() => [...new Set(plan?.placed.flatMap((p) => p.parts) ?? [])], [plan]);
   const totals = { G: 0, Q: 0 };
   for (const l of sc.loads) totals[l.case] += userLoadTotal(l, byId);
 
@@ -127,6 +131,26 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
           </table>
           <p className="mt-1 text-[11px] text-slate-600 dark:text-slate-300" data-testid="scaffold-loads-total">
             {fmt.t('scaffold.loads.total', { g: fmt.q(totals.G, 'force', 1), q: fmt.q(totals.Q, 'force', 1) })}
+          </p>
+        </div>
+      )}
+
+      {plan && (
+        <div className="mt-3 space-y-1 border-t border-slate-200 pt-2 text-xs dark:border-slate-700" data-testid="scaffold-plan-box">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={sc.planLoads} onChange={(e) => sc.setOpts({ planLoads: e.target.checked })} data-testid="scaffold-plan" />
+              {fmt.t('scaffold.loads.plan')}
+            </label>
+            {plan.placed.length > 0 && (
+              <Button size="sm" variant="ghost" onClick={() => sc.select(planParts)} data-testid="scaffold-plan-show">
+                {fmt.t('scaffold.loads.dhbShow')}
+              </Button>
+            )}
+          </div>
+          <p className="text-[11px] text-slate-600 dark:text-slate-300" data-testid="scaffold-plan-summary">
+            {fmt.t('scaffold.loads.planSummary', { n: plan.placed.length, f: fmt.q(plan.total, 'force', 1), m: planParts.length })}
+            {plan.unplaced.length > 0 && ` ${fmt.t('scaffold.loads.planUnplaced', { n: plan.unplaced.length })}`}
           </p>
         </div>
       )}

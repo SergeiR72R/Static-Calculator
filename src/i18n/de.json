@@ -770,7 +770,10 @@
       "dhbTake": "Auf die gewählten ({n})",
       "dhbShow": "Zeigen",
       "dhbReset": "Auf die Stiele",
-      "dhbDir": "Richtung"
+      "dhbDir": "Richtung",
+      "plan": "Ballast und Lasten aus der Zeichnung (Blöcke mit Gewicht, nach ihren Abmessungen)",
+      "planSummary": "{n} Körper auf dem Gerüst, Σ {f} als ständige Last auf {m} Riegel/Träger.",
+      "planUnplaced": "{n} weitere liegen nicht auf dem Gerüst (Unterlagen, separat berechnete Plattform) und werden nicht angesetzt."
     },
     "heal": {
       "title": "Teile einrasten",
@@ -1053,7 +1056,8 @@
       "diagNoSlack": "Diagonalen ohne Lose",
       "diagSlack": "Diagonalen mit Lose nach Zulassung",
       "ubkAnnexA": "UBK nach Anlage A (Tab. A.1/A.2, exzentrischer Diagonalkopf)",
-      "ubkTable15": "UBK nach Tab. 15"
+      "ubkTable15": "UBK nach Tab. 15",
+      "plan": "Aus der Zeichnung: {n} × {name} je {kg} kg, Σ {f} (ständig)"
     },
     "export": {
       "hint": "Teile des älteren PERI-CAD-Typs (z. B. Spindeln) kommen nicht in die DXF: Skript in AutoCAD laden (APPLOAD), PERIEXPORT ausführen und hier die Datei …_peri.txt zusammen mit der DXF öffnen.",

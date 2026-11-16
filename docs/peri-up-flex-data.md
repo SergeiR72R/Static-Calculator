@@ -357,3 +357,25 @@ Offen: in x ist das Modell rund 30 % weicher (A ±x 15,6 / 10,4 mm gegen 11,5 / 
 die Knotendiagonalen UBK: hier mit der Gesamtsteifigkeit nach Tabelle 15, in FC als Stäbe mit
 eigenen Anschlussfedern (Anlage A, Tabelle A.1) – dort tragen sie wenig (η ≤ 0,14), hier bis 0,61.
 Daher heben in S ±x mehr Fußpunkte ab (75 statt 50) und die Kombination bleibt zweiseitig gelagert.
+
+**UBK nach Anlage A (Option, Standard).** Tabelle A.1 (UBK) / A.2 (UBK-2) mit dem statischen System
+von Anlage A S. 20 / 21: Diagonalkopf e_x = 8,3 cm neben der Ständerachse im Feld, e_y = 3,6 cm
+(UBK-2: 5,0 cm) neben der Ständerebene als starre Endexzentrizitäten des Fachwerkstabs; die Knoten-
+momente gehen so in Ständer und Riegel. Alternativ Tabelle 15 (zentrisch). Für 18_012 ändert das die
+Steifigkeit in x kaum (A +x 15,8 statt 15,6 mm) – der Unterschied zu FC liegt also nicht an der UBK.
+Die Lose der Diagonalen ist ein Schalter: ohne (wie FC) oder nach Zulassung.
+
+**18_013 (Absetzbühne, PFC 4.4.14).** Nur R (γ = 1,5) und S (γ_G = 0,9) mit maximalem Wind
+q = 0,40 kN/m² (k(T) = 0,7 bereits eingerechnet, Standzeitfaktor in FC 1,0), keine Arbeitskombination.
+Lasten: Eigengewicht, Plattform oben 36 × 1,6 kN auf die Kreuzkopfspindeln, Ballast 32 Riegel
+UHV 150 × 3,44 kN/m (Σ 159,6 kN). Der Ballast steht in der Zeichnung 18_013.dxf als 14 Blöcke
+„Büscher Block 150x60x60“ mit Attribut Gewicht = 1180 kg; das Programm liest ihre Körper (ACIS,
+SAB im Abschnitt ACDSDATA bzw. SAT bei älteren DXF), legt sie auf die Riegel darunter (auf Belägen
+zwischen zwei parallelen Riegeln nach dem Hebelgesetz) und setzt sie ständig an: Σ 162,1 kN auf alle
+32 UHV wie in FC. Bohlen der separat berechneten Plattform und Unterlagen unter den Fußspindeln
+werden nicht angesetzt. Ergebnisse (FC in Klammern): Windsumme 52,6 / 50,6 kN (56,3 / 53,8),
+max. Fußpunkt 31,6 kN (30,7 / 33,9), UHV 0,37 (0,38; Feldquerschnitt am UHA, vorher fälschlich
+Anschlussquerschnitt), UBL 0,56 (0,58–0,65), UH 200 0,64 (0,62), Fußspindel 0,39 (0,49 / 0,62).
+Verformung: R ±x 36 / 47 mm (65), R ±y 36 mm (44), S ±x 118 / 127 mm (64), S ±y 51 mm (44).
+Offen: in FC ist S ≈ R, obwohl dort in S 18 Fußpunkte abheben; im Modell erhöht das Abheben die
+Verschiebung auf das Dreifache.

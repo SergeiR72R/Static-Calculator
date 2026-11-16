@@ -17,6 +17,7 @@ import { findPeriProduct, periSI } from '../sections/peri';
 import type { ScaffoldStructure, WorldPart } from './structure';
 import { partKg } from './weights';
 import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
+import { planBlockLoads, type PlanLoads } from './planLoads';
 import { orderedAxis, type UserLoad } from './userLoads';
 
 export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'ubl' | 'tube' | 'anchor' | 'jack';
@@ -111,6 +112,8 @@ export interface ScaffoldModel {
   /** nodes of the dynamic horizontal load (DHB): the chosen parts, else the tops of the standards
    * that reach the top of the scaffold */
   dhbNodes: number[];
+  /** loads from the bodies of the drawing (ballast), null when not taken */
+  plan: PlanLoads | null;
 }
 
 const tubeSection = (t: keyof typeof TUBES): Section3 => ({ EA: E_STEEL * TUBES[t].A, EIy: E_STEEL * TUBES[t].I, EIz: E_STEEL * TUBES[t].I, GJ: G_STEEL * 2 * TUBES[t].I });
@@ -219,10 +222,14 @@ export interface ModelOptions {
   /** 'annexA': eccentric diagonal head with tables A.1 / A.2 (as PERI ForceControl, default);
    * 'table15': centric pin-ended member with the total stiffness of table 15 */
   ubk?: UbkModel;
+  /** weight of the bodies of the drawing lying on the scaffold (ballast) as permanent loads (default) */
+  planLoads?: boolean;
 }
 
-export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
+export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
   const ubkModel: UbkModel = opts.ubk ?? 'annexA';
+  const plan = opts.planLoads === false ? null : planBlockLoads(st);
+  const userLoads = plan ? [...userLoads0, ...plan.loads] : userLoads0;
   const nodes: V3[] = [];
   const nodeCol: number[] = [];
   const notes: ModelNote[] = [];
@@ -1184,5 +1191,6 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] 
     notes,
     user,
     dhbNodes,
+    plan,
   };
 }

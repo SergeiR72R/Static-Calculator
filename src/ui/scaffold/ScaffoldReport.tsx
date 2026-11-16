@@ -1,5 +1,6 @@
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import { LOAD_CLASSES } from '../../scaffold/catalog';
+import { planBlockLoads } from '../../scaffold/planLoads';
 import { siteWind, useScaffold } from '../../scaffold/store';
 import { userLoadTotal } from '../../scaffold/userLoads';
 import { LIFT_TOL } from '../../scaffold/analysis';
@@ -28,6 +29,15 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
   const outdoor = sc.exposure === 'outdoor';
   const wind = siteWind(sc, height);
   const byId = new Map(st.parts.map((w) => [w.part.id, w]));
+  // ballast and other bodies of the drawing lying on the scaffold
+  const plan = sc.planLoads && st.blocks?.some((b) => b.kg && b.box) ? planBlockLoads(st) : null;
+  const planGroups = new Map<string, { n: number; kg: number }>();
+  for (const p of plan?.placed ?? []) {
+    const g = planGroups.get(p.name) ?? { n: 0, kg: 0 };
+    g.n++;
+    g.kg += p.kg;
+    planGroups.set(p.name, g);
+  }
   const name = (id: string) => byId.get(id)?.part.name ?? id;
   const res = run?.result;
   const maxEta = res ? res.checks.reduce((m, c) => Math.max(m, c.eta), 0) : 0;
@@ -98,13 +108,18 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
               {sc.loadClass} ({fmt.q((LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3, 'areaLoad')}) · {fmt.t('scaffold.report.deckG')}: {fmt.q(sc.g, 'areaLoad')}
             </td>
           </tr>
-          {(sc.loads.length > 0 || (sc.dhb > 0 && sc.dhbLoad > 0)) && (
+          {(sc.loads.length > 0 || (sc.dhb > 0 && sc.dhbLoad > 0) || planGroups.size > 0) && (
             <tr data-testid="scaffold-report-loads">
               <th className={th}>{fmt.t('scaffold.loads.title')}</th>
               <td className={td}>
                 {sc.loads.map((l) => (
                   <div key={l.id}>
                     {l.name} ({l.case}): {l.kind === 'point' ? `${fmt.q(l.value, 'force', 2)} @ ${fmt.num(l.at * 100, 0)} %` : fmt.q(l.value, 'lineLoad', 2)} × {l.parts.length} · Σ {fmt.q(userLoadTotal(l, byId), 'force', 1)}
+                  </div>
+                ))}
+                {[...planGroups].map(([n, g]) => (
+                  <div key={n} data-testid="scaffold-report-plan">
+                    {fmt.t('scaffold.report.plan', { name: n, n: g.n, kg: fmt.num(g.kg / g.n, 0), f: fmt.q(g.kg * 9.81, 'force', 1) })}
                   </div>
                 ))}
                 <div>

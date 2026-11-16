@@ -770,7 +770,10 @@
       "dhbTake": "On the selected ({n})",
       "dhbShow": "Show",
       "dhbReset": "On the standards",
-      "dhbDir": "Direction"
+      "dhbDir": "Direction",
+      "plan": "Ballast and loads from the drawing (blocks with a weight, by their dimensions)",
+      "planSummary": "{n} bodies on the scaffold, Σ {f} as permanent load on {m} ledgers/beams.",
+      "planUnplaced": "{n} more do not lie on the scaffold (pads, platform calculated separately) and are not applied."
     },
     "heal": {
       "title": "Snap parts",
@@ -1053,7 +1056,8 @@
       "diagNoSlack": "diagonals without slack",
       "diagSlack": "diagonals with slack per approval",
       "ubkAnnexA": "UBK per annex A (tab. A.1/A.2, eccentric diagonal head)",
-      "ubkTable15": "UBK per tab. 15"
+      "ubkTable15": "UBK per tab. 15",
+      "plan": "From the drawing: {n} × {name} at {kg} kg, Σ {f} (permanent)"
     },
     "export": {
       "hint": "Parts of the older PERI CAD kind (e.g. base jacks) are not in the DXF: load the script in AutoCAD (APPLOAD), run PERIEXPORT and open the file …_peri.txt here together with the DXF.",

@@ -77,6 +77,8 @@ export interface ScaffoldOpts {
   ubkModel: UbkModel;
   /** slack of the diagonals per the approval (else none, as PERI ForceControl) */
   diagSlack: boolean;
+  /** weight of the bodies of the drawing on the scaffold (ballast blocks …) as permanent loads */
+  planLoads: boolean;
 }
 
 export interface SiteWind {
@@ -127,7 +129,7 @@ export function siteWind(o: ScaffoldOpts, height: number): SiteWind {
   return { qp: 0, qMax: 0, source: 'none' };
 }
 
-export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true, dhb: DHB_SHARE, dhbLoad: 0, dhbDir: 'xy', gFavR: true, ubkModel: 'annexA', diagSlack: false };
+export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true, dhb: DHB_SHARE, dhbLoad: 0, dhbDir: 'xy', gFavR: true, ubkModel: 'annexA', diagSlack: false, planLoads: true };
 
 export interface ScaffoldState extends ScaffoldOpts {
   doc: ScaffoldDoc | null;
@@ -208,6 +210,7 @@ function save(s: ScaffoldState) {
     gFavR: s.gFavR,
     ubkModel: s.ubkModel,
     diagSlack: s.diagSlack,
+    planLoads: s.planLoads,
     batchRef: s.batchRef,
     loads: s.loads,
     loadsFile: s.loadsFile,

@@ -975,7 +975,13 @@
       "mechanismParts": "{n} parts are not held (mechanism) – kept in place by weak springs in the analysis. Check in the drawing. Show.",
       "stabilityLost": "stability lost with second order – results of first order; show the zone ({n} parts)",
       "summaryUser": "user G = {g}, Q = {q} · DHB = {h}",
-      "lifted": "{n} bases lift off (reaction 0) – allowed, the system stays stable. Show."
+      "lifted": "{n} bases lift off (reaction 0) – allowed, the system stays stable. Show.",
+      "ubkModel": "Model of the node diagonals UBK",
+      "ubkAnnexA": "Annex A, tab. A.1/A.2 (eccentric head, as PFC)",
+      "ubkTable15": "Tab. 15 (centric, simplified)",
+      "slack": "Slack of the diagonals",
+      "slackOff": "no slack (as PFC)",
+      "slackOn": "per approval"
     },
     "wind": {
       "title": "Maximum wind",
@@ -1042,8 +1048,12 @@
       "dhb": "DHB: {p} % of the moved load {m} = {h} (parts: {n})",
       "noDhb": "DHB not applied",
       "method": "Method",
-      "methodText": "As PERI ForceControl: second-order theory, sway 1/200, diagonals without slack, γ = 1.5 (stability: permanent γ = 0.9), spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed).",
-      "methodTextG15": "Second-order theory, sway 1/200, diagonals without slack, γ = 1.5 in all combinations (no stability combinations), spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed)."
+      "methodText": "As PERI ForceControl: second-order theory, sway 1/200, {diag}, {ubk}, γ = 1.5 (stability: permanent γ = 0.9), spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed).",
+      "methodTextG15": "Second-order theory, sway 1/200, {diag}, {ubk}, γ = 1.5 in all combinations (no stability combinations), spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed).",
+      "diagNoSlack": "diagonals without slack",
+      "diagSlack": "diagonals with slack per approval",
+      "ubkAnnexA": "UBK per annex A (tab. A.1/A.2, eccentric diagonal head)",
+      "ubkTable15": "UBK per tab. 15"
     },
     "export": {
       "hint": "Parts of the older PERI CAD kind (e.g. base jacks) are not in the DXF: load the script in AutoCAD (APPLOAD), run PERIEXPORT and open the file …_peri.txt here together with the DXF.",

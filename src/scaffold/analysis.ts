@@ -411,6 +411,8 @@ interface Solved {
 /** non-linear solution of one combination */
 /** most iterations of one combination */
 export const MAX_ITERATIONS = 20;
+/** limit of the iteration while bases still lift off */
+const MAX_LIFT_ITERATIONS = 80;
 
 /** tension of a base that lets it lift off, N */
 export const LIFT_TOL = 100;
@@ -484,7 +486,8 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
   let r!: Solved['r'];
   let converged = false;
   let it = 0;
-  const MAX = MAX_ITERATIONS;
+  // while bases are still lifting off step by step the iteration may go on longer
+  let MAX = MAX_ITERATIONS;
   for (it = 1; it <= MAX; it++) {
     if (it > 1) onStep?.(it - 1);
     makeStates(Ns, it === 1);
@@ -585,7 +588,10 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
         changed = true;
       }
     }
-    if (released) prevActive = before;
+    if (released) {
+      prevActive = before;
+      if (it === MAX && MAX < MAX_LIFT_ITERATIONS) MAX++;
+    }
     let dN = 0;
     if (secondOrder) {
       if (Ns) for (let k = 0; k < nM; k++) dN = Math.max(dN, Math.abs(newN[k] - Ns[k]) / (Math.abs(newN[k]) + 500));
@@ -809,6 +815,12 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
             const f: ConnForces = { N: sf.N, My: -sf.My, Vz: e === 0 ? mr.fi[2] : mr.fj[2], Vy: sf.Vy, Mz: sf.Mz, Mx: sf.Mx };
             const ci2 = connInteraction(m.head!, v, f);
             put({ part: m.part, check: 'conn', eta: ci2.eta, combo: cb.name, detail: `Gl. ${ci2.eq}`, N: f.N, M: f.My, V: f.Vz });
+          }
+          // an inner node of the ledger (e.g. a UHA hanging on it): cross-section of the span
+          if (!v && m.conn) {
+            const sp = sec.span ?? sec.w;
+            put({ part: m.part, check: 'ledger', eta: Math.abs(sf.My) / sp.My + Math.abs(sf.N) / sp.N, combo: cb.name, N: sf.N, M: sf.My, V: sf.Vz });
+            continue;
           }
           // ledger cross-section 50 mm from the axis of the standard (Gl. 11 / 12)
           const w = sec.w;

@@ -7,6 +7,7 @@ import { storage } from '../state/persist';
 import type { ScaffoldDoc } from './pericad';
 import { STANDING_FACTOR, germanWindZone, qpEN, qpGermany, type Admin, type ExposureDE } from './wind';
 import { VB0_LU, VB0_NL, belgianVb0, dutchTerrain, dutchWindArea, qpNetherlands } from './windBenelux';
+import type { UbkModel } from './model';
 import { DHB_SHARE, type UserLoad } from './userLoads';
 
 const KEY = 'balken.scaffold';
@@ -72,6 +73,10 @@ export interface ScaffoldOpts {
   dhbDir: 'xy' | 'x' | 'y';
   /** stability combinations: permanent loads favourable (γ = 0.9) with the maximum wind */
   gFavR: boolean;
+  /** model of the node diagonals UBK: annex A (eccentric head, as PERI ForceControl) or table 15 */
+  ubkModel: UbkModel;
+  /** slack of the diagonals per the approval (else none, as PERI ForceControl) */
+  diagSlack: boolean;
 }
 
 export interface SiteWind {
@@ -122,7 +127,7 @@ export function siteWind(o: ScaffoldOpts, height: number): SiteWind {
   return { qp: 0, qMax: 0, source: 'none' };
 }
 
-export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true, dhb: DHB_SHARE, dhbLoad: 0, dhbDir: 'xy', gFavR: true };
+export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true, dhb: DHB_SHARE, dhbLoad: 0, dhbDir: 'xy', gFavR: true, ubkModel: 'annexA', diagSlack: false };
 
 export interface ScaffoldState extends ScaffoldOpts {
   doc: ScaffoldDoc | null;
@@ -169,6 +174,7 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads
     Object.assign(o, saved);
     if (!Array.isArray(o.loads)) o.loads = [];
     if (!Array.isArray(o.dhbParts)) o.dhbParts = [];
+    if (o.ubkModel !== 'annexA' && o.ubkModel !== 'table15') o.ubkModel = 'annexA';
   } catch {
     /* ignore */
   }
@@ -200,6 +206,8 @@ function save(s: ScaffoldState) {
     dhbLoad: s.dhbLoad,
     dhbDir: s.dhbDir,
     gFavR: s.gFavR,
+    ubkModel: s.ubkModel,
+    diagSlack: s.diagSlack,
     batchRef: s.batchRef,
     loads: s.loads,
     loadsFile: s.loadsFile,

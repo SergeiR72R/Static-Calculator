@@ -79,6 +79,10 @@ describe('PERI UP Flex approval data', () => {
     expect(ubkData(2, 2, false)).toMatchObject({ eaT: 4100e3, nT: 13200, eaC: 1970e3, nC: 7480, slack: 0.01 });
     expect(ubkData(1.5, 1, true)).toMatchObject({ eaT: 2250e3, nT: 12600, eaC: 850e3, nC: 9750, slack: 0.012 });
     expect(ubhData(1.5, 1)).toMatchObject({ eaT: 7920e3, nT: 11200, slack: 0.002 });
+    // annex A: table A.1 (UBK) and A.2 (UBK-2) for the model with the eccentric diagonal head
+    expect(ubkData(2, 2, false, { ubk2: false })).toMatchObject({ eaT: 4660e3, nT: 13200, eaC: 2600e3, nC: 8910 });
+    expect(ubkData(1.5, 1, true, { ubk2: false })).toMatchObject({ eaT: 2960e3, nT: 13200, eaC: 1590e3, nC: 9750, slack: 0.012 });
+    expect(ubkData(1, 1, true, { ubk2: true })).toMatchObject({ eaT: 2050e3, nT: 10400, eaC: 730e3, nC: 9360 });
   });
 });
 
@@ -102,6 +106,27 @@ describe('structural model of the scaffold', () => {
     // standard joints with the rotational spring
     expect(m.members.filter((x) => x.joint).length).toBe(10);
     expect(m.levels.map((l) => +l.area.toFixed(2))).toEqual([7.64, 7.64]);
+  });
+
+  it('node diagonals UBK after annex A: head 8.3 cm beside the standard, 3.6 cm out of the plane', () => {
+    const ubk = m.frame.members.filter((_, k) => m.members[k].kind === 'ubk');
+    expect(ubk).toHaveLength(4);
+    for (const x of ubk) {
+      const oi = x.ends?.[0]?.offset ?? [0, 0, 0];
+      const oj = x.ends?.[1]?.offset ?? [0, 0, 0];
+      // along the bay (x) towards the other standard, both ends on the same side beside the plane y = const
+      expect(Math.abs(oi[0])).toBeCloseTo(0.083, 6);
+      expect(oi[0] * oj[0]).toBeLessThan(0);
+      expect(Math.abs(oi[1])).toBeCloseTo(0.036, 6);
+      expect(oj[1]).toBeCloseTo(oi[1], 9);
+      expect(oi[2]).toBe(0);
+      expect(x.sec.EA).toBeCloseTo(ubkData(2, 2, true, { ubk2: false }).eaT, -3);
+    }
+    // table 15: centric, without offsets
+    const t = buildScaffoldModel(st, [], [], { ubk: 'table15' });
+    const t15 = t.frame.members.filter((_, k) => t.members[k].kind === 'ubk');
+    expect(t15.every((x) => !x.ends)).toBe(true);
+    expect(t15[0].sec.EA).toBeCloseTo(ubkData(2, 2, true).eaT, -3);
   });
 
   it('loads: self weight from the parts list, service load on one level', () => {

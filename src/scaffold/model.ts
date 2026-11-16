@@ -16,7 +16,7 @@ import { latticeEquivalent } from '../sections/lattice';
 import { findPeriProduct, periSI } from '../sections/peri';
 import type { ScaffoldStructure, WorldPart } from './structure';
 import { partKg } from './weights';
-import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
+import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 import { orderedAxis, type UserLoad } from './userLoads';
 
 export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'ubl' | 'tube' | 'anchor' | 'jack';
@@ -213,7 +213,16 @@ interface Carrier {
 /** eccentricity of a ledger diagonal UBL beside the axis of its ledger (annex A, page 22), m */
 const UBL_EY = 0.014;
 
-export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] = [], dhbParts: string[] = []): ScaffoldModel {
+/** how the node diagonals UBK are modelled (approval 3.2.3.2) */
+export type UbkModel = 'annexA' | 'table15';
+export interface ModelOptions {
+  /** 'annexA': eccentric diagonal head with tables A.1 / A.2 (as PERI ForceControl, default);
+   * 'table15': centric pin-ended member with the total stiffness of table 15 */
+  ubk?: UbkModel;
+}
+
+export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
+  const ubkModel: UbkModel = opts.ubk ?? 'annexA';
   const nodes: V3[] = [];
   const nodeCol: number[] = [];
   const notes: ModelNote[] = [];
@@ -866,9 +875,27 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] 
     } else if (kind === 'ubl') {
       const dims = ublDims(w);
       d = ublData(dims ? Number(dims[1]) / 100 : Lh, dims ? Number(dims[2]) / 100 : Math.abs(zb - za), plusLedgers, len3(nodes[na], nodes[nb]));
-    } else d = kind === 'ubk' ? ubkData(Lh, Math.abs(zb - za), r6) : ubsData(Lh, Math.abs(zb - za), r6);
-    const L = len3(nodes[na], nodes[nb]);
-    fm.push({ i: na, j: nb, sec: trussSec(d.eaT), truss: true });
+    } else d = kind === 'ubk' ? ubkData(Lh, Math.abs(zb - za), r6, ubkModel === 'annexA' ? { ubk2: /UBK-2/i.test(name) } : undefined) : ubsData(Lh, Math.abs(zb - za), r6);
+    let ends: [MemberEnd, MemberEnd] | undefined;
+    if (kind === 'ubk' && ubkModel === 'annexA' && Lh > 0.3) {
+      // annex A page 20 / 21: the diagonal head sits e_x beside the standard towards the bay and e_y
+      // beside the plane of the standards, on the side where the diagonal is drawn
+      const pa = nodes[na];
+      const pb = nodes[nb];
+      const u: V3 = [(pb[0] - pa[0]) / Lh, (pb[1] - pa[1]) / Lh, 0];
+      let n: V3 = [-u[1], u[0], 0];
+      const side = ((ml[0][0] + ml[1][0] - pa[0] - pb[0]) / 2) * n[0] + ((ml[0][1] + ml[1][1] - pa[1] - pb[1]) / 2) * n[1];
+      if (side < 0) n = [-n[0], -n[1], 0];
+      const ey = /UBK-2/i.test(name) ? UBK_HEAD.ey2 : UBK_HEAD.ey;
+      const off = (s: number, std: boolean): MemberEnd => ({ offset: std ? [s * UBK_HEAD.ex * u[0] + ey * n[0], s * UBK_HEAD.ex * u[1] + ey * n[1], 0] : [0, 0, 0] });
+      ends = [off(1, ka >= 0), off(-1, kb >= 0)];
+    }
+    const at = (k: number, e?: MemberEnd): V3 => {
+      const o = e?.offset ?? [0, 0, 0];
+      return [nodes[k][0] + o[0], nodes[k][1] + o[1], nodes[k][2] + o[2]];
+    };
+    const L = len3(at(na, ends?.[0]), at(nb, ends?.[1]));
+    fm.push({ i: na, j: nb, sec: trussSec(d.eaT), truss: true, ...(ends ? { ends } : {}) });
     mm.push({ kind, part: w.part.id, diag: d, g: (partKg(w.part) ?? 3.5 * L) / L });
   }
   /** standards a tube passes (axis within 12 cm, height within the standard), ordered along the tube */

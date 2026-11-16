@@ -45,7 +45,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
   const outdoor = sc.exposure === 'outdoor';
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
   const wind = siteWind(sc, Math.max(st.max[2] - st.min[2], 1));
-  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR]);
+  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack]);
   const stale = !!run && run.sig !== sig;
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
   const levels = useMemo(() => {
@@ -69,7 +69,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
     await new Promise((r) => setTimeout(r, 30));
     try {
       const t0 = performance.now();
-      const model = buildScaffoldModel(st, sc.loads, sc.dhbParts);
+      const model = buildScaffoldModel(st, sc.loads, sc.dhbParts, { ubk: sc.ubkModel });
       setCalc({ phase: 'scaffold.progress.prepare', frac: null });
       const result = await analyzeScaffoldParallel(
         model,
@@ -88,6 +88,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           dhbLoad: sc.dhbLoad,
           dhbDir: sc.dhbDir,
           gFavR: sc.gFavR,
+          diagSlack: sc.diagSlack,
         },
         (pr) => {
           setBusy({ done: pr.done, total: pr.total });
@@ -164,6 +165,26 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
         />
         {outdoor && sc.snow && <NumberField label={fmt.t('scaffold.calc.snowLoad')} q="areaLoad" showUnit value={sc.snowLoad} onChange={(v) => sc.setOpts({ snowLoad: Math.max(0, v) })} />}
         {outdoor && sc.ice && <NumberField label={fmt.t('scaffold.calc.ice')} q="sectionDim" showUnit value={sc.iceThickness} onChange={(v) => sc.setOpts({ iceThickness: Math.max(0, v) })} />}
+        <SelectField
+          label={fmt.t('scaffold.calc.ubkModel')}
+          value={sc.ubkModel}
+          testId="scaffold-calc-ubk"
+          options={[
+            { value: 'annexA', label: fmt.t('scaffold.calc.ubkAnnexA') },
+            { value: 'table15', label: fmt.t('scaffold.calc.ubkTable15') },
+          ]}
+          onChange={(v) => sc.setOpts({ ubkModel: v === 'table15' ? 'table15' : 'annexA' })}
+        />
+        <SelectField
+          label={fmt.t('scaffold.calc.slack')}
+          value={sc.diagSlack ? 'on' : 'off'}
+          testId="scaffold-calc-slack"
+          options={[
+            { value: 'off', label: fmt.t('scaffold.calc.slackOff') },
+            { value: 'on', label: fmt.t('scaffold.calc.slackOn') },
+          ]}
+          onChange={(v) => sc.setOpts({ diagSlack: v === 'on' })}
+        />
         <label className="flex items-end gap-2 pb-1 text-xs">
           <input type="checkbox" checked={sc.secondOrder} onChange={(e) => sc.setOpts({ secondOrder: e.target.checked })} data-testid="scaffold-calc-second" />
           {fmt.t('scaffold.calc.secondOrder')}

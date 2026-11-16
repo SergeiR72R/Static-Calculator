@@ -117,7 +117,10 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
           )}
           <tr>
             <th className={th}>{fmt.t('scaffold.report.method')}</th>
-            <td className={td}>{fmt.t(sc.gFavR ? 'scaffold.report.methodText' : 'scaffold.report.methodTextG15')}</td>
+            <td className={td}>{fmt.t(sc.gFavR ? 'scaffold.report.methodText' : 'scaffold.report.methodTextG15', {
+                diag: fmt.t(sc.diagSlack ? 'scaffold.report.diagSlack' : 'scaffold.report.diagNoSlack'),
+                ubk: fmt.t(sc.ubkModel === 'table15' ? 'scaffold.report.ubkTable15' : 'scaffold.report.ubkAnnexA'),
+              })}</td>
           </tr>
           <tr>
             <th className={th}>{fmt.t('scaffold.report.size')}</th>

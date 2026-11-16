@@ -975,7 +975,13 @@
       "mechanismParts": "{n} Teile sind nicht gehalten (Mechanismus) – in der Berechnung durch weiche Federn gehalten. Bitte in der Zeichnung prüfen. Anzeigen.",
       "stabilityLost": "Stabilitätsverlust nach Theorie II. Ordnung – Ergebnisse nach I. Ordnung; Bereich zeigen ({n} Teile)",
       "summaryUser": "benutzerdefiniert G = {g}, Q = {q} · DHB = {h}",
-      "lifted": "{n} Fußpunkte heben ab (Auflagerkraft 0) – zulässig, das System bleibt stabil. Zeigen."
+      "lifted": "{n} Fußpunkte heben ab (Auflagerkraft 0) – zulässig, das System bleibt stabil. Zeigen.",
+      "ubkModel": "Modell Knotendiagonalen UBK",
+      "ubkAnnexA": "Anlage A, Tab. A.1/A.2 (exzentrischer Kopf, wie PFC)",
+      "ubkTable15": "Tab. 15 (zentrisch, vereinfacht)",
+      "slack": "Lose der Diagonalen",
+      "slackOff": "ohne Lose (wie PFC)",
+      "slackOn": "nach Zulassung"
     },
     "wind": {
       "title": "Maximaler Wind",
@@ -1042,8 +1048,12 @@
       "dhb": "DHB: {p} % der bewegten Last {m} = {h} (Teile: {n})",
       "noDhb": "DHB nicht angesetzt",
       "method": "Verfahren",
-      "methodText": "Wie PERI ForceControl: Theorie II. Ordnung, Schiefstellung 1/200, Diagonalen ohne Lose, γ = 1,5 (Standsicherheit: ständige γ = 0,9), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
-      "methodTextG15": "Theorie II. Ordnung, Schiefstellung 1/200, Diagonalen ohne Lose, γ = 1,5 in allen Kombinationen (ohne Standsicherheitskombinationen), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig)."
+      "methodText": "Wie PERI ForceControl: Theorie II. Ordnung, Schiefstellung 1/200, {diag}, {ubk}, γ = 1,5 (Standsicherheit: ständige γ = 0,9), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
+      "methodTextG15": "Theorie II. Ordnung, Schiefstellung 1/200, {diag}, {ubk}, γ = 1,5 in allen Kombinationen (ohne Standsicherheitskombinationen), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
+      "diagNoSlack": "Diagonalen ohne Lose",
+      "diagSlack": "Diagonalen mit Lose nach Zulassung",
+      "ubkAnnexA": "UBK nach Anlage A (Tab. A.1/A.2, exzentrischer Diagonalkopf)",
+      "ubkTable15": "UBK nach Tab. 15"
     },
     "export": {
       "hint": "Teile des älteren PERI-CAD-Typs (z. B. Spindeln) kommen nicht in die DXF: Skript in AutoCAD laden (APPLOAD), PERIEXPORT ausführen und hier die Datei …_peri.txt zusammen mit der DXF öffnen.",

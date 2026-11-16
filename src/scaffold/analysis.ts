@@ -906,7 +906,11 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       const m = members[k];
       if (!mr) return;
       if (m.kind === 'standard' || m.kind === 'bracket') {
-        for (const x of [0, mr.L]) {
+        // tube of a standard at its ends; at a rosette with ledgers the node check (Gl. 1, I_S) covers
+        // it, the lowest piece on a base is checked above its pin (as PERI ForceControl)
+        const fk = frame.members[k];
+        const xs = m.kind === 'standard' ? [...(connAt.has(fk.i) ? [] : [0]), ...(connAt.has(fk.j) ? [] : [mr.L]), ...(m.tubeAt !== undefined ? [m.tubeAt] : [])] : [0, mr.L];
+        for (const x of xs) {
           const t = tubeEta(k, x);
           put({ part: m.part, check: 'tube', eta: t.eta, combo: cb.name, N: t.N, M: t.M, V: t.V });
         }
@@ -931,7 +935,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         for (const e of [0, 1]) {
           const x = e === 0 ? 0 : mr.L;
           const sf = sectionForces(mr, x);
-          const v = m.conn?.[e];
+          const v = m.connCap?.[e] ?? m.conn?.[e];
           if (v) {
             // forces of the ledger on the node in the convention of the approval
             const f: ConnForces = { N: sf.N, My: -sf.My, Vz: e === 0 ? mr.fi[2] : mr.fj[2], Vy: sf.Vy, Mz: sf.Mz, Mx: sf.Mx };
@@ -1005,7 +1009,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       for (const { k, e } of cs) {
         const mr = r.members[k]!;
         const m = members[k];
-        const R = connResistance(m.head!, m.conn![e]!);
+        const R = connResistance(m.head!, (m.connCap?.[e] ?? m.conn![e])!);
         const My = -sectionForces(mr, e === 0 ? 0 : mr.L).My;
         worst = Math.max(worst, My >= 0 ? (R.alphaPos * My) / R.MyPos : (R.alphaNeg * -My) / R.MyNeg);
       }

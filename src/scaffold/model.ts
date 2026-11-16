@@ -44,8 +44,12 @@ export interface ModelMember {
   joint?: boolean;
   head?: LedgerHead;
   ledger?: keyof typeof LEDGERS;
-  /** semi-rigid rosette connection at the start / end: variant of the standard there */
+  /** standard: position of the tube check in the span (from the start), besides the ends without ledgers */
+  tubeAt?: number;
+  /** semi-rigid rosette connection at the start / end: variant of the standard there (springs) */
   conn?: [Variant | null, Variant | null];
+  /** variant for the checks of the connection where it differs from `conn` (by the article) */
+  connCap?: [Variant | null, Variant | null];
   diag?: DiagonalData;
   /** weight per metre, kg/m */
   g: number;
@@ -210,7 +214,8 @@ interface Col {
   y: number;
   z0: number;
   z1: number;
-  parts: { w: WorldPart; zb: number; zt: number; variant: Variant }[];
+  /** variant: springs; cap: checks */
+  parts: { w: WorldPart; zb: number; zt: number; variant: Variant; cap: Variant }[];
   ros: number[];
   zs: number[];
   ns: number[];
@@ -224,6 +229,7 @@ interface Attach {
   offset: V3;
   t: number;
   conn?: Variant | null;
+  connCap?: Variant | null;
   k?: number[];
 }
 
@@ -242,6 +248,10 @@ interface Carrier {
   inter: Attach[];
 }
 
+/** the tube of the lowest standard on a base is checked this far above the pin (base plate), m — as PERI
+ * ForceControl (18_007, 18_013: M / V = 10 cm in the check of UVB) */
+const TUBE_ABOVE_PIN = 0.1;
+
 /** a ledger / diagonal end at a rosette of a ULS Flex connector: horizontal distance, m */
 const FLEX_ROSETTE = 0.1;
 
@@ -259,8 +269,10 @@ export interface ModelOptions {
   ubk?: UbkModel;
   /** weight of the bodies of the drawing lying on the scaffold (ballast) as permanent loads (default) */
   planLoads?: boolean;
-  /** all rosettes as 6 mm (Rosette-2), the unfavourable variant (default, as PERI ForceControl); false: by the article (table 6) */
+  /** stiffness of all rosettes as 6 mm (Rosette-2), the unfavourable variant (default, calibrated with PERI ForceControl); false: by the article (table 6) */
   rosette6?: boolean;
+  /** resistance of the rosette connections and diagonals by the article of the standard (table 6), as PERI ForceControl (default); false: as the stiffness */
+  capByArticle?: boolean;
 }
 
 export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
@@ -300,7 +312,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
             zb = Math.min(zb, a[2], b[2]);
             zt = Math.max(zt, a[2], b[2]);
           }
-        return { w, zb, zt, variant: standardVariant(w, opts.rosette6 ?? true) };
+        const variant = standardVariant(w, opts.rosette6 ?? true);
+        return { w, zb, zt, variant, cap: (opts.capByArticle ?? true) ? standardVariant(w, false) : variant };
       })
       .filter((p) => Number.isFinite(p.zb))
       .sort((a, b) => a.zb - b.zb);
@@ -341,10 +354,10 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     });
     return best;
   };
-  const variantAt = (k: number, z: number): Variant => {
+  const variantAt = (k: number, z: number, of: 'variant' | 'cap' = 'variant'): Variant => {
     const c = cols[k];
-    let v = c.parts[0].variant;
-    for (const p of c.parts) if (p.zb <= z + 0.01) v = p.variant;
+    let v = c.parts[0][of];
+    for (const p of c.parts) if (p.zb <= z + 0.01) v = p[of];
     return v;
   };
   const rosetteNear = (k: number, z: number, tol: number): number | null => {
@@ -361,7 +374,6 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     const d = dist2(a, b) || 1;
     return [(b[0] - a[0]) / d, (b[1] - a[1]) / d];
   };
-  /** rosette connection of a ledger end P (other end Q) at a standard */
   /**
    * Springs of the wedge head of a ledger end (P, other end Q) in a rosette of variant v: a ledger is
    * never hinged, its wedge head sits in a rosette (standard, clamp rosette, ULS Flex connector, bracket
@@ -384,7 +396,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       // no rosette of the drawing at this height: the wedge head sits in one there all the same
       const v = variantAt(k, P[2] - 0.03);
       note('ledgerNoRosette', part);
-      return { node: colNode(k, P[2] - 0.03, 0.03), offset: [u[0] * 0.025, u[1] * 0.025, 0.035], t: 0, conn: v, k: wedge(P, Q, head, v) };
+      return { node: colNode(k, P[2] - 0.03, 0.03), offset: [u[0] * 0.025, u[1] * 0.025, 0.035], t: 0, conn: v, connCap: variantAt(k, P[2] - 0.03, 'cap'), k: wedge(P, Q, head, v) };
     }
     const v = variantAt(k, zr);
     return {
@@ -392,6 +404,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       offset: [u[0] * 0.025, u[1] * 0.025, 0.035],
       t: 0,
       conn: v,
+      connCap: variantAt(k, zr, 'cap'),
       k: wedge(P, Q, head, v),
     };
   };
@@ -932,6 +945,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         ledger: c.ledger,
         tube: c.tube,
         conn: c.kind === 'ledger' ? [first ? (A.conn ?? null) : null, last ? (B.conn ?? null) : null] : undefined,
+        connCap: c.kind === 'ledger' && ((first && A.connCap && A.connCap !== A.conn) || (last && B.connCap && B.connCap !== B.conn)) ? [first ? (A.connCap ?? A.conn ?? null) : null, last ? (B.connCap ?? B.conn ?? null) : null] : undefined,
         g: c.g,
         carrier: carrierOut.length,
       });
@@ -1016,7 +1030,14 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     } else if (kind === 'ubl') {
       const dims = ublDims(w);
       d = ublData(dims ? Number(dims[1]) / 100 : Lh, dims ? Number(dims[2]) / 100 : Math.abs(zb - za), plusLedgers, len3(nodes[na], nodes[nb]));
-    } else d = kind === 'ubk' ? ubkData(Lh, Math.abs(zb - za), r6, ubkModel === 'annexA' ? { ubk2: /UBK-2/i.test(name) } : undefined) : ubsData(Lh, Math.abs(zb - za), r6);
+    } else {
+      // stiffness and slack by the rosettes of the stiffness, resistance by those of the checks
+      const r6c = (ka >= 0 && variantAt(ka, za, 'cap')[0] === '2') || (kb >= 0 && variantAt(kb, zb, 'cap')[0] === '2');
+      const data = (six: boolean) => (kind === 'ubk' ? ubkData(Lh, Math.abs(zb - za), six, ubkModel === 'annexA' ? { ubk2: /UBK-2/i.test(name) } : undefined) : ubsData(Lh, Math.abs(zb - za), six));
+      const ds = data(r6);
+      const dc = r6c === r6 ? ds : data(r6c);
+      d = { ...ds, nT: dc.nT, nC: dc.nC };
+    }
     let ends: [MemberEnd, MemberEnd] | undefined;
     if (kind === 'ubk' && ubkModel === 'annexA' && Lh > 0.3) {
       // annex A page 20 / 21: the diagonal head sits e_x beside the standard towards the bay and e_y
@@ -1142,7 +1163,10 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
 
 
   // ---- standards (after all nodes on them exist)
-  cols.forEach((c) => {
+  cols.forEach((c, ci) => {
+    // the pin under the standard: the base plate of its spindle, else its own bottom
+    const foot = feet.find((f) => f.col === ci);
+    const zPin = foot ? nodes[foot.foot][2] : c.zs[0];
     for (let i = 0; i + 1 < c.zs.length; i++) {
       const zm = (c.zs[i] + c.zs[i + 1]) / 2;
       let pi = 0;
@@ -1158,7 +1182,11 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
           : undefined;
       fm.push({ i: c.ns[i], j: c.ns[i + 1], sec: tubeSection(t), ends });
       const nominal = Math.max((pi + 1 < c.parts.length ? c.parts[pi + 1].zb : p.zt) - p.zb, 0.2);
-      mm.push({ kind: 'standard', part: p.w.part.id, tube: t, joint, g: (partKg(p.w.part) ?? TUBES[t].g * nominal) / nominal });
+      // the lowest piece on a base: tube checked TUBE_ABOVE_PIN above the pin (as PERI ForceControl)
+      const base = i === 0 && !c.onCarrier && (foot || bases.some((b) => b.column === ci));
+      const L = c.zs[i + 1] - c.zs[i];
+      const tubeAt = base ? Math.min(Math.max(TUBE_ABOVE_PIN - (c.zs[0] - zPin), 0), L) : undefined;
+      mm.push({ kind: 'standard', part: p.w.part.id, tube: t, joint, g: (partKg(p.w.part) ?? TUBES[t].g * nominal) / nominal, ...(tubeAt !== undefined ? { tubeAt } : {}) });
     }
   });
   // spindles: clamped in the standard, hinged on the base plate / platform

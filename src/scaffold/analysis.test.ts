@@ -108,6 +108,27 @@ describe('structural model of the scaffold', () => {
     expect(m.levels.map((l) => +l.area.toFixed(2))).toEqual([7.64, 7.64]);
   });
 
+  it('rosettes: stiffness 6 mm, resistance by the article of the standard (as PERI ForceControl)', () => {
+    const st = tower(braced);
+    const ubk = (m: ReturnType<typeof buildScaffoldModel>) => m.members.find((x) => x.kind === 'ubk')!.diag!;
+    // UVR 200 (8 mm rosette, variant 1a): springs of 6 mm, resistance of 8 mm
+    const a = ubk(buildScaffoldModel(st));
+    const six = ubkData(2, 2, true, { ubk2: false });
+    const eight = ubkData(2, 2, false, { ubk2: false });
+    expect(a.eaT).toBe(six.eaT);
+    expect(a.slack).toBe(six.slack);
+    expect(a.nT).toBe(eight.nT);
+    expect(a.nC).toBe(eight.nC);
+    // resistance as the stiffness
+    const b = ubk(buildScaffoldModel(st, [], [], { capByArticle: false }));
+    expect([b.nT, b.nC]).toEqual([six.nT, six.nC]);
+    // ledger connections checked with the rosette of the article, springs of 6 mm
+    const led = buildScaffoldModel(st).members.find((x) => x.kind === 'ledger' && x.conn?.[0])!;
+    expect(led.conn![0]![0]).toBe('2');
+    expect(led.connCap![0]![0]).toBe('1');
+    expect(buildScaffoldModel(st, [], [], { capByArticle: false }).members.find((x) => x.kind === 'ledger' && x.conn?.[0])!.connCap).toBeUndefined();
+  });
+
   it('node diagonals UBK after annex A: head 8.3 cm beside the standard, 3.6 cm out of the plane', () => {
     const ubk = m.frame.members.filter((_, k) => m.members[k].kind === 'ubk');
     expect(ubk).toHaveLength(4);

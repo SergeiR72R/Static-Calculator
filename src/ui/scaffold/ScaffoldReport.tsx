@@ -138,6 +138,7 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
                 diag: fmt.t(sc.diagSlack ? 'scaffold.report.diagSlack' : 'scaffold.report.diagNoSlack'),
                 ubk: fmt.t(sc.ubkModel === 'table15' ? 'scaffold.report.ubkTable15' : 'scaffold.report.ubkAnnexA'),
                 splice: fmt.t(sc.spliceNoTension ? 'scaffold.report.spliceFree' : 'scaffold.report.spliceTension'),
+                cap: fmt.t(sc.capByArticle ? 'scaffold.report.capArticle' : 'scaffold.report.capSix'),
               })}</td>
           </tr>
           <tr>

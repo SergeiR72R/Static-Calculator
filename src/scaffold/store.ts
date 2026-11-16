@@ -8,7 +8,7 @@ import type { ScaffoldDoc } from './pericad';
 import { STANDING_FACTOR, germanWindZone, qpEN, qpGermany, type Admin, type ExposureDE } from './wind';
 import { VB0_LU, VB0_NL, belgianVb0, dutchTerrain, dutchWindArea, qpNetherlands } from './windBenelux';
 import type { UbkModel } from './model';
-import { DHB_SHARE, type UserLoad } from './userLoads';
+import { DHB_SHARE, type UserFixing, type UserLoad } from './userLoads';
 
 const KEY = 'balken.scaffold';
 const OPT_KEY = 'balken.scaffoldOpts';
@@ -153,6 +153,10 @@ export interface ScaffoldState extends ScaffoldOpts {
   removeLoad: (id: string) => void;
   /** change a load entered by the user (e.g. the combinations it acts in) */
   updateLoad: (id: string, patch: Partial<UserLoad>) => void;
+  /** fixings to the building set by the user (belong to the drawing as the loads) */
+  fixings: UserFixing[];
+  addFixing: (f: UserFixing) => void;
+  removeFixing: (id: string) => void;
   setDoc: (doc: ScaffoldDoc | null) => void;
   setOpts: (o: Partial<ScaffoldOpts>) => void;
   select: (parts: string[], girder?: string | null) => void;
@@ -170,8 +174,8 @@ function loadDoc(): ScaffoldDoc | null {
   }
 }
 
-function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[] } {
-  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null, loads: [] as UserLoad[], loadsFile: null as string | null, dhbParts: [] as string[] };
+function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[] } {
+  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null, loads: [] as UserLoad[], loadsFile: null as string | null, dhbParts: [] as string[], fixings: [] as UserFixing[] };
   try {
     const saved = JSON.parse(storage.get(OPT_KEY) ?? '{}');
     // options of version 1: deck self weight was the old default 0.20 kN/m² → new default
@@ -182,6 +186,7 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads
     Object.assign(o, saved);
     if (!Array.isArray(o.loads)) o.loads = [];
     if (!Array.isArray(o.dhbParts)) o.dhbParts = [];
+    if (!Array.isArray(o.fixings)) o.fixings = [];
     if (o.ubkModel !== 'annexA' && o.ubkModel !== 'table15') o.ubkModel = 'annexA';
   } catch {
     /* ignore */
@@ -190,7 +195,7 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads
 }
 
 function save(s: ScaffoldState) {
-  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[] } = {
+  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[] } = {
     v: 3,
     loadClass: s.loadClass,
     g: s.g,
@@ -223,6 +228,7 @@ function save(s: ScaffoldState) {
     loads: s.loads,
     loadsFile: s.loadsFile,
     dhbParts: s.dhbParts,
+    fixings: s.fixings,
   };
   storage.set(OPT_KEY, JSON.stringify(o));
 }
@@ -235,7 +241,7 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   setDoc: (doc) => {
     // the loads of the user belong to the drawing: kept when the same drawing comes again
     const keep = !!doc && doc.fileName === get().loadsFile;
-    set({ doc, selected: [], girder: null, batchRef: null, ...(keep ? {} : { loads: [], dhbParts: [], loadsFile: doc?.fileName ?? null }) });
+    set({ doc, selected: [], girder: null, batchRef: null, ...(keep ? {} : { loads: [], dhbParts: [], fixings: [], loadsFile: doc?.fileName ?? null }) });
     save(get());
     // a drawing too large for the storage of the browser is not kept for the next visit; the one
     // stored before goes too (else it would come back after a reload)
@@ -256,6 +262,14 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   },
   removeLoad: (id) => {
     set({ loads: get().loads.filter((l) => l.id !== id) });
+    save(get());
+  },
+  addFixing: (f) => {
+    set({ fixings: [...get().fixings, f], loadsFile: get().doc?.fileName ?? null });
+    save(get());
+  },
+  removeFixing: (id) => {
+    set({ fixings: get().fixings.filter((f) => f.id !== id) });
     save(get());
   },
   updateLoad: (id, patch) => {

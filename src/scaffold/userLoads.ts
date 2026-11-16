@@ -30,6 +30,23 @@ export interface UserLoad {
 
 export type UserLoadWhen = 'all' | 'work' | 'rest';
 
+/**
+ * Fixing of the scaffold to the building (or another structure) set by the user: the chosen parts are
+ * held at `at` of their length (as the point loads) in the chosen axes of the drawing, two-sided (as the
+ * supports of PERI ForceControl at the heads tied to the building).
+ */
+export interface UserFixing {
+  id: string;
+  name: string;
+  parts: string[];
+  /** position along the part from its start (smaller x, then y, then z), 0…1; 1: top of a standard */
+  at: number;
+  /** axes held */
+  dirs: ('x' | 'y' | 'z')[];
+  /** design resistance of one fixing (resultant of its forces), N; none: no check */
+  limit?: number;
+}
+
 /** dynamic horizontal load (ForceControl "DHB"): share of the load moved by the crane (10 %) */
 export const DHB_SHARE = 0.1;
 

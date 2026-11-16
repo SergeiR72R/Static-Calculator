@@ -74,7 +74,7 @@ export const GAMMA_G_FAV = 0.9;
 /** partial factor for all actions (EN 12811-1, 10.3.2) */
 export const GAMMA_F = 1.5;
 
-export type CheckKind = 'conn' | 'node' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable' | 'stability';
+export type CheckKind = 'conn' | 'node' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable' | 'stability' | 'fixing';
 
 export interface PartCheck {
   part: string;
@@ -148,6 +148,18 @@ export interface BeamResult {
   }[];
 }
 
+export interface FixingResult {
+  id: string;
+  part: string;
+  node: number;
+  /** components of the largest force (resultant) on the fixing, N (force of the scaffold on the building) */
+  R: [number, number, number];
+  F: number;
+  combo: string;
+  /** utilisation (with a resistance given) */
+  eta?: number;
+}
+
 export interface ScaffoldResult {
   combos: ComboResult[];
   /** governing check of every part (largest utilisation) */
@@ -156,6 +168,8 @@ export interface ScaffoldResult {
   eta: Record<string, number>;
   bases: BaseResult[];
   anchors: ForceResult[];
+  /** fixings to the building set by the user: largest force (resultant) and its components, design values */
+  fixings: FixingResult[];
   /** assumed supports of beams: vertical force, N */
   beamSupports: { part: string; node: number; V: number }[];
   /** beams SRU / RCS: what stands on them and their supports (design values, envelope) */
@@ -725,6 +739,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
   const baseRes = new Map<number, BaseResult>();
   const anchorRes = new Map<string, ForceResult>();
   const beamSup = new Map<number, { part: string; node: number; V: number }>();
+  const fixRes = new Map<string, FixingResult>();
   const out: ComboResult[] = [];
 
   // lateral restraint of the standards: nodes with a ledger, diagonal, anchor or support
@@ -1074,6 +1089,17 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       // has to hold the scaffold down (kept two-sided: lifting off would leave a mechanism) is not
       if (V < -LIFT_TOL) put({ part: b.part, check: 'uplift', eta: 1.01, combo: cb.name, N: V });
     }
+    for (const f of model.fixings ?? []) {
+      // reaction of the support = force of the building on the scaffold; the scaffold on the building: opposite
+      const R: [number, number, number] = [0, 0, 0];
+      for (const s of f.sups) R['xyz'.indexOf(s.dir)] = -r.reactions[s.sup];
+      const F = Math.hypot(...R);
+      const key = `${f.id}|${f.part}`;
+      const o = fixRes.get(key);
+      const eta = f.limit ? F / f.limit : undefined;
+      if (!o || F > o.F) fixRes.set(key, { id: f.id, part: f.part, node: f.node, R, F, combo: cb.name, ...(eta !== undefined ? { eta } : {}) });
+      if (eta !== undefined) put({ part: f.part, check: 'fixing', eta, combo: cb.name, V: F });
+    }
     for (const s of model.assumedSupports) {
       const V = r.reactions[s.sup + 2];
       const o = beamSup.get(s.node);
@@ -1099,6 +1125,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       eta,
       bases: [...baseRes.values()],
       anchors: [...anchorRes.values()],
+      fixings: [...fixRes.values()],
       beamSupports: [...beamSup.values()],
       beams: beamRes,
       level,
@@ -1148,6 +1175,7 @@ export function mergeResults(parts: ScaffoldResult[], order: string[]): Scaffold
   const best = new Map<string, PartCheck>();
   const bases = new Map<number, BaseResult>();
   const anchors = new Map<string, ForceResult>();
+  const fixings = new Map<string, FixingResult>();
   const beamSup = new Map<number, { part: string; node: number; V: number }>();
   const beams: BeamResult[] = first.beams.map((b) => ({ ...b, points: b.points.map((p) => ({ ...p, F: -Infinity })) }));
   const unstable = new Set<string>();
@@ -1178,6 +1206,11 @@ export function mergeResults(parts: ScaffoldResult[], order: string[]): Scaffold
         if (a.eta > o.eta) [o.eta, o.combo] = [a.eta, a.combo];
       }
     }
+    for (const f of r.fixings ?? []) {
+      const key = `${f.id}|${f.part}`;
+      const o = fixings.get(key);
+      if (!o || f.F > o.F) fixings.set(key, f);
+    }
     for (const s of r.beamSupports) {
       const o = beamSup.get(s.node);
       if (!o || s.V > o.V) beamSup.set(s.node, s);
@@ -1204,6 +1237,7 @@ export function mergeResults(parts: ScaffoldResult[], order: string[]): Scaffold
     eta,
     bases: [...bases.values()],
     anchors: [...anchors.values()],
+    fixings: [...fixings.values()],
     beamSupports: [...beamSup.values()],
     beams,
     unstable: [...unstable],

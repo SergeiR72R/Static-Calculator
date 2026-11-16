@@ -270,6 +270,33 @@ describe('scaffold analysis', () => {
     expect(V('S +x')).toBeCloseTo(0.9 * (G + 2 * 3e3), -2);
   });
 
+  it('fixings to the building set by the user: supports at the chosen parts and axes, reactions and check', () => {
+    const st = tower(braced);
+    // the two upper standards at x = 0 held at their top in x
+    const tops = st.parts.filter((w) => w.cls.kind === 'standard' && w.min[2] > 2 && Math.abs(w.min[0]) < 0.1).map((w) => w.part.id);
+    expect(tops).toHaveLength(2);
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 600 };
+    const free = analyzeScaffoldModel(buildScaffoldModel(st), opt);
+    const m = buildScaffoldModel(st, [], [], { fixings: [{ id: 'f', name: 'wall', parts: tops, at: 1, dirs: ['x'], limit: 5e3 }] });
+    expect(m.fixings).toHaveLength(2);
+    for (const f of m.fixings) {
+      expect(m.frame.nodes[f.node][2]).toBeCloseTo(4.5, 1);
+      expect(f.sups.map((x) => m.frame.supports[x.sup].dof)).toEqual([0]);
+    }
+    const r = analyzeScaffoldModel(m, opt);
+    // held in x: less sway in x, the fixings take a force in x only
+    const dx = (res: typeof r) => Math.max(...res.combos.filter((c) => /x/.test(c.name)).map((c) => c.dh));
+    expect(dx(r)).toBeLessThan(dx(free) * 0.6);
+    expect(r.fixings).toHaveLength(2);
+    for (const f of r.fixings) {
+      expect(Math.abs(f.R[0])).toBeGreaterThan(100);
+      expect(f.R[1]).toBe(0);
+      expect(f.R[2]).toBe(0);
+      expect(f.eta).toBeCloseTo(f.F / 5e3, 9);
+    }
+    expect(r.checks.some((c) => c.check === 'fixing')).toBe(true);
+  });
+
   it('second order increases the sway of the unbraced tower', () => {
     const m = buildScaffoldModel(tower());
     const first = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, secondOrder: false });

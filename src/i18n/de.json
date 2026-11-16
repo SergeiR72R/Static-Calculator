@@ -984,7 +984,10 @@
       "ubkTable15": "Tab. 15 (zentrisch, vereinfacht)",
       "slack": "Lose der Diagonalen",
       "slackOff": "ohne Lose (wie PFC)",
-      "slackOn": "nach Zulassung"
+      "slackOn": "nach Zulassung",
+      "splice": "Ständerstöße",
+      "spliceFree": "ohne Zug, Kontaktstoß (wie PFC)",
+      "spliceTension": "mit Zug (gesichert)"
     },
     "wind": {
       "title": "Maximaler Wind",
@@ -1051,13 +1054,15 @@
       "dhb": "DHB: {p} % der bewegten Last {m} = {h} (Teile: {n})",
       "noDhb": "DHB nicht angesetzt",
       "method": "Verfahren",
-      "methodText": "Wie PERI ForceControl: Theorie II. Ordnung, Schiefstellung 1/200, {diag}, {ubk}, γ = 1,5 (Standsicherheit: ständige γ = 0,9), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
-      "methodTextG15": "Theorie II. Ordnung, Schiefstellung 1/200, {diag}, {ubk}, γ = 1,5 in allen Kombinationen (ohne Standsicherheitskombinationen), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
+      "methodText": "Wie PERI ForceControl: Theorie II. Ordnung, Schiefstellung 1/200, {diag}, {ubk}, {splice}, γ = 1,5 (Standsicherheit: ständige γ = 0,9), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
+      "methodTextG15": "Theorie II. Ordnung, Schiefstellung 1/200, {diag}, {ubk}, {splice}, γ = 1,5 in allen Kombinationen (ohne Standsicherheitskombinationen), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
       "diagNoSlack": "Diagonalen ohne Lose",
       "diagSlack": "Diagonalen mit Lose nach Zulassung",
       "ubkAnnexA": "UBK nach Anlage A (Tab. A.1/A.2, exzentrischer Diagonalkopf)",
       "ubkTable15": "UBK nach Tab. 15",
-      "plan": "Aus der Zeichnung: {n} × {name} je {kg} kg, Σ {f} (ständig)"
+      "plan": "Aus der Zeichnung: {n} × {name} je {kg} kg, Σ {f} (ständig)",
+      "spliceFree": "Ständerstöße ohne Zugübertragung",
+      "spliceTension": "Ständerstöße zugfest"
     },
     "export": {
       "hint": "Teile des älteren PERI-CAD-Typs (z. B. Spindeln) kommen nicht in die DXF: Skript in AutoCAD laden (APPLOAD), PERIEXPORT ausführen und hier die Datei …_peri.txt zusammen mit der DXF öffnen.",

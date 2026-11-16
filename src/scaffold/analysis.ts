@@ -49,6 +49,12 @@ export interface AnalysisOptions {
    * results this analysis follows
    */
   diagSlack?: boolean;
+  /** keep the displacements and support reactions of each combination (comparisons, tests) */
+  keep?: boolean;
+  /** standard joints without tension (splices not secured, as PERI ForceControl for shoring) */
+  spliceNoTension?: boolean;
+  /** with spliceNoTension: play of a joint in tension (it carries tension once opened by this), m */
+  spliceSlack?: number;
   /** global sway imperfection (inclination), default 1/200 */
   sway?: number;
 }
@@ -56,7 +62,7 @@ export interface AnalysisOptions {
 /** global sway imperfection of PERI ForceControl */
 export const SWAY = 1 / 200;
 
-export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level: -1, outdoor: true, qWork: 200, qMax: 0, cf: 1.2, snow: 0, ice: 0, secondOrder: true, dhb: 0.1, dhbLoad: 0, gFavR: true, diagSlack: false };
+export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level: -1, outdoor: true, qWork: 200, qMax: 0, cf: 1.2, snow: 0, ice: 0, secondOrder: true, dhb: 0.1, dhbLoad: 0, gFavR: true, diagSlack: false, spliceNoTension: true };
 
 /** partial factor of favourable permanent loads in the out-of-service combinations */
 export const GAMMA_G_FAV = 0.9;
@@ -86,6 +92,9 @@ export interface ComboResult {
   converged: boolean;
   /** bases in tension were kept (lifting off would leave a mechanism) */
   noLift?: boolean;
+  /** with `keep`: displacements (6 per node) and support reactions (by support) */
+  u?: Float64Array;
+  reactions?: Float64Array;
   /** stability lost with the second order (results of the first order): parts where the system gives way */
   stability?: string[];
   /** node of a mechanism / instability */
@@ -410,12 +419,16 @@ interface Solved {
 
 /** non-linear solution of one combination */
 /** most iterations of one combination */
-export const MAX_ITERATIONS = 20;
+export const MAX_ITERATIONS = 40;
 /** limit of the iteration while bases still lift off */
 const MAX_LIFT_ITERATIONS = 80;
 
 /** tension of a base that lets it lift off, N */
 export const LIFT_TOL = 100;
+/** a base changing between bearing and lifted off this often stays lifted off */
+const BASE_FLIPS = 6;
+/** axial spring of an open standard joint, N/m */
+const JOINT_OPEN = 1e3;
 
 /**
  * A scaffold does not move by a metre (or turn by a radian): degrees of freedom moving that far in the
@@ -432,7 +445,7 @@ export class NearlyFreeError extends Error {
 }
 
 /** non-linear solution of one combination; `onStep` after every iteration (its number) */
-function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder0: boolean, onStep?: (it: number) => void, withSlack = false): Solved {
+function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder0: boolean, onStep?: (it: number) => void, withSlack = false, spliceNoTension = false, spliceSlack = 0): Solved {
   const { frame, members } = model;
   let secondOrder = secondOrder0;
   let stability: Solved['stability'];
@@ -446,9 +459,14 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
       : [null, null],
   );
   const dstate = new Int8Array(nM);
+  const jopen = new Uint8Array(nM);
+  const jflips = new Uint8Array(nM);
+  /** secant axial stiffness of an opened joint with play: opened by the play under any tension */
+  const jk = new Float64Array(nM);
   const flips = new Uint8Array(nM);
   let noLift = false;
   const supActive = frame.supports.map(() => true);
+  const bflips = new Uint8Array(frame.supports.length);
   /** bases of the step before the last lifting off; no more lifting off after a mechanism */
   let prevActive: boolean[] | null = null;
   let liftFrozen = false;
@@ -472,6 +490,8 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
         }
       } else {
         if (secondOrder && Ns) st.N = Ns[k];
+        // a standard joint opened under tension: no axial stiffness, bending through the spigot
+        if (m.joint && jopen[k]) st.k = [[spliceSlack > 0 ? jk[k] : JOINT_OPEN, Infinity, Infinity, Infinity, JOINT.k, JOINT.k], undefined];
         if (m.conn && (kc[k][0] || kc[k][1])) {
           const e = frame.members[k].ends!;
           st.k = [0, 1].map((i) => (kc[k][i] ? [Infinity, Infinity, kc[k][i]![3], kc[k][i]![0], kc[k][i]![1], kc[k][i]![2]] : e[i]?.k)) as MemberState['k'];
@@ -544,6 +564,24 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
         changed = true;
       }
     }
+    // standard joints: open under tension, closed again under compression
+    if (spliceNoTension)
+      for (let k = 0; k < nM; k++) {
+        if (!members[k].joint || !r.members[k] || jflips[k] >= 4) continue;
+        const N = r.members[k]!.N;
+        const want = jopen[k] ? N > 0 : N > LIFT_TOL;
+        if (want !== !!jopen[k]) {
+          jopen[k] = want ? 1 : 0;
+          jflips[k]++;
+          changed = true;
+          if (want) jk[k] = Math.max(N, LIFT_TOL) / spliceSlack;
+        } else if (want && spliceSlack > 0) {
+          const t = Math.max(N, LIFT_TOL) / spliceSlack;
+          const nk = Math.sqrt(jk[k] * t);
+          if (Math.abs(nk - jk[k]) > 0.03 * jk[k]) changed = true;
+          jk[k] = nk;
+        }
+      }
     // connections: secant stiffness from the end moments
     const newN = new Float64Array(nM);
     for (let k = 0; k < nM; k++) {
@@ -581,10 +619,13 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
       const Rz = r.reactions[b.sup + 2];
       const uz = r.u[b.node * 6 + 2];
       const on = supActive[b.sup + 2];
-      const want = noLift ? true : on ? liftFrozen || !(Rz < -LIFT_TOL && Rz <= 0.5 * minRz) : uz < 0;
+      // a base that keeps changing (no force either way) stays lifted off
+      const want = noLift ? true : on ? liftFrozen || !(Rz < -LIFT_TOL && Rz <= 0.5 * minRz) : uz < 0 && bflips[b.sup] < BASE_FLIPS;
       if (on && !want) released = true;
       if (want !== on) {
-        supActive[b.sup + 2] = want;
+        bflips[b.sup]++;
+        // a base lifted off holds nothing, horizontally neither (as PERI ForceControl)
+        supActive[b.sup] = supActive[b.sup + 1] = supActive[b.sup + 2] = want;
         changed = true;
       }
     }
@@ -700,7 +741,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
   const runCombo = (cb: Combo) => {
     let sol: Solved;
     try {
-      sol = solveCombo(fr, model, cb.loads, opt.secondOrder, onStep, !!opt.diagSlack);
+      sol = solveCombo(fr, model, cb.loads, opt.secondOrder, onStep, !!opt.diagSlack, !!opt.spliceNoTension, opt.spliceSlack ?? 0);
     } catch (e) {
       // a nearly free degree of freedom (some stiffness left, but far too little): held by a weak
       // spring as the free ones, and the combination again
@@ -768,7 +809,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       stabilityParts = list.map(([id]) => id);
       for (const [part, f] of list) put({ part, check: 'stability', eta: f.eta, combo: cb.name, detail: f.detail, N: f.N });
     }
-    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, stability: stabilityParts, dh, dv, dhNode, dvNode, sumV });
+    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, stability: stabilityParts, dh, dv, dhNode, dvNode, sumV, ...(opt.keep ? { u: Float64Array.from(r.u), reactions: Float64Array.from(r.reactions) } : {}) });
 
     // utilisation of the standard tube at both ends of a member
     const tubeEta = (k: number, x: number) => {

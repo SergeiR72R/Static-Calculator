@@ -379,3 +379,30 @@ Anschlussquerschnitt), UBL 0,56 (0,58–0,65), UH 200 0,64 (0,62), Fußspindel 0
 Verformung: R ±x 36 / 47 mm (65), R ±y 36 mm (44), S ±x 118 / 127 mm (64), S ±y 51 mm (44).
 Offen: in FC ist S ≈ R, obwohl dort in S 18 Fußpunkte abheben; im Modell erhöht das Abheben die
 Verschiebung auf das Dreifache.
+
+**Kalibrierung über 18_011 bis 18_013 (Stand nach Abgleich).** Aus den Gelenktabellen der drei
+FC-Berichte und den Lagerreaktionen ergeben sich zwei Modellregeln, die jetzt Standard sind:
+
+- Ständerstöße ohne Zug: alle drei Modelle haben das Stabendgelenk „Traggerüst“ (Ux nichtlinear,
+  Biegung fest) – der Stoß überträgt Druck, unter Zug öffnet er (Kontaktstoß, nicht gesichert).
+  Umschaltbar auf zugfeste Stöße. Optional ein Spiel des Stoßes unter Zug (`spliceSlack`).
+- Abhebende Fußpunkte halten nichts mehr, auch horizontal (FC: Pz = Px = Py = 0). Vorher blieb die
+  horizontale Lagerung, so dass sich die Horizontallast auf alle Fußpunkte verteilte und die
+  Fußspindeln zu wenig Moment bekamen.
+- Fußpunkte, die immer wieder zwischen Auflager und Abheben wechseln (Kraft ≈ 0), bleiben nach
+  6 Wechseln abgehoben; damit konvergieren alle Kombinationen von 18_012.
+- Rosetten: wie bisher alle als 6 mm (Rosette-2); nach Artikel (UVR/UVH 8 mm, Tabelle 6) wird
+  18_011 deutlich steifer als FC (A ±x 18 statt 24 mm), FC rechnet also offenbar mit 6 mm.
+
+Ergebnis 18_013 (FC in Klammern): R ±x 66,0 / 66,8 mm (64,9 / 65,0), R ±y 40 mm (44), abgehobene
+Fußpunkte R x 2 (2), R y 6 (6), Reaktionen je Ständerreihe R +x 27 / 174 / 6 / 241 kN
+(24 / 173 / 5 / 249), Anheben der luvseitigen Reihe 4,4 mm (FC uz 4,95 mm). 18_011: A ±x 21,9 /
+22,3 (23,7 / 24,4), A ±y 22,0 (19,5).
+
+Offen: in den Standsicherheitskombinationen S sind die FC-Verschiebungen nicht größer als in R bzw.
+A, obwohl dort mehr Fußpunkte abheben (18_012: S und R auf 0,03 mm gleich, 18_013: 63,8 gegen
+64,8 mm, 18_011: S 15,9 gegen A 23,7 mm bei größerem Wind). Im Modell kippen die Türme in S um die
+leeseitige Reihe (18_013: ±x 124 / 134 mm, 18_011: 28 mm). Die Lagerreaktionen und die Zahl der
+abhebenden Fußpunkte stimmen dabei überein (18_013 S x: 18 / 18, Reihen 0 / 87 / 0 / 182 gegen
+0 / 82 / 0 / 189 kN). 18_012: R ±x 24,5 mm (17,4 / 17,9) mit 47 statt 32 / 34 abhebenden
+Fußpunkten, R ±y 5 mm (10,3).

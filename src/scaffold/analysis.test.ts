@@ -322,6 +322,25 @@ describe('ledger diagonals UBL', () => {
 });
 
 describe('supports, mechanisms, parallel runs', () => {
+  it('as PERI ForceControl: a base lifted off holds nothing; standard joints carry no tension', () => {
+    const m = buildScaffoldModel(tower(braced));
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 2500, keep: true };
+    const r = analyzeScaffoldModel(m, opt);
+    let lifted = 0;
+    for (const c of r.combos)
+      for (const b of m.bases)
+        if (c.reactions![b.sup + 2] === 0) {
+          lifted++;
+          expect(c.reactions![b.sup]).toBe(0);
+          expect(c.reactions![b.sup + 1]).toBe(0);
+        }
+    expect(lifted).toBeGreaterThan(0);
+    // joints opening under tension make the scaffold softer than joints carrying tension
+    const t = analyzeScaffoldModel(m, { ...opt, spliceNoTension: false });
+    const dh = (x: typeof r) => Math.max(...x.combos.map((c) => c.dh));
+    expect(dh(r)).toBeGreaterThanOrEqual(dh(t) - 1e-6);
+  });
+
   it('base standard over a standard below (spindle pair through a platform): load goes on to it', () => {
     // standard of the tower at (0, 0) ends at 4.5 m; base standard 0.3 m above it (a platform), 1.5 cm off
     const st = tower((p) => {

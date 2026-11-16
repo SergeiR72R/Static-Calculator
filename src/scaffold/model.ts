@@ -120,15 +120,18 @@ const tubeSection = (t: keyof typeof TUBES): Section3 => ({ EA: E_STEEL * TUBES[
 const ledgerSection = (l: keyof typeof LEDGERS): Section3 => ({ EA: E_STEEL * LEDGERS[l].A, EIy: E_STEEL * LEDGERS[l].Iy, EIz: E_STEEL * LEDGERS[l].Iz, GJ: G_STEEL * LEDGERS[l].J });
 
 /**
- * Variant of the standard after table 7 of the approval. The rosettes are 6 mm (Rosette-2) on all
- * standards of the PERI UP Flex scaffolds calculated here: variant 2a (Ø48.3 × 3.2, ReH 320) for UVR /
- * UVH, 2b (Ø48.3 × 3.6, S355) for the base standards UVB, 2c (Ø48.3 × 2.7) for the standards "-2".
+ * Variant of the standard after table 6 of the approval, by the article: 1a (rosette 8 mm, Ø48.3 × 3.2)
+ * for UVR / UVH, 1b (8 mm, Ø48.3 × 3.6 S355) for UVB 24 / 49 / 135 Plus and UVH 165 Plus, 2b
+ * (Rosette-2 6 mm, Ø48.3 × 3.6) for UVB 25 / 50, 2c (6 mm, Ø48.3 × 2.7) for the standards "-2".
+ * `rosette6`: all as 6 mm (the unfavourable choice when the parts on site are not known).
  */
-function standardVariant(w: WorldPart): Variant {
+function standardVariant(w: WorldPart, rosette6 = false): Variant {
   const t = `${w.part.name} ${w.part.desc}`;
   if (/UV[RHB]-2/i.test(t)) return '2c';
-  if (/UVB/i.test(t)) return '2b';
-  return '2a';
+  const base = /UVB/i.test(t) || /UVH\s*165/i.test(t);
+  if (rosette6) return base ? '2b' : '2a';
+  if (/UVB\s*(25|50)\b/i.test(t)) return '2b';
+  return base ? '1b' : '1a';
 }
 
 function ledgerType(w: WorldPart): { head: LedgerHead; sec: keyof typeof LEDGERS } {
@@ -224,6 +227,8 @@ export interface ModelOptions {
   ubk?: UbkModel;
   /** weight of the bodies of the drawing lying on the scaffold (ballast) as permanent loads (default) */
   planLoads?: boolean;
+  /** all rosettes as 6 mm (Rosette-2), the unfavourable variant (default, as PERI ForceControl); false: by the article (table 6) */
+  rosette6?: boolean;
 }
 
 export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
@@ -259,7 +264,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
             zb = Math.min(zb, a[2], b[2]);
             zt = Math.max(zt, a[2], b[2]);
           }
-        return { w, zb, zt, variant: standardVariant(w) };
+        return { w, zb, zt, variant: standardVariant(w, opts.rosette6 ?? true) };
       })
       .filter((p) => Number.isFinite(p.zb))
       .sort((a, b) => a.zb - b.zb);

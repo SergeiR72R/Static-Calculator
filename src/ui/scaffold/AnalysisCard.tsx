@@ -45,7 +45,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
   const outdoor = sc.exposure === 'outdoor';
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
   const wind = siteWind(sc, Math.max(st.max[2] - st.min[2], 1));
-  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack, sc.planLoads]);
+  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack, sc.planLoads, sc.spliceNoTension]);
   const stale = !!run && run.sig !== sig;
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
   const levels = useMemo(() => {
@@ -89,6 +89,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           dhbDir: sc.dhbDir,
           gFavR: sc.gFavR,
           diagSlack: sc.diagSlack,
+          spliceNoTension: sc.spliceNoTension,
         },
         (pr) => {
           setBusy({ done: pr.done, total: pr.total });
@@ -184,6 +185,16 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
             { value: 'on', label: fmt.t('scaffold.calc.slackOn') },
           ]}
           onChange={(v) => sc.setOpts({ diagSlack: v === 'on' })}
+        />
+        <SelectField
+          label={fmt.t('scaffold.calc.splice')}
+          value={sc.spliceNoTension ? 'free' : 'tension'}
+          testId="scaffold-calc-splice"
+          options={[
+            { value: 'free', label: fmt.t('scaffold.calc.spliceFree') },
+            { value: 'tension', label: fmt.t('scaffold.calc.spliceTension') },
+          ]}
+          onChange={(v) => sc.setOpts({ spliceNoTension: v === 'free' })}
         />
         <label className="flex items-end gap-2 pb-1 text-xs">
           <input type="checkbox" checked={sc.secondOrder} onChange={(e) => sc.setOpts({ secondOrder: e.target.checked })} data-testid="scaffold-calc-second" />

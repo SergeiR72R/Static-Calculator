@@ -65,9 +65,12 @@ export interface ScaffoldOpts {
   vb0: number;
   /** factor 0.7 for the standing time of the scaffold */
   standing: boolean;
-  /** dynamic horizontal load with user loads: share of the vertical loads (0: none) */
+  /** dynamic horizontal load: share (0: none) of the load moved by the crane, N */
   dhb: number;
-  /** permanent loads favourable (γ = 0.9) in the out-of-service combinations */
+  dhbLoad: number;
+  /** directions of the DHB */
+  dhbDir: 'xy' | 'x' | 'y';
+  /** stability combinations: permanent loads favourable (γ = 0.9) with the maximum wind */
   gFavR: boolean;
 }
 
@@ -119,7 +122,7 @@ export function siteWind(o: ScaffoldOpts, height: number): SiteWind {
   return { qp: 0, qMax: 0, source: 'none' };
 }
 
-export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true, dhb: DHB_SHARE, gFavR: true };
+export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true, dhb: DHB_SHARE, dhbLoad: 0, dhbDir: 'xy', gFavR: true };
 
 export interface ScaffoldState extends ScaffoldOpts {
   doc: ScaffoldDoc | null;
@@ -132,6 +135,9 @@ export interface ScaffoldState extends ScaffoldOpts {
   /** loads entered by the user and the drawing they belong to */
   loads: UserLoad[];
   loadsFile: string | null;
+  /** parts carrying the dynamic horizontal load (empty: the tops of the standards) */
+  dhbParts: string[];
+  setDhbParts: (ids: string[]) => void;
   addLoad: (l: UserLoad) => void;
   removeLoad: (id: string) => void;
   setDoc: (doc: ScaffoldDoc | null) => void;
@@ -151,15 +157,18 @@ function loadDoc(): ScaffoldDoc | null {
   }
 }
 
-function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null } {
-  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null, loads: [] as UserLoad[], loadsFile: null as string | null };
+function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[] } {
+  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null, loads: [] as UserLoad[], loadsFile: null as string | null, dhbParts: [] as string[] };
   try {
     const saved = JSON.parse(storage.get(OPT_KEY) ?? '{}');
     // options of version 1: deck self weight was the old default 0.20 kN/m² → new default
     if (!saved.v) delete saved.g;
+    // version 2: DHB was a share of all vertical loads → now of the moved load
+    if (!saved.v || saved.v < 3) delete saved.dhb;
     delete saved.v;
     Object.assign(o, saved);
     if (!Array.isArray(o.loads)) o.loads = [];
+    if (!Array.isArray(o.dhbParts)) o.dhbParts = [];
   } catch {
     /* ignore */
   }
@@ -167,8 +176,8 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads
 }
 
 function save(s: ScaffoldState) {
-  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null } = {
-    v: 2,
+  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[] } = {
+    v: 3,
     loadClass: s.loadClass,
     g: s.g,
     tol: s.tol,
@@ -188,10 +197,13 @@ function save(s: ScaffoldState) {
     vb0: s.vb0,
     standing: s.standing,
     dhb: s.dhb,
+    dhbLoad: s.dhbLoad,
+    dhbDir: s.dhbDir,
     gFavR: s.gFavR,
     batchRef: s.batchRef,
     loads: s.loads,
     loadsFile: s.loadsFile,
+    dhbParts: s.dhbParts,
   };
   storage.set(OPT_KEY, JSON.stringify(o));
 }
@@ -204,7 +216,7 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   setDoc: (doc) => {
     // the loads of the user belong to the drawing: kept when the same drawing comes again
     const keep = !!doc && doc.fileName === get().loadsFile;
-    set({ doc, selected: [], girder: null, batchRef: null, ...(keep ? {} : { loads: [], loadsFile: doc?.fileName ?? null }) });
+    set({ doc, selected: [], girder: null, batchRef: null, ...(keep ? {} : { loads: [], dhbParts: [], loadsFile: doc?.fileName ?? null }) });
     save(get());
     // a drawing too large for the storage of the browser is not kept for the next visit; the one
     // stored before goes too (else it would come back after a reload)
@@ -217,6 +229,10 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   select: (parts, girder = null) => set({ selected: parts, girder }),
   addLoad: (l) => {
     set({ loads: [...get().loads, l], loadsFile: get().doc?.fileName ?? null });
+    save(get());
+  },
+  setDhbParts: (ids) => {
+    set({ dhbParts: ids, loadsFile: get().doc?.fileName ?? null });
     save(get());
   },
   removeLoad: (id) => {

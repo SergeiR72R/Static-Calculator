@@ -17,8 +17,8 @@ export interface UserLoad {
   parts: string[];
 }
 
-/** dynamic horizontal load of a loading platform etc.: share of the vertical loads (ForceControl "DHB") */
-export const DHB_SHARE = 0.025;
+/** dynamic horizontal load (ForceControl "DHB"): share of the load moved by the crane (10 %) */
+export const DHB_SHARE = 0.1;
 
 /** start and end of a part's axis in a stable order (smaller x, then y, then z first) */
 export function orderedAxis(a: [number, number, number], b: [number, number, number]): [[number, number, number], [number, number, number]] {

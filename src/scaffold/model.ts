@@ -108,7 +108,8 @@ export interface ScaffoldModel {
   notes: ModelNote[];
   /** loads entered by the user */
   user: UserLoadApplied[];
-  /** tops of the standards that reach the top of the scaffold: dynamic horizontal load (DHB) */
+  /** nodes of the dynamic horizontal load (DHB): the chosen parts, else the tops of the standards
+   * that reach the top of the scaffold */
   dhbNodes: number[];
 }
 
@@ -212,7 +213,7 @@ interface Carrier {
 /** eccentricity of a ledger diagonal UBL beside the axis of its ledger (annex A, page 22), m */
 const UBL_EY = 0.014;
 
-export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] = []): ScaffoldModel {
+export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] = [], dhbParts: string[] = []): ScaffoldModel {
   const nodes: V3[] = [];
   const nodeCol: number[] = [];
   const notes: ModelNote[] = [];
@@ -649,6 +650,14 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] 
       car.inter.push({ node, offset: [pr.q[0] - c.x, pr.q[1] - c.y, pr.q[2] - z], t: Math.min(Math.max(pr.t, 0), 1), k: HINGE });
     });
   }
+  // head jacks with nothing of the drawing on them (the structure on top is not drawn): clamped in the
+  // standard, their head free (loads of the structure on top act there)
+  cols.forEach((c, k) => {
+    if (heads.some((h) => h.col === k) || links.some((l) => l.lower === k)) return;
+    const jack = jackOver(c).sort((a, b) => b.max[2] - a.max[2])[0];
+    if (!jack || jack.max[2] < c.z1 + 0.02) return;
+    heads.push({ col: k, head: addNode([c.x, c.y, jack.max[2]], k), part: jack.part.id });
+  });
 
   // ---- ledger diagonals UBL / UBL-2 (annex A, pages 22 and 23): fixed to the ledgers 12.5 cm from the
   // standards, 1.4 cm beside the ledger axis; all connections of these ledgers get the vertical
@@ -703,6 +712,12 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] 
       if (k >= 0) {
         const p = cols[k].parts.find((q) => q.w.part.id === id)!;
         user[li].nodal.push({ node: colNode(k, p.zb + at * (p.zt - p.zb), 0.01), F: l.value });
+        continue;
+      }
+      // a head jack: on its head
+      const h = heads.find((x) => x.part === id);
+      if (h) {
+        user[li].nodal.push({ node: h.head, F: l.value });
         continue;
       }
       note('userLoadIgnored', id, { name: l.name });
@@ -856,6 +871,47 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] 
     fm.push({ i: na, j: nb, sec: trussSec(d.eaT), truss: true });
     mm.push({ kind, part: w.part.id, diag: d, g: (partKg(w.part) ?? 3.5 * L) / L });
   }
+  /** standards a tube passes (axis within 12 cm, height within the standard), ordered along the tube */
+  const tubeCrossings = ([a, b]: [V3, V3]) => {
+    const L = len3(a, b);
+    const out: { k: number; z: number; s: number }[] = [];
+    if (L < 1e-6) return out;
+    const t: V3 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L, (b[2] - a[2]) / L];
+    const th = Math.hypot(t[0], t[1]);
+    cols.forEach((c, k) => {
+      // the point of the tube axis horizontally nearest to the axis of the standard
+      let s: number;
+      if (th < 1e-6) s = 0;
+      else s = ((c.x - a[0]) * t[0] + (c.y - a[1]) * t[1]) / (th * th);
+      s = Math.min(Math.max(s, -0.05), L + 0.05);
+      const p: V3 = [a[0] + s * t[0], a[1] + s * t[1], a[2] + s * t[2]];
+      if (Math.hypot(p[0] - c.x, p[1] - c.y) > 0.12 || p[2] < c.z0 - 0.15 || p[2] > c.z1 + 0.15) return;
+      out.push({ k, z: Math.min(Math.max(p[2], c.z0), c.z1), s });
+    });
+    out.sort((x, y) => x.s - y.s);
+    return out.filter((x, i) => i === 0 || x.k !== out[i - 1].k);
+  };
+
+  /** couplers on a tube (within 12 cm of its axis) at a standard, ordered along the tube */
+  const couplerParts = st.parts.filter((w) => w.cls.kind === 'coupler');
+  const tubeCouplers = ([a, b]: [V3, V3]) => {
+    const L = len3(a, b);
+    const out: { k: number; z: number; s: number }[] = [];
+    if (L < 1e-6) return out;
+    const t: V3 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L, (b[2] - a[2]) / L];
+    for (const c of couplerParts) {
+      const q: V3 = [c.part.m[3], c.part.m[7], c.part.m[11]];
+      const s = (q[0] - a[0]) * t[0] + (q[1] - a[1]) * t[1] + (q[2] - a[2]) * t[2];
+      if (s < -0.1 || s > L + 0.1) continue;
+      const p: V3 = [a[0] + s * t[0], a[1] + s * t[1], a[2] + s * t[2]];
+      if (len3(p, q) > 0.12) continue;
+      const k = colAt(p, 0.25, 0.15);
+      if (k >= 0) out.push({ k, z: Math.min(Math.max(p[2], cols[k].z0), cols[k].z1), s });
+    }
+    out.sort((x, y) => x.s - y.s);
+    return out.filter((x, i) => i === 0 || x.k !== out[i - 1].k);
+  };
+
   // ---- tubes: anchors and bracing
   const anchors: ScaffoldModel['anchors'] = [];
   const anchorTubes = new Set(st.anchors.map((a) => a.id));
@@ -884,14 +940,18 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] 
     if ((w.cls.kind !== 'tube' && w.cls.kind !== 'anchor') || anchorTubes.has(w.part.id)) continue;
     const ml = longestLine(w);
     if (!ml) continue;
-    const ka = colAt(ml[0], 0.3, 0.15);
-    const kb = colAt(ml[1], 0.3, 0.15);
-    if (ka < 0 || kb < 0 || ka === kb) {
+    // coupled to the standards: where its couplers are (the first and the last along the tube, e.g. a
+    // diagonal tube with couplers at the top and the bottom; its ends may stick out beyond the
+    // standards); without couplers in the drawing to the first and the last standard it passes
+    const cpl = tubeCouplers(ml);
+    const cross = cpl.length >= 2 ? cpl : tubeCrossings(ml);
+    if (cross.length < 2) {
       note('tubeFree', w.part.id);
       continue;
     }
-    const na = colNode(ka, ml[0][2], 0.03);
-    const nb = colNode(kb, ml[1][2], 0.03);
+    const [A, B] = [cross[0], cross[cross.length - 1]];
+    const na = colNode(A.k, A.z, 0.03);
+    const nb = colNode(B.k, B.z, 0.03);
     fm.push({ i: na, j: nb, sec: trussSec(E_STEEL * TUBES.t32.A), truss: true });
     mm.push({ kind: 'tube', part: w.part.id, tube: 't32', g: TUBES.t32.g });
   }
@@ -1067,9 +1127,19 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] 
     });
     for (const id of l.parts) if (!found.has(id)) note('userLoadIgnored', id, { name: l.name });
   });
-  // ---- tops of the standards reaching the top of the scaffold
-  const topZ = Math.max(...cols.map((c) => c.z1));
-  const dhbNodes = cols.filter((c) => c.z1 >= topZ - 0.5).map((c) => c.ns[c.ns.length - 1]);
+  // ---- dynamic horizontal load: on the given parts (head jacks, standards: their top), else on the
+  // tops of the standards reaching the top of the scaffold (their head jacks)
+  const topOf = (k: number) => heads.find((h) => h.col === k)?.head ?? cols[k].ns[cols[k].ns.length - 1];
+  let dhbNodes: number[] = [];
+  for (const id of dhbParts) {
+    const h = heads.find((x) => x.part === id);
+    const k = h ? h.col : cols.findIndex((c) => c.parts.some((p) => p.w.part.id === id));
+    if (k >= 0 && !dhbNodes.includes(topOf(k))) dhbNodes.push(topOf(k));
+  }
+  if (!dhbNodes.length) {
+    const topZ = Math.max(...cols.map((c) => c.z1));
+    dhbNodes = cols.map((c, k) => (c.z1 >= topZ - 0.5 ? topOf(k) : -1)).filter((n) => n >= 0);
+  }
 
   return {
     frame: { nodes, members: fm, supports },

@@ -164,7 +164,8 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await expect(page.getByTestId('scaffold-calc-result')).toContainText('A +x');
   await expect(page.getByTestId('scaffold-calc-result')).toContainText('A −y');
   await expect(page.getByTestId('scaffold-calc-filter-conn')).toBeVisible();
-  await expect(page.getByTestId('scaffold-calc-filter-buckling')).toBeVisible();
+  // second order: the standards by their tube check (no separate χ buckling check)
+  await expect(page.getByTestId('scaffold-calc-filter-tube')).toBeVisible();
   await expect(page.getByTestId('scaffold-calc-bases')).toContainText('Опоры стоек: 6');
   await expect(page.getByTestId('scaffold-color-eta')).toBeVisible();
   // a row selects its part
@@ -207,8 +208,10 @@ test('scaffold mode: user loads on selected parts, DHB in the analysis and the r
   await page.getByTestId('scaffold-load-add').click();
   await expect(page.getByTestId('scaffold-loads-table')).toContainText('Платформа');
   await expect(page.getByTestId('scaffold-loads-total')).toContainText('G =');
-  // DHB on by default
+  // DHB on by default: 10 % of the moved load
   await expect(page.getByTestId('scaffold-dhb')).toBeChecked();
+  await page.getByTestId('scaffold-dhb-load').fill('100');
+  await expect(page.getByTestId('scaffold-dhb-total')).toContainText('10');
   await page.getByTestId('scaffold-calc-run').click();
   await expect(page.getByTestId('scaffold-calc-result')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('scaffold-calc-user')).toContainText('DHB');

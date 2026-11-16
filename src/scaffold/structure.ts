@@ -498,6 +498,11 @@ function findAnchors(parts: WorldPart[], columns: Column[]): Anchor[] {
   for (const w of parts) {
     if (w.cls.kind !== 'tube' || !w.lines.length) continue;
     const [a, b] = w.lines.reduce((p, q) => (Math.hypot(...q[1].map((v, i) => v - q[0][i])) > Math.hypot(...p[1].map((v, i) => v - p[0][i])) ? q : p));
+    // anchors are horizontal: an inclined tube (a brace with its ends sticking out) is none
+    {
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      if (L > 1e-6 && Math.abs(b[2] - a[2]) / L > 0.25) continue;
+    }
     for (const [s, e] of [
       [a, b],
       [b, a],
@@ -537,8 +542,20 @@ function findAnchors(parts: WorldPart[], columns: Column[]): Anchor[] {
       { e: a, s: on[0], free: on[0].s },
       { e: b, s: on[on.length - 1], free: L - on[on.length - 1].s },
     ].filter((x) => x.free >= 0.1);
-    if (!ends.length) continue;
-    const out1 = ends.reduce((x, y) => (Math.hypot(y.e[0] - cx, y.e[1] - cy) > Math.hypot(x.e[0] - cx, x.e[1] - cy) ? y : x));
+    // the free end towards the structure: no standard of the scaffold further on in its direction
+    // (else the tube just sticks out within the scaffold)
+    const outward = ends.filter((x) => {
+      const d = x.e === a ? -1 : 1;
+      const h = Math.hypot(t[0], t[1]) || 1;
+      const u = [(d * t[0]) / h, (d * t[1]) / h];
+      return !columns.some((c) => {
+        const along = (c.x - x.e[0]) * u[0] + (c.y - x.e[1]) * u[1];
+        const side = Math.abs(-(c.x - x.e[0]) * u[1] + (c.y - x.e[1]) * u[0]);
+        return along > 0 && along < 3 && side < 0.3;
+      });
+    });
+    if (!outward.length) continue;
+    const out1 = outward.reduce((x, y) => (Math.hypot(y.e[0] - cx, y.e[1] - cy) > Math.hypot(x.e[0] - cx, x.e[1] - cy) ? y : x));
     out.push({
       id: w.part.id,
       couplers: on.map((o) => o.c.part.id),

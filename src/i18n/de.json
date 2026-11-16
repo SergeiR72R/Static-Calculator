@@ -761,9 +761,16 @@
       "remove": "Last löschen",
       "total": "Summe: G = {g}, Q = {q} (charakteristisch)",
       "dhb": "Dynamische Horizontalbelastung DHB",
-      "dhbShare": "Anteil DHB, %",
-      "gFav": "Ruhebetrieb: ständige Lasten mit γ = 0,9 (wie PERI ForceControl)",
-      "dhbHint": "DHB wird bei benutzerdefinierten Lasten selbst berechnet: der angegebene % aller vertikalen Lasten (Eigengewicht, Q, benutzerdefinierte) zu gleichen Teilen oben auf den Stielen, die bis zur Oberkante reichen, im Arbeitsbetrieb in Windrichtung (γ = 1,5) – wie PERI ForceControl."
+      "dhbShare": "Anteil, %",
+      "gFav": "Standsicherheit: zusätzliche Kombinationen S mit ständigen Lasten γ = 0,9 und maximalem Wind (wie PERI ForceControl)",
+      "dhbHint": "DHB wie PERI ForceControl: der Anteil (meist 10 %) der Last, die der Kran auf die Bühne absetzt, zu gleichen Teilen auf die gewählten Teile (z. B. die Kopfspindeln unter der Bühne) oder oben auf die Stiele; im Arbeitsbetrieb in Windrichtung (±x, ±y), γ = 1,5.",
+      "dhbLoad": "Bewegte Last (Kran)",
+      "dhbOnParts": "DHB zu gleichen Teilen auf die gewählten Teile: {n}",
+      "dhbOnTops": "DHB zu gleichen Teilen oben auf die Stiele bis zur Oberkante (ihre Kopfspindeln)",
+      "dhbTake": "Auf die gewählten ({n})",
+      "dhbShow": "Zeigen",
+      "dhbReset": "Auf die Stiele",
+      "dhbDir": "Richtung"
     },
     "heal": {
       "title": "Teile einrasten",
@@ -920,7 +927,7 @@
       "mechanism": "kinematisch / instabil",
       "notConverged": "Iteration nicht konvergiert – Näherung",
       "noLift": "abhebende Fußpunkte zweiseitig belassen",
-      "comboLegend": "A – Arbeitsbetrieb, R – Ruhebetrieb (maximaler Wind); ±x, ±y – Richtung von Wind und Schiefstellung. Verschiebungen und ΣV sind Bemessungswerte (γF = 1,5).",
+      "comboLegend": "A – Arbeitsbetrieb, R – Ruhebetrieb (maximaler Wind, γ = 1,5), S – Standsicherheit (ständige γ = 0,9, maximaler Wind); ±x, ±y – Richtung von Wind und Schiefstellung. Verschiebungen und ΣV – Bemessungswerte.",
       "allChecks": "Alle Nachweise",
       "part": "Teil",
       "checkCol": "Nachweis",
@@ -1032,11 +1039,11 @@
       "total": "Summe",
       "noWeight": "Ohne Gewicht in der Teiledatenbank: {n} Stk. – nicht in der Summe.",
       "failed": "Nachweise mit η > 100 %: {n} – alle im Programm sichtbar (Filter je Nachweis, Einfärbung in 3D).",
-      "dhb": "DHB: {p} % der vertikalen Lasten, gesamt {h}",
+      "dhb": "DHB: {p} % der bewegten Last {m} = {h} (Teile: {n})",
       "noDhb": "DHB nicht angesetzt",
       "method": "Verfahren",
-      "methodText": "Wie PERI ForceControl: Theorie II. Ordnung, Schiefstellung 1/200, Diagonalen ohne Lose, γ = 1,5 (Ruhebetrieb: ständige γ = 0,9), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
-      "methodTextG15": "Theorie II. Ordnung, Schiefstellung 1/200, Diagonalen ohne Lose, γ = 1,5 in allen Kombinationen, Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig)."
+      "methodText": "Wie PERI ForceControl: Theorie II. Ordnung, Schiefstellung 1/200, Diagonalen ohne Lose, γ = 1,5 (Standsicherheit: ständige γ = 0,9), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
+      "methodTextG15": "Theorie II. Ordnung, Schiefstellung 1/200, Diagonalen ohne Lose, γ = 1,5 in allen Kombinationen (ohne Standsicherheitskombinationen), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig)."
     },
     "export": {
       "hint": "Teile des älteren PERI-CAD-Typs (z. B. Spindeln) kommen nicht in die DXF: Skript in AutoCAD laden (APPLOAD), PERIEXPORT ausführen und hier die Datei …_peri.txt zusammen mit der DXF öffnen.",

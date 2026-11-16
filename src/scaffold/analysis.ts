@@ -32,11 +32,17 @@ export interface AnalysisOptions {
   /** second-order theory with sway imperfection */
   secondOrder: boolean;
   /**
-   * dynamic horizontal load (DHB) with user loads: share of all vertical loads (self weight, service
-   * load, user loads), at the tops of the standards reaching the top, in the working combinations
+   * dynamic horizontal load (DHB, PERI ForceControl): share (10 %) of the load moved by the crane
+   * (`dhbLoad`, N), in equal parts at the DHB nodes of the model, in the working combinations
    */
   dhb?: number;
-  /** permanent loads favourable (γ = 0.9) in the out-of-service combinations, else γ = 1.5 */
+  dhbLoad?: number;
+  /** directions of the DHB: with the wind in x and y, or only in x / only in y */
+  dhbDir?: 'xy' | 'x' | 'y';
+  /**
+   * stability: further out-of-service combinations with the permanent loads favourable (γ = 0.9,
+   * without service loads), besides those with γ = 1.5 (PERI ForceControl "Stability")
+   */
   gFavR?: boolean;
   /**
    * slack of the diagonals after the approval (0.1 / 0.3 cm …); off as in PERI ForceControl, whose
@@ -50,7 +56,7 @@ export interface AnalysisOptions {
 /** global sway imperfection of PERI ForceControl */
 export const SWAY = 1 / 200;
 
-export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level: -1, outdoor: true, qWork: 200, qMax: 0, cf: 1.3, snow: 0, ice: 0, secondOrder: true, dhb: 0.025, gFavR: true, diagSlack: false };
+export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level: -1, outdoor: true, qWork: 200, qMax: 0, cf: 1.2, snow: 0, ice: 0, secondOrder: true, dhb: 0.1, dhbLoad: 0, gFavR: true, diagSlack: false };
 
 /** partial factor of favourable permanent loads in the out-of-service combinations */
 export const GAMMA_G_FAV = 0.9;
@@ -324,8 +330,8 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
     if (u.case === 'G') userG += sum;
     else userQ += sum;
   }
-  /** dynamic horizontal load: share of all vertical loads, equal parts at the tops of the standards */
-  const dhbForce = userG + userQ > 0 && (opt.dhb ?? 0) > 0 && model.dhbNodes?.length ? (opt.dhb ?? 0) * (totalG + totalQ + userG + userQ) : 0;
+  /** dynamic horizontal load: share of the load moved by the crane, equal parts at the DHB nodes */
+  const dhbForce = (opt.dhb ?? 0) > 0 && (opt.dhbLoad ?? 0) > 0 && model.dhbNodes?.length ? (opt.dhb ?? 0) * (opt.dhbLoad ?? 0) : 0;
   const dhb = (d: V3): Loads3 => {
     const w = emptyLoads3(frame);
     const F = dhbForce / model.dhbNodes.length;
@@ -358,16 +364,16 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
     if (opt.outdoor && opt.qWork > 0) addScaled(c, lc.wind(d, 0.4), GAMMA_F * opt.qWork);
     else if (!lc.dhbForce) addScaled(c, lc.notional(d), GAMMA_F);
     // dynamic horizontal load (replaces the notional load of the decks)
-    if (lc.dhbForce) addScaled(c, lc.dhb(d), GAMMA_F);
+    if (lc.dhbForce && (opt.dhbDir ?? 'xy').includes(d[0] !== 0 ? 'x' : 'y')) addScaled(c, lc.dhb(d), GAMMA_F);
     if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
     combos.push({ name: `A ${dn}`, loads: c });
   }
-  if (opt.outdoor && opt.qMax > 0)
+  if (opt.outdoor && opt.qMax > 0) {
+    // out of service: permanent loads γ = 1.5 + share of the service load + maximum wind
     for (const [dn, d] of DIRS) {
       const v = emptyLoads3(model.frame);
-      const gG = opt.gFavR ? GAMMA_G_FAV : GAMMA_F;
-      addScaled(v, lc.g, gG);
-      addScaled(v, lc.ug, gG);
+      addScaled(v, lc.g, GAMMA_F);
+      addScaled(v, lc.ug, GAMMA_F);
       addScaled(v, lc.q, GAMMA_F * share);
       if (opt.snow > 0) addScaled(v, lc.s, GAMMA_F);
       const c = emptyLoads3(model.frame);
@@ -376,6 +382,19 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
       if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
       combos.push({ name: `R ${dn}`, loads: c });
     }
+    // stability (lifting off, overturning): permanent loads favourable γ = 0.9, maximum wind
+    if (opt.gFavR)
+      for (const [dn, d] of DIRS) {
+        const v = emptyLoads3(model.frame);
+        addScaled(v, lc.g, GAMMA_G_FAV);
+        addScaled(v, lc.ug, GAMMA_G_FAV);
+        const c = emptyLoads3(model.frame);
+        addScaled(c, v, 1);
+        addScaled(c, lc.wind(d, 0.2), GAMMA_F * opt.qMax);
+        if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
+        combos.push({ name: `S ${dn}`, loads: c });
+      }
+  }
   return { combos, level: lc.level, totalG: lc.totalG, totalQ: lc.totalQ, userG: lc.userG, userQ: lc.userQ, dhb: lc.dhbForce };
 }
 
@@ -391,7 +410,10 @@ interface Solved {
 
 /** non-linear solution of one combination */
 /** most iterations of one combination */
-export const MAX_ITERATIONS = 14;
+export const MAX_ITERATIONS = 20;
+
+/** tension of a base that lets it lift off, N */
+export const LIFT_TOL = 100;
 
 /**
  * A scaffold does not move by a metre (or turn by a radian): degrees of freedom moving that far in the
@@ -425,6 +447,9 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
   const flips = new Uint8Array(nM);
   let noLift = false;
   const supActive = frame.supports.map(() => true);
+  /** bases of the step before the last lifting off; no more lifting off after a mechanism */
+  let prevActive: boolean[] | null = null;
+  let liftFrozen = false;
   const axis = frame.members.map((m) => {
     const a = frame.nodes[m.i];
     const b = frame.nodes[m.j];
@@ -473,10 +498,16 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
     } catch (e) {
       if (e instanceof NearlyFreeError) throw e;
       if (e instanceof FrameError3 && e.kind === 'displacement') throw new NearlyFreeError([e.node * 6 + e.dof]);
-      // bases that lifted off left a mechanism: keep all bases two-sided (the uplift is reported)
+      // the bases lifted off in the last step left a mechanism: back to the bases of the step before,
+      // no more lifting off (the tension left is reported); without such a step all bases two-sided
       if (e instanceof FrameError3 && !noLift && supActive.some((x) => !x)) {
-        noLift = true;
-        supActive.fill(true);
+        if (prevActive && prevActive.some((x, i) => x !== supActive[i]) && !liftFrozen) {
+          for (let i = 0; i < supActive.length; i++) supActive[i] = prevActive[i];
+          liftFrozen = true;
+        } else {
+          noLift = true;
+          supActive.fill(true);
+        }
         it--;
         continue;
       }
@@ -535,17 +566,26 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
         }
       }
     }
-    // bases: no tension
+    // bases: no tension. Released step by step: per iteration only the bases pulled most (at least half
+    // of the largest tension, more than LIFT_TOL), so that the transient states of the iteration do not
+    // release (nearly) all bases of a light scaffold at once; a released base that is pressed down again
+    // bears again
+    let minRz = 0;
+    for (const b of model.bases) if (supActive[b.sup + 2]) minRz = Math.min(minRz, r.reactions[b.sup + 2]);
+    const before = [...supActive];
+    let released = false;
     for (const b of model.bases) {
       const Rz = r.reactions[b.sup + 2];
       const uz = r.u[b.node * 6 + 2];
       const on = supActive[b.sup + 2];
-      const want = noLift ? true : on ? Rz >= -1e-6 : uz < 0;
+      const want = noLift ? true : on ? liftFrozen || !(Rz < -LIFT_TOL && Rz <= 0.5 * minRz) : uz < 0;
+      if (on && !want) released = true;
       if (want !== on) {
         supActive[b.sup + 2] = want;
         changed = true;
       }
     }
+    if (released) prevActive = before;
     let dN = 0;
     if (secondOrder) {
       if (Ns) for (let k = 0; k < nM; k++) dN = Math.max(dN, Math.abs(newN[k] - Ns[k]) / (Math.abs(newN[k]) + 500));
@@ -745,7 +785,9 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         if (m.kind === 'standard') {
           const T = TUBES[m.tube!];
           const N = Math.min(sectionForces(mr, 0).N, sectionForces(mr, mr.L).N);
-          if (N < 0) {
+          // flexural buckling with χ only in a first-order analysis; with the second order the
+          // stability is in the forces of the standards (as PERI ForceControl: no separate χ check)
+          if (N < 0 && !opt.secondOrder) {
             const dims = m.tube === 't27' ? [48.3, 2.7, 320] : m.tube === 't36' ? [48.3, 3.6, 355] : [48.3, 3.2, 320];
             const b = standardBuckling(lcr[k], dims[0], dims[1], dims[2]);
             put({ part: m.part, check: 'buckling', eta: -N / Math.min(b.NRd, T.NRd), combo: cb.name, N, detail: `L_cr = ${lcr[k].toFixed(2)} m, χ = ${b.chi.toFixed(2)}` });
@@ -862,7 +904,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       const V = r.reactions[b.sup + 2];
       const H = Math.hypot(r.reactions[b.sup], r.reactions[b.sup + 1]);
       // lifted off (released) or pulled (kept two-sided): uplift
-      const lifted = (V === 0 && r.u[b.node * 6 + 2] > 1e-7) || V < -1;
+      const lifted = (V === 0 && r.u[b.node * 6 + 2] > 1e-7) || V < -LIFT_TOL;
       const o = baseRes.get(b.node);
       if (!o) baseRes.set(b.node, { part: b.part, node: b.node, Vmax: V, Vmin: V, H, combo: cb.name, ...(lifted ? { lifted: true } : {}) });
       else {
@@ -876,7 +918,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       }
       // a base that lifts off is allowed (one-sided support, as in PERI ForceControl); a base that
       // has to hold the scaffold down (kept two-sided: lifting off would leave a mechanism) is not
-      if (V < -1) put({ part: b.part, check: 'uplift', eta: 1.01, combo: cb.name, N: V });
+      if (V < -LIFT_TOL) put({ part: b.part, check: 'uplift', eta: 1.01, combo: cb.name, N: V });
     }
     for (const s of model.assumedSupports) {
       const V = r.reactions[s.sup + 2];

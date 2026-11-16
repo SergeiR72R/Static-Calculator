@@ -2,6 +2,7 @@ import type { ScaffoldStructure } from '../../scaffold/structure';
 import { LOAD_CLASSES } from '../../scaffold/catalog';
 import { siteWind, useScaffold } from '../../scaffold/store';
 import { userLoadTotal } from '../../scaffold/userLoads';
+import { LIFT_TOL } from '../../scaffold/analysis';
 import { useFmt } from '../hooks';
 import { BRAND, FullLogo } from '../Brand';
 import { LANG_LOCALE } from '../../units/format';
@@ -36,8 +37,8 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
   const checks = res ? res.checks.slice(0, MAX_CHECKS) : [];
   const failedChecks = res ? res.checks.filter((c) => c.eta > 1).length : 0;
   const bases = res ? [...res.bases].sort((a, b) => b.Vmax - a.Vmax) : [];
-  const uplift = res ? res.bases.filter((b) => b.Vmin < -1) : [];
-  const lifted = res ? res.bases.filter((b) => b.lifted && b.Vmin >= -1).length : 0;
+  const uplift = res ? res.bases.filter((b) => b.Vmin < -LIFT_TOL) : [];
+  const lifted = res ? res.bases.filter((b) => b.lifted && b.Vmin >= -LIFT_TOL).length : 0;
   const windText = [
     wind.qMax > 0 ? fmt.t('scaffold.wind.result', { qp: fmt.q(wind.qp, 'areaLoad'), q: fmt.q(wind.qMax, 'areaLoad'), h: fmt.q(height, 'length', 1) }) : fmt.t('scaffold.wind.none'),
     wind.source === 'de' && wind.zone ? fmt.t('scaffold.wind.zoneN', { n: wind.zone }) : '',
@@ -97,7 +98,7 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
               {sc.loadClass} ({fmt.q((LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3, 'areaLoad')}) · {fmt.t('scaffold.report.deckG')}: {fmt.q(sc.g, 'areaLoad')}
             </td>
           </tr>
-          {sc.loads.length > 0 && (
+          {(sc.loads.length > 0 || (sc.dhb > 0 && sc.dhbLoad > 0)) && (
             <tr data-testid="scaffold-report-loads">
               <th className={th}>{fmt.t('scaffold.loads.title')}</th>
               <td className={td}>
@@ -107,7 +108,9 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
                   </div>
                 ))}
                 <div>
-                  {sc.dhb > 0 ? fmt.t('scaffold.report.dhb', { p: fmt.num(sc.dhb * 100, 1), h: fmt.q(res?.dhb ?? 0, 'force', 2) }) : fmt.t('scaffold.report.noDhb')}
+                  {sc.dhb > 0 && sc.dhbLoad > 0
+                    ? fmt.t('scaffold.report.dhb', { p: fmt.num(sc.dhb * 100, 1), m: fmt.q(sc.dhbLoad, 'force', 1), h: fmt.q(sc.dhb * sc.dhbLoad, 'force', 2), n: sc.dhbParts.length || '–' })
+                    : fmt.t('scaffold.report.noDhb')}
                 </div>
               </td>
             </tr>
@@ -228,14 +231,14 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
               </tr>
             </thead>
             <tbody>
-              {[...uplift, ...bases.filter((b) => b.Vmin >= -1)].slice(0, Math.max(MAX_BASES, uplift.length)).map((b) => {
+              {[...uplift, ...bases.filter((b) => b.Vmin >= -LIFT_TOL)].slice(0, Math.max(MAX_BASES, uplift.length)).map((b) => {
                 const w = byId.get(b.part);
                 return (
                   <tr key={b.node}>
                     <td className={td}>{name(b.part)}</td>
                     <td className={tn}>{w ? [w.min[0] - st.min[0], w.min[1] - st.min[1], w.min[2] - st.min[2]].map((v) => fmt.num(v, 2)).join(' / ') : ''}</td>
                     <td className={tn}>{fmt.q(b.Vmax, 'force', 1)}</td>
-                    <td className={tn} style={{ color: b.Vmin < -1 ? '#b91c1c' : undefined }}>
+                    <td className={tn} style={{ color: b.Vmin < -LIFT_TOL ? '#b91c1c' : undefined }}>
                       {fmt.q(b.Vmin, 'force', 1)}
                     </td>
                     <td className={tn}>{fmt.q(b.H, 'force', 1)}</td>

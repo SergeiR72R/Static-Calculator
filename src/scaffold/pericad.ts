@@ -188,7 +188,19 @@ const DISPLAY_BLOCK = /^PERI_(\d{6}(?:-\d+)?)_PartDisplayName_(.+)$/;
 function readInsertedParts(ents: Rec[], blocks: Map<string, RawBlock>): { part: ScaffoldPart; scale: number; size: number }[] {
   const out: { part: ScaffoldPart; scale: number; size: number }[] = [];
   const seen = new Set<string>();
+  // a converted part made of pieces (swivel coupler "017010" = "zu_017010_01" + "017010_02", each with
+  // its display blocks): one part of the article; its line view is put together from the pieces
+  const pieced = new Set<string>();
+  for (const [name, b] of blocks) {
+    if (!/^\d{6}$/.test(name) || !b.inserts.length) continue;
+    const re = new RegExp(`^(zu_)?${name}_\\d+$`);
+    if (!b.inserts.every((i) => re.test(i.name) && blocks.has(`PERI_${i.name}_PartDisplayName_Line`))) continue;
+    const line = `PERI_${name}_PartDisplayName_Line`;
+    if (!blocks.has(line)) blocks.set(line, { lines: [], circles: [], inserts: b.inserts.map((i) => ({ ...i, name: `PERI_${i.name}_PartDisplayName_Line` })) });
+    pieced.add(name);
+  }
   const visit = (name: string, M: number[], layer: string, id: string, depth: number) => {
+    if (pieced.has(name)) name = `PERI_${name}_PartDisplayName_3D`;
     const mt = DISPLAY_BLOCK.exec(name);
     if (mt) {
       const article = mt[1];
@@ -217,7 +229,7 @@ function readInsertedParts(ents: Rec[], blocks: Map<string, RawBlock>): { part: 
   // with the spindle "100412" and its nut inside an anonymous block "*U29")
   const holds = new Map<string, boolean>();
   const holdsParts = (name: string, depth: number): boolean => {
-    if (DISPLAY_BLOCK.test(name)) return true;
+    if (DISPLAY_BLOCK.test(name) || pieced.has(name)) return true;
     const known = holds.get(name);
     if (known !== undefined) return known;
     const b = blocks.get(name);

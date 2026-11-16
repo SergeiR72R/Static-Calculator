@@ -128,8 +128,12 @@ describe('scaffold analysis', () => {
       expect(c.dh).toBeLessThan(0.05);
     }
     const kinds = new Set(res.checks.map((c) => c.check));
-    // the node diagonals stay within their slack of 1 cm at this load
-    for (const k of ['conn', 'node', 'tube', 'buckling', 'joint', 'ledger']) expect(kinds.has(k as never)).toBe(true);
+    // second order: no separate χ buckling check (the stability is in the forces of the standards)
+    for (const k of ['conn', 'node', 'tube', 'joint', 'ledger']) expect(kinds.has(k as never)).toBe(true);
+    expect(kinds.has('buckling')).toBe(false);
+    // first order: with the buckling check
+    const first = analyzeScaffoldModel(m, { ...opt, secondOrder: false });
+    expect(first.checks.some((c) => c.check === 'buckling')).toBe(true);
     for (const c of res.checks) expect(Number.isFinite(c.eta)).toBe(true);
     expect(Math.max(...res.bases.map((b) => b.Vmax))).toBeGreaterThan((GAMMA_F * (res.totalG + res.totalQ)) / 6);
     expect(res.bases.every((b) => b.Vmin > 0)).toBe(true);
@@ -141,19 +145,20 @@ describe('scaffold analysis', () => {
     const b = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, p: 6000 });
     const max = (r: typeof a, k: string) => Math.max(...r.checks.filter((c) => c.check === k).map((c) => c.eta));
     expect(max(b, 'conn')).toBeGreaterThan(max(a, 'conn') * 1.5);
-    expect(max(b, 'buckling')).toBeGreaterThan(max(a, 'buckling') * 1.5);
+    expect(max(b, 'tube')).toBeGreaterThan(max(a, 'tube') * 1.5);
   });
 
   it('wind outdoors: larger sway than indoors; maximum wind adds the out-of-service combinations', () => {
     const m = buildScaffoldModel(tower(braced));
     const indoor = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false });
     const out = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 });
-    expect(out.combos).toHaveLength(8);
+    expect(out.combos).toHaveLength(12);
     expect(out.combos.filter((c) => c.name.startsWith('R'))).toHaveLength(4);
+    expect(out.combos.filter((c) => c.name.startsWith('S'))).toHaveLength(4);
     expect(Math.max(...out.combos.map((c) => c.dh))).toBeGreaterThan(Math.max(...indoor.combos.map((c) => c.dh)));
   });
 
-  it('user loads: point and line loads on parts, DHB from all vertical loads, γ of the combinations', () => {
+  it('user loads: point and line loads on parts, DHB from the moved load, γ of the combinations', () => {
     const st = tower(braced);
     // two ledgers at +2.22 m along x and one along y
     const lx = st.parts.filter((w) => w.cls.kind === 'ledger' && Math.abs(w.min[2] - 2.22) < 0.1 && w.max[0] - w.min[0] > 1).slice(0, 2);
@@ -163,29 +168,40 @@ describe('scaffold analysis', () => {
       { id: 'b', name: 'traffic', case: 'Q', kind: 'point', value: 6e3, at: 0.5, parts: lx.map((w) => w.part.id) },
       { id: 'c', name: 'ballast', case: 'G', kind: 'line', value: 2e3, at: 0, parts: [ly.part.id] },
     ];
-    const m = buildScaffoldModel(st, loads);
+    // DHB on the standards of the ledgers along x (the chosen parts: their tops)
+    const stds = st.parts.filter((w) => w.cls.kind === 'standard' && w.min[2] > 2).slice(0, 2);
+    expect(Math.hypot(stds[0].min[0] - stds[1].min[0], stds[0].min[1] - stds[1].min[1])).toBeGreaterThan(1);
+    const m = buildScaffoldModel(st, loads, stds.map((w) => w.part.id));
+    expect(m.dhbNodes).toHaveLength(2);
     // G and Q at the same place share one node in the middle of each ledger
     expect(m.user[0].nodal.map((n) => n.node)).toEqual(m.user[1].nodal.map((n) => n.node));
     for (const n of m.user[0].nodal) expect(m.frame.nodes[n.node][2]).toBeCloseTo(2.22, 1);
-    const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 600 };
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 600, dhbLoad: 100e3 };
     const cb = buildCombos(m, opt);
     const L = m.user[2].members.reduce((a, x) => a + m.lengths[x.m], 0);
     expect(L).toBeCloseTo(2, 1);
     expect(cb.userG).toBeCloseTo(2 * 10e3 + 2e3 * L, 3);
     expect(cb.userQ).toBeCloseTo(2 * 6e3, 3);
-    // DHB: 2.5 % of all vertical loads
-    expect(cb.dhb).toBeCloseTo(0.025 * (cb.totalG + cb.totalQ + cb.userG + cb.userQ), 3);
+    // DHB: 10 % of the load moved by the crane
+    expect(cb.dhb).toBeCloseTo(10e3, 3);
     const res = analyzeScaffoldModel(m, opt);
     const share = 0.25; // load class 3
+    // working, out of service (γ = 1.5) and stability (γ = 0.9) in 4 directions each
+    expect(res.combos.map((c) => c.name[0]).join('')).toBe('AAAARRRRSSSS');
     for (const c of res.combos) {
       expect(c.ok).toBe(true);
-      // working: everything × 1.5; out of service: permanent × 0.9 (favourable), no user Q
-      const V = c.name.startsWith('A') ? GAMMA_F * (res.totalG + res.totalQ + cb.userG + cb.userQ) : 0.9 * (res.totalG + cb.userG) + GAMMA_F * share * res.totalQ;
+      // working: everything × 1.5; out of service: permanent × 1.5 + share of Q, no user Q;
+      // stability: permanent × 0.9 (favourable)
+      const V = c.name.startsWith('A')
+        ? GAMMA_F * (res.totalG + res.totalQ + cb.userG + cb.userQ)
+        : c.name.startsWith('R')
+          ? GAMMA_F * (res.totalG + cb.userG + share * res.totalQ)
+          : 0.9 * (res.totalG + cb.userG);
       expect(c.sumV).toBeCloseTo(V, -2);
     }
     expect(res.dhb).toBeCloseTo(cb.dhb, 3);
-    // no user loads: no DHB
-    expect(buildCombos(buildScaffoldModel(st), opt).dhb).toBe(0);
+    // no moved load: no DHB
+    expect(buildCombos(m, { ...opt, dhbLoad: 0 }).dhb).toBe(0);
   });
 
   it('second order increases the sway of the unbraced tower', () => {

@@ -761,9 +761,16 @@
       "remove": "Remove the load",
       "total": "Total: G = {g}, Q = {q} (characteristic)",
       "dhb": "Dynamic horizontal load DHB",
-      "dhbShare": "DHB share, %",
-      "gFav": "Out of service: permanent loads with γ = 0.9 (as PERI ForceControl)",
-      "dhbHint": "DHB is computed when there are user loads: the given % of all vertical loads (self weight, Q, user loads) in equal parts at the tops of the standards that reach the top, in the working condition in the wind direction (γ = 1.5) – as PERI ForceControl."
+      "dhbShare": "Share, %",
+      "gFav": "Stability: further combinations S with permanent loads γ = 0.9 and the maximum wind (as PERI ForceControl)",
+      "dhbHint": "DHB as PERI ForceControl: the share (usually 10 %) of the load the crane sets down on the platform, in equal parts on the chosen parts (e.g. the head jacks under the platform) or at the tops of the standards; in the working condition in the wind direction (±x, ±y), γ = 1.5.",
+      "dhbLoad": "Load moved by the crane",
+      "dhbOnParts": "DHB in equal parts on the chosen parts: {n}",
+      "dhbOnTops": "DHB in equal parts at the tops of the standards that reach the top (their head jacks)",
+      "dhbTake": "On the selected ({n})",
+      "dhbShow": "Show",
+      "dhbReset": "On the standards",
+      "dhbDir": "Direction"
     },
     "heal": {
       "title": "Snap parts",
@@ -920,7 +927,7 @@
       "mechanism": "mechanism / unstable",
       "notConverged": "iteration not converged – approximate",
       "noLift": "lifting bases kept two-sided",
-      "comboLegend": "A – working condition, R – out of service (maximum wind); ±x, ±y – direction of wind and sway. Displacements and ΣV are design values (γF = 1.5).",
+      "comboLegend": "A – working, R – out of service (maximum wind, γ = 1.5), S – stability (permanent γ = 0.9, maximum wind); ±x, ±y – direction of wind and sway. Displacements and ΣV – design values.",
       "allChecks": "All checks",
       "part": "Part",
       "checkCol": "Check",
@@ -1032,11 +1039,11 @@
       "total": "Total",
       "noWeight": "No weight in the parts database: {n} pcs – not in the total.",
       "failed": "Checks with η > 100 %: {n} – all of them in the program (filter by check, colours in 3D).",
-      "dhb": "DHB: {p} % of the vertical loads, total {h}",
+      "dhb": "DHB: {p} % of the moved load {m} = {h} (parts: {n})",
       "noDhb": "DHB not applied",
       "method": "Method",
-      "methodText": "As PERI ForceControl: second-order theory, sway 1/200, diagonals without slack, γ = 1.5 (out of service: permanent γ = 0.9), spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed).",
-      "methodTextG15": "Second-order theory, sway 1/200, diagonals without slack, γ = 1.5 in all combinations, spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed)."
+      "methodText": "As PERI ForceControl: second-order theory, sway 1/200, diagonals without slack, γ = 1.5 (stability: permanent γ = 0.9), spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed).",
+      "methodTextG15": "Second-order theory, sway 1/200, diagonals without slack, γ = 1.5 in all combinations (no stability combinations), spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed)."
     },
     "export": {
       "hint": "Parts of the older PERI CAD kind (e.g. base jacks) are not in the DXF: load the script in AutoCAD (APPLOAD), run PERIEXPORT and open the file …_peri.txt here together with the DXF.",

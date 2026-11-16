@@ -131,20 +131,57 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
         </div>
       )}
 
-      <div className="mt-3 grid gap-2 border-t border-slate-200 pt-2 text-xs dark:border-slate-700 lg:grid-cols-2">
-        <div className="flex items-end gap-2">
+      <div className="mt-3 space-y-2 border-t border-slate-200 pt-2 text-xs dark:border-slate-700" data-testid="scaffold-dhb-box">
+        <div className="flex flex-wrap items-end gap-2">
           <label className="flex items-center gap-2 pb-1">
             <input type="checkbox" checked={sc.dhb > 0} onChange={(e) => sc.setOpts({ dhb: e.target.checked ? DHB_SHARE : 0 })} data-testid="scaffold-dhb" />
             {fmt.t('scaffold.loads.dhb')}
           </label>
-          {sc.dhb > 0 && <NumberField className="w-20" ariaLabel={fmt.t('scaffold.loads.dhbShare')} value={sc.dhb * 100} onChange={(v) => sc.setOpts({ dhb: Math.min(Math.max(v / 100, 0), 0.5) })} testId="scaffold-dhb-share" />}
-          {sc.dhb > 0 && <span className="pb-1">%</span>}
+          {sc.dhb > 0 && (
+            <>
+              <NumberField className="w-36" label={fmt.t('scaffold.loads.dhbLoad')} q="force" value={sc.dhbLoad} onChange={(v) => sc.setOpts({ dhbLoad: Math.max(0, v) })} testId="scaffold-dhb-load" />
+              <NumberField className="w-20" label={fmt.t('scaffold.loads.dhbShare')} value={sc.dhb * 100} onChange={(v) => sc.setOpts({ dhb: Math.min(Math.max(v / 100, 0), 1) })} testId="scaffold-dhb-share" />
+              <SelectField
+                className="w-32"
+                label={fmt.t('scaffold.loads.dhbDir')}
+                value={sc.dhbDir}
+                testId="scaffold-dhb-dir"
+                options={[
+                  { value: 'xy', label: '±x, ±y' },
+                  { value: 'x', label: '±x' },
+                  { value: 'y', label: '±y' },
+                ]}
+                onChange={(v) => sc.setOpts({ dhbDir: v })}
+              />
+              <span className="pb-1.5 font-medium" data-testid="scaffold-dhb-total">
+                = {fmt.q(sc.dhb * sc.dhbLoad, 'force', 2)}
+              </span>
+            </>
+          )}
         </div>
+        {sc.dhb > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span>{sc.dhbParts.length ? fmt.t('scaffold.loads.dhbOnParts', { n: sc.dhbParts.length }) : fmt.t('scaffold.loads.dhbOnTops')}</span>
+            <Button size="sm" onClick={() => sc.setDhbParts([...sel])} disabled={!sel.length} data-testid="scaffold-dhb-take">
+              {fmt.t('scaffold.loads.dhbTake', { n: sel.length })}
+            </Button>
+            {sc.dhbParts.length > 0 && (
+              <>
+                <Button size="sm" variant="ghost" onClick={() => sc.select(sc.dhbParts)}>
+                  {fmt.t('scaffold.loads.dhbShow')}
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => sc.setDhbParts([])} data-testid="scaffold-dhb-reset">
+                  {fmt.t('scaffold.loads.dhbReset')}
+                </Button>
+              </>
+            )}
+          </div>
+        )}
         <label className="flex items-center gap-2">
           <input type="checkbox" checked={sc.gFavR} onChange={(e) => sc.setOpts({ gFavR: e.target.checked })} data-testid="scaffold-gfav" />
           {fmt.t('scaffold.loads.gFav')}
         </label>
-        <p className="flex items-start gap-1 text-[11px] text-slate-500 lg:col-span-2">
+        <p className="flex items-start gap-1 text-[11px] text-slate-500">
           <IconInfo className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t('scaffold.loads.dhbHint')}
         </p>
       </div>

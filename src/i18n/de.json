@@ -1202,5 +1202,213 @@
       "run": "Kombinationen: {done} von {total}"
     },
     "clearSelection": "Hervorhebung aufheben ({n})"
+  },
+  "help": {
+    "button": "Erläuterung zur Einstellung",
+    "what": "Was ist das",
+    "why": "Wozu",
+    "effect": "Was ändert sich",
+    "scaffold": {
+      "level": {
+        "what": "Belagebene, auf der die Nutzlast der Lastklasse steht.",
+        "why": "Nach EN 12811-1 wirkt die volle Nutzlast auf einer Ebene; die übrigen Ebenen tragen ihr Eigengewicht (und Schnee).",
+        "effect": "„Automatisch“ nimmt die Ebene mit der größten Belagfläche – mit der größten Gesamtlast. Eine andere Ebene verteilt die Kräfte in Stielen und Riegeln anders: wählen Sie sie, wenn gerade diese belastet wird."
+      },
+      "g": {
+        "what": "Eigengewicht der Beläge je m² Belagfläche.",
+        "why": "Das Gewicht der Stäbe der Zeichnung wird aus dem Katalog berechnet, die Beläge als Flächenlast.",
+        "effect": "Ständige Last in allen Kombinationen (γ = 1,5; in den Kombinationen S γ = 0,9) und in den Trägerlasten für den Balkenrechner. Vorgabe 0,3 kN/m² – mit Reserve für PERI-UP-Beläge."
+      },
+      "tol": {
+        "what": "Größter Abstand, über den ein Teil der Zeichnung an seinen Anschlusspunkt gesetzt wird.",
+        "why": "In Zeichnungen sitzen Teile oft Millimeter bis Zentimeter neben Rosetten und Achsen; ohne Fangen wären sie nicht verbunden und das Modell zerfiele.",
+        "effect": "Größer – mehr Teile werden verbunden, ein zu großer Wert verbindet aber auch Teile, die in Wirklichkeit nicht verbunden sind. 0 – aus. Vorgabe 5 cm, höchstens 20 cm."
+      },
+      "ubk": {
+        "what": "Modell der Diagonalen UBK: nach Anlage A der Zulassung (exzentrischer Kopf, Tab. A.1/A.2) oder vereinfacht zentrisch (Tab. 15).",
+        "why": "Die Diagonalen geben dem Gerüst die horizontale Steifigkeit; von ihrem Modell hängen die Kräfte in Diagonalen und Knoten und die Verschiebungen ab.",
+        "effect": "„Anlage A“ entspricht der Zulassung Z-8.22-863 und PERI ForceControl – Vorgabe. „Tab. 15“ ist eine vereinfachte Variante zum Vergleich: andere Steifigkeit und Kraftverteilung."
+      },
+      "slack": {
+        "what": "Spiel im Anschluss der Diagonalen, das durchlaufen wird, bevor die Diagonale trägt.",
+        "why": "Die Zulassung erlaubt, das Spiel der Keilanschlüsse anzusetzen; PERI ForceControl rechnet ohne.",
+        "effect": "„Nach Zulassung“ – die Diagonalen tragen erst nach dem Spiel: größere Verschiebungen, ein Teil der Kräfte geht in die Knoten der Stiele. Vorgabe – ohne Lose, wie PFC."
+      },
+      "splice": {
+        "what": "Ob die Stöße der Stiele (Rohrverbinder) Zug übertragen.",
+        "why": "Ein ungesicherter Stoß überträgt nur Druck: unter Zug öffnet er sich.",
+        "effect": "„Ohne Zug“ – der Stoß öffnet sich unter Zug, wie in PFC; sicherer für den Nachweis von Abheben und Kippen (Vorgabe). „Mit Zug“ – nur wenn die Stöße mit Schrauben oder Federsteckern gesichert sind."
+      },
+      "cap": {
+        "what": "Woher die Tragfähigkeit der Knoten (Rosetten) und Diagonalen genommen wird.",
+        "why": "Die Zulassung gibt für Stiele mit 6- und 8-mm-Rosetten verschiedene Werte; die Steifigkeit des Modells ist immer die für 6 mm.",
+        "effect": "„Nach Artikel“ – je Stiel nach seinem Artikel, wie PFC (Vorgabe). „Wie Steifigkeit: 6 mm“ – die kleineren Werte für alle Stiele, mit Reserve."
+      },
+      "second": {
+        "what": "Berechnung nach Theorie II. Ordnung mit Schiefstellung der Stiele 1/200 und Vorkrümmungen der Stiele.",
+        "why": "Das Gerüst ist ein weiches Tragwerk; EN 12811-1 verlangt Verformungen und Imperfektionen zu berücksichtigen.",
+        "effect": "Nur zum Vergleich ausschalten: Kräfte und Verschiebungen werden kleiner als in Wirklichkeit, ein Stabilitätsverlust wird nicht erkannt. Vorgabe – an."
+      },
+      "gFavR": {
+        "what": "Zusätzliche Kombinationen S: ständige Lasten mit γ = 0,9, ohne Nutzlast, mit maximalem Wind.",
+        "why": "Sie weisen Abheben der Fußpunkte und Kippen leichter Gerüste nach – wie der Abschnitt „Stability“ in PERI ForceControl.",
+        "effect": "An – Abheben und Kippen werden erkannt, die in den Kombinationen mit γ = 1,5 nicht sichtbar sind. Aus kann fehlenden Ballast oder fehlende Verankerung verdecken. Wirkt nur im Freien mit maximalem Wind. Vorgabe – an."
+      },
+      "exposure": {
+        "what": "Wo das Gerüst steht: im Freien oder in einem Gebäude.",
+        "why": "Davon hängen Wind, Schnee und Vereisung ab.",
+        "effect": "„Im Freien“ – Arbeitswind 0,2 kN/m² und maximaler Wind des Standorts (Kombinationen R und S). „In einem Gebäude“ – ohne Wind, Schnee und Eis; statt Wind wirkt die Ersatzhorizontallast 2,5 % der Nutzlast (mindestens 0,3 kN)."
+      },
+      "terrain": {
+        "what": "Geländekategorie nach EN 1991-1-4: 0 – See, I – Seen, II – offenes Gelände, III – Vorstadt, IV – Stadt.",
+        "why": "Die Rauigkeit des Geländes ändert die Zunahme der Windgeschwindigkeit mit der Höhe.",
+        "effect": "Je kleiner die Kategorie, desto größer q_p. Wirkt für die Niederlande, Belgien, Luxemburg und andere Länder; in Deutschland folgt q_p aus Windzone und Lage, die Kategorie wirkt nicht. Vorgabe II."
+      },
+      "windManual": {
+        "what": "Böengeschwindigkeitsdruck q_p des maximalen Windes direkt eingeben.",
+        "why": "Wenn der Wind vom Projekt oder Kunden vorgegeben ist oder der Standort nicht bestimmt werden kann.",
+        "effect": "Das eingegebene q_p gilt unverändert für die Kombinationen R und S: Standort, Zone und Faktor 0,7 werden nicht angewendet."
+      },
+      "qMax": {
+        "what": "Böengeschwindigkeitsdruck des maximalen Windes in Höhe des Gerüsts.",
+        "why": "Bestimmt den Wind außer Betrieb.",
+        "effect": "Die Windlast der Kombinationen R und S ist proportional zu q_p; 0 – keine Kombinationen außer Betrieb."
+      },
+      "windZone": {
+        "what": "Windzone 1–4 in Deutschland nach DIN EN 1991-1-4/NA.",
+        "why": "Die Zone bestimmt die Basiswindgeschwindigkeit.",
+        "effect": "„Automatisch“ – Zone nach der DIBt-Tabelle für den Kreis des Standorts; liegt der Kreis in mehreren Zonen, wählen Sie die Zone selbst. Je höher die Zone, desto größer q_p."
+      },
+      "windExposure": {
+        "what": "Lage nach NA: Binnenland, Küste oder Inseln der Nord- und Ostsee.",
+        "why": "Für Küste und Inseln gibt der NA eigene q_p-Profile.",
+        "effect": "Küste und Inseln ergeben ein größeres q_p als das Binnenland."
+      },
+      "windAreaNL": {
+        "what": "Windgebiet I–III der Niederlande nach NEN-EN 1991-1-4/NB.",
+        "why": "Das Gebiet bestimmt die Basiswindgeschwindigkeit v_b,0 = 29,5 / 27 / 24,5 m/s.",
+        "effect": "„Automatisch“ – nach der Gemeinde des Standorts. Gebiet I ergibt das größte q_p."
+      },
+      "vb0Select": {
+        "what": "Basiswindgeschwindigkeit v_b,0 nach dem nationalen Anhang (Belgien – nach Gemeinde, Luxemburg – 24 m/s).",
+        "why": "Bestimmt q_p zusammen mit Geländekategorie und Gerüsthöhe.",
+        "effect": "„Automatisch“ – nach dem Standort. q_p wächst mit dem Quadrat von v_b,0."
+      },
+      "vb0": {
+        "what": "Basiswindgeschwindigkeit v_b,0 aus dem nationalen Anhang zur EN 1991-1-4 des Landes, in dem das Gerüst steht.",
+        "why": "Für Länder ohne hinterlegte Windkarte kennt das Programm v_b,0 nicht.",
+        "effect": "q_p wird nach EN 1991-1-4 mit Geländekategorie und Gerüsthöhe berechnet und wächst mit dem Quadrat von v_b,0. 0 – ohne maximalen Wind: keine Kombinationen außer Betrieb."
+      },
+      "standing": {
+        "what": "Abminderung des maximalen Windes mit dem Faktor 0,7 für die begrenzte Standzeit des Gerüsts (EN 12811-1).",
+        "why": "Gerüste stehen kurz; deshalb darf ein Wind mit kleinerer Wiederkehr als für Gebäude angesetzt werden.",
+        "effect": "q_p des maximalen Windes wird mit 0,7 multipliziert. Ausschalten, wenn Projekt oder Landesnorm den vollen Wind verlangen. Vorgabe – an."
+      },
+      "snow": {
+        "what": "Schnee auf den Belägen ansetzen.",
+        "why": "Im Winter ist Schnee auf den Belägen eine zusätzliche vertikale Last außer Betrieb.",
+        "effect": "In den Kombinationen R kommt Schnee auf allen Belägen hinzu (γ = 1,5); seine Größe wird in der Karte der Berechnung eingegeben."
+      },
+      "snowLoad": {
+        "what": "Schneelast je m² Belag.",
+        "why": "Hängt vom Standort ab und davon, ob die Beläge geräumt werden.",
+        "effect": "Wirkt auf allen Ebenen in den Kombinationen R mit γ = 1,5. Vorgabe 0,75 kN/m²."
+      },
+      "ice": {
+        "what": "Vereisung der Stäbe ansetzen.",
+        "why": "Eis erhöht das Gewicht und die Fläche, auf die der Wind drückt.",
+        "effect": "Eine Eisschicht kommt auf alle Stäbe: mehr Eigengewicht und Windlast in allen Kombinationen; die Dicke wird in der Karte der Berechnung eingegeben."
+      },
+      "iceThickness": {
+        "what": "Dicke der Eisschicht auf den Stäben.",
+        "why": "Bestimmt das zusätzliche Gewicht (900 kg/m³) und die Breite der Stäbe für den Wind.",
+        "effect": "Die Breite jedes Stabes für den Wind wächst um zwei Dicken, das Gewicht um das der Eishülle. Vorgabe 1 cm."
+      },
+      "loadClass": {
+        "what": "Lastklasse nach EN 12811-1 (1–6): gleichmäßige Nutzlast auf dem Belag von 0,75 bis 6,0 kN/m².",
+        "why": "Bestimmt, was auf das Gerüst darf: Personen, Material, Geräte.",
+        "effect": "Die Nutzlast wirkt auf der belasteten Ebene in den Kombinationen A in Betrieb; außer Betrieb (R) mit dem Anteil 0 % (Klasse 1), 25 % (2–3) oder 50 % (4–6). Höhere Klasse – größere Kräfte."
+      },
+      "loadName": {
+        "what": "Name der Last für Tabelle und Bericht.",
+        "why": "Damit die Last in der Liste und im Bericht erkennbar ist.",
+        "effect": "Ohne Einfluss auf die Berechnung."
+      },
+      "loadCase": {
+        "what": "Art der Last: ständig (G) oder veränderlich (Q).",
+        "why": "Ständige Lasten wirken immer, veränderliche während der Nutzung.",
+        "effect": "G – in allen Kombinationen mit γ = 1,5 (in S γ = 0,9). Q – in Betrieb voll, außer Betrieb mit dem Anteil nach der Lastklasse."
+      },
+      "loadKind": {
+        "what": "Art der Last: Einzelkraft in einem Punkt des Teils oder gleichmäßige Last entlang des Teils.",
+        "why": "Auflager, Geräte und Reaktionen aufgesetzter Konstruktionen sind meist Kräfte, verteilte Lasten Streckenlasten.",
+        "effect": "Punkt – Kraft auf jedem gewählten Teil an der Stelle „Lage, %“; Linie – Last je Länge über die ganze Länge jedes gewählten Teils."
+      },
+      "loadDir": {
+        "what": "Richtung der Last: senkrecht nach unten (Z) oder horizontal entlang der Achse X oder Y der Zeichnung.",
+        "why": "Horizontale Kräfte – zum Beispiel aus Aufzug, Abspannung oder aufgesetzter Konstruktion.",
+        "effect": "Eine horizontale Last wirkt in jeder Kombination in deren Richtung: in +x und −x mit dem jeweiligen Vorzeichen (wie die Aufzugslasten LC7/LC8 in PFC)."
+      },
+      "loadWhen": {
+        "what": "In welchen Kombinationen die Last wirkt.",
+        "why": "Manche Lasten gibt es nur in Betrieb (Material auf der Plattform), andere nur außer Betrieb (gelagertes Material, Konstruktion in Parkstellung).",
+        "effect": "„In und außer Betrieb“ – Q außer Betrieb mit dem Anteil nach der Lastklasse; „nur in Betrieb“ – nur in den Kombinationen A; „nur außer Betrieb“ – in den Kombinationen R voll."
+      },
+      "loadValue": {
+        "what": "Größe der Last: Kraft für einen Punkt oder Last je Länge für eine Linie, charakteristisch (ohne Teilsicherheitsbeiwerte).",
+        "why": "Die Teilsicherheitsbeiwerte setzt das Programm selbst an.",
+        "effect": "Wirkt voll auf jedes gewählte Teil und wird nicht zwischen ihnen aufgeteilt."
+      },
+      "loadAt": {
+        "what": "Stelle der Einzelkraft entlang des Teils, % der Länge ab seinem Anfang.",
+        "why": "Die Kraft kann außerhalb eines Knotens stehen.",
+        "effect": "0 und 100 % – Enden des Teils, 50 % – Mitte. Anfang – das Ende mit kleinerem X (dann Y), bei Stielen das untere."
+      },
+      "plan": {
+        "what": "In der Zeichnung als Blöcke mit Gewicht gezeichnete Lasten (Ballast, Container): das Gewicht geht auf die Teile unter ihrem Umriss.",
+        "why": "Damit diese Lasten nicht von Hand eingegeben werden müssen.",
+        "effect": "An – Gewicht der Blöcke als ständige Last auf die Teile darunter. Ausschalten, wenn diese Lasten von Hand eingegeben sind, sonst werden sie doppelt angesetzt. Vorgabe – an."
+      },
+      "dhb": {
+        "what": "Dynamische Horizontallast DHB beim Absetzen einer Last mit dem Kran auf die Plattform (wie in PERI ForceControl).",
+        "why": "Eine vom Kran abgesetzte Last schiebt die Plattform seitlich.",
+        "effect": "In den Kombinationen in Betrieb kommt Anteil × Last (γ = 1,5) auf die gewählten Teile oder die Stielköpfe; in einem Gebäude ersetzt DHB die Ersatzhorizontallast der Beläge. Wirkt nur, wenn eine Last eingegeben ist."
+      },
+      "dhbLoad": {
+        "what": "Gewicht der Last, die der Kran auf die Plattform setzt (charakteristisch).",
+        "why": "Daraus wird DHB berechnet.",
+        "effect": "DHB = Anteil × Last; 0 – keine DHB."
+      },
+      "dhbShare": {
+        "what": "Anteil des Gewichts der Last, der horizontal wirkt.",
+        "why": "PERI ForceControl setzt 10 % an.",
+        "effect": "Die Horizontalkraft wächst mit dem Anteil. Vorgabe 10 %."
+      },
+      "dhbDir": {
+        "what": "In welchen Richtungen der Kombinationen in Betrieb DHB wirkt.",
+        "why": "Ist die Richtung, aus der die Last abgesetzt wird, bekannt, kann sie eingeschränkt werden.",
+        "effect": "±x, ±y – in allen vier Kombinationen in Betrieb (Vorgabe); ±x oder ±y – nur in den Kombinationen dieser Richtung."
+      },
+      "fixName": {
+        "what": "Name der Befestigung für Tabelle und Bericht.",
+        "why": "Damit die Befestigung in der Liste und im Bericht erkennbar ist.",
+        "effect": "Ohne Einfluss auf die Berechnung."
+      },
+      "fixAxes": {
+        "what": "Achsen X, Y, Z der Zeichnung, in denen die Befestigung das Teil hält.",
+        "why": "Ein Wandanker hält meist horizontal, ein Auflager auf einem Bauwerk senkrecht.",
+        "effect": "In den gewählten Achsen ist der Knoten in beide Richtungen gehalten (Druck und Zug), in den übrigen frei. Die Reaktionen stehen in der Tabelle der Befestigungen und im Bericht."
+      },
+      "fixAt": {
+        "what": "Stelle der Befestigung entlang des Teils, % der Länge ab seinem Anfang.",
+        "why": "Die Befestigung kann außerhalb der Enden des Teils sitzen.",
+        "effect": "0 und 100 % – Enden, 50 % – Mitte. Anfang – das Ende mit kleinerem X (dann Y), bei Stielen das untere."
+      },
+      "fixLimit": {
+        "what": "Bemessungswert der Tragfähigkeit einer Befestigung (zum Beispiel eines Ankers).",
+        "why": "Damit das Programm die Befestigung nachweist.",
+        "effect": "Wenn eingegeben – die resultierende Reaktion wird damit verglichen (Nachweis „Befestigung“, η). 0 – ohne Nachweis, nur Reaktionen."
+      }
+    }
   }
 }

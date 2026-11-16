@@ -339,6 +339,7 @@ export default function ScaffoldApp() {
           <div className="grid grid-cols-1 gap-2">
             <SelectField
               label={fmt.t('scaffold.loads.class')}
+              help="scaffold.loadClass"
               value={String(sc.loadClass)}
               testId="scaffold-load-class"
               options={Object.entries(LOAD_CLASSES).map(([k, v]) => ({ value: k, label: fmt.t('scaffold.loads.classOption', { n: k, p: fmt.q(v * 1e3, 'areaLoad') }) }))}

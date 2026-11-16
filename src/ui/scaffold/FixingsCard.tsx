@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import type { UserFixing } from '../../scaffold/userLoads';
-import { Button, Card, NumberField, TextField, cx } from '../common';
+import { Button, Card, HelpTip, NumberField, TextField, cx } from '../common';
 import { useFmt } from '../hooks';
 
 const AXES = ['x', 'y', 'z'] as const;
@@ -39,9 +39,12 @@ export function FixingsCard({ st }: { st: ScaffoldStructure }) {
     <Card title={fmt.t('scaffold.fix.title')} testId="scaffold-fixings">
       <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.fix.intro')}</p>
       <div className="grid grid-cols-2 items-end gap-2 lg:grid-cols-6">
-        <TextField className="col-span-2" label={fmt.t('scaffold.fix.name')} value={name} onChange={setName} placeholder={fmt.t('scaffold.fix.namePlaceholder')} testId="scaffold-fix-name" />
+        <TextField className="col-span-2" label={fmt.t('scaffold.fix.name')} value={name} onChange={setName} placeholder={fmt.t('scaffold.fix.namePlaceholder')} testId="scaffold-fix-name" help="scaffold.fixName" />
         <div>
-          <p className="mb-1 text-xs font-medium text-slate-600 dark:text-slate-300">{fmt.t('scaffold.fix.axes')}</p>
+          <div className="mb-1 flex items-center gap-1">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-300">{fmt.t('scaffold.fix.axes')}</p>
+            <HelpTip id="scaffold.fixAxes" title={fmt.t('scaffold.fix.axes')} />
+          </div>
           <div className="flex gap-2 pb-1.5 text-xs">
             {AXES.map((d) => (
               <label key={d} className="flex items-center gap-1">
@@ -51,8 +54,8 @@ export function FixingsCard({ st }: { st: ScaffoldStructure }) {
             ))}
           </div>
         </div>
-        <NumberField label={fmt.t('scaffold.fix.at')} value={at * 100} onChange={(v) => setAt(Math.min(Math.max(v / 100, 0), 1))} testId="scaffold-fix-at" />
-        <NumberField label={fmt.t('scaffold.fix.limit')} q="force" value={limit} onChange={(v) => setLimit(Math.max(0, v))} testId="scaffold-fix-limit" />
+        <NumberField label={fmt.t('scaffold.fix.at')} value={at * 100} onChange={(v) => setAt(Math.min(Math.max(v / 100, 0), 1))} testId="scaffold-fix-at" help="scaffold.fixAt" />
+        <NumberField label={fmt.t('scaffold.fix.limit')} q="force" value={limit} onChange={(v) => setLimit(Math.max(0, v))} testId="scaffold-fix-limit" help="scaffold.fixLimit" />
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button variant="primary" size="sm" onClick={add} disabled={!sel.length || !dirs.length} data-testid="scaffold-fix-add">

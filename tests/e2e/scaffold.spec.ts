@@ -203,6 +203,23 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await page.getByTestId('scaffold-advanced-reset').click();
   await expect(page.getByTestId('scaffold-advanced-changed')).toHaveCount(0);
   await expect(page.getByTestId('scaffold-calc-slack')).toHaveValue('off');
+  // every setting has a "?": what it is, why it is needed, what it changes
+  await page.getByTestId('help-scaffold-slack').click();
+  const help = page.getByTestId('help-text-scaffold-slack');
+  await expect(help).toBeVisible();
+  await expect(help).toContainText('Что это');
+  await expect(help).toContainText('Что меняет');
+  await expect(help).toContainText('PERI ForceControl');
+  await page.keyboard.press('Escape');
+  await expect(help).toHaveCount(0);
+  // the "?" of a checkbox does not toggle it
+  await page.getByTestId('help-scaffold-second').click();
+  await expect(page.getByTestId('help-text-scaffold-second')).toContainText('1/200');
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('scaffold-calc-second')).toBeChecked();
+  await expect(page.getByTestId('scaffold-advanced-changed')).toHaveCount(0);
+  for (const id of ['scaffold-level', 'scaffold-g', 'scaffold-tol', 'scaffold-ubk', 'scaffold-splice', 'scaffold-cap', 'scaffold-gFavR', 'scaffold-loadClass', 'scaffold-exposure', 'scaffold-terrain', 'scaffold-windManual', 'scaffold-qMax', 'scaffold-snow', 'scaffold-ice'])
+    await expect(page.getByTestId(`help-${id}`)).toBeVisible();
   // print report: conditions, results and the specification with weights
   await page.emulateMedia({ media: 'print' });
   await page.evaluate("window.dispatchEvent(new Event('beforeprint'))");

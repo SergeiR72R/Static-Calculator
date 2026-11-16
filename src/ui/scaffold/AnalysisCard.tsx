@@ -156,8 +156,8 @@ export function AnalysisCard({
       )}
       {outdoor && (sc.snow || sc.ice) && (
         <div className="mb-2 grid grid-cols-2 gap-2 lg:grid-cols-4">
-          {sc.snow && <NumberField label={fmt.t('scaffold.calc.snowLoad')} q="areaLoad" showUnit value={sc.snowLoad} onChange={(v) => sc.setOpts({ snowLoad: Math.max(0, v) })} />}
-          {sc.ice && <NumberField label={fmt.t('scaffold.calc.ice')} q="sectionDim" showUnit value={sc.iceThickness} onChange={(v) => sc.setOpts({ iceThickness: Math.max(0, v) })} />}
+          {sc.snow && <NumberField label={fmt.t('scaffold.calc.snowLoad')} q="areaLoad" showUnit value={sc.snowLoad} onChange={(v) => sc.setOpts({ snowLoad: Math.max(0, v) })} help="scaffold.snowLoad" />}
+          {sc.ice && <NumberField label={fmt.t('scaffold.calc.ice')} q="sectionDim" showUnit value={sc.iceThickness} onChange={(v) => sc.setOpts({ iceThickness: Math.max(0, v) })} help="scaffold.iceThickness" />}
         </div>
       )}
       <VerdictPanel a={assessment} done={!!res} stale={stale} selected={sc.selected} onSelect={(parts) => sc.select(parts)} />

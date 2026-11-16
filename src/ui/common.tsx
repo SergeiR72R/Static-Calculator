@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from 'react';
-import { Switch as RSwitch, Tooltip as RTooltip } from 'radix-ui';
+import { Popover, Switch as RSwitch, Tooltip as RTooltip } from 'radix-ui';
 import { parseNumber } from '../units/format';
 import type { Quantity } from '../units/units';
 import { useFieldIssues, useFmt } from './hooks';
@@ -52,6 +52,90 @@ export function Tip({ content, children }: { content: ReactNode; children: React
   );
 }
 
+/**
+ * "?" beside a setting: a click opens what the setting is, why it is needed and what it changes
+ * (texts under help.<id>.what / .why / .effect).
+ */
+export function HelpTip({ id, title }: { id: string; title?: string }) {
+  const fmt = useFmt();
+  const k = `help.${id}`;
+  const tid = id.replace(/\./g, '-');
+  return (
+    <Popover.Root>
+      <Popover.Trigger asChild>
+        <button
+          type="button"
+          aria-label={title ? `${fmt.t('help.button')}: ${title}` : fmt.t('help.button')}
+          data-testid={`help-${tid}`}
+          className="no-print inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-slate-400 text-[9px] font-bold leading-none text-slate-500 hover:border-accent-600 hover:text-accent-700 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent-500 data-[state=open]:border-accent-700 data-[state=open]:bg-accent-700 data-[state=open]:text-white dark:border-slate-500 dark:text-slate-400"
+        >
+          ?
+        </button>
+      </Popover.Trigger>
+      <Popover.Portal>
+        <Popover.Content
+          side="bottom"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          data-testid={`help-text-${tid}`}
+          className="no-print z-50 w-80 max-w-[calc(100vw-16px)] rounded-md border border-slate-200 bg-white p-3 text-xs leading-snug text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+        >
+          {title && <p className="mb-1.5 font-semibold text-slate-900 dark:text-slate-50">{title}</p>}
+          <dl className="space-y-1.5">
+            {(['what', 'why', 'effect'] as const).map((p) => (
+              <div key={p}>
+                <dt className="text-[10px] font-semibold tracking-wide text-accent-700 uppercase dark:text-accent-300">{fmt.t(`help.${p}`)}</dt>
+                <dd>{fmt.t(`${k}.${p}`)}</dd>
+              </div>
+            ))}
+          </dl>
+          <Popover.Arrow className="fill-white dark:fill-slate-900" />
+        </Popover.Content>
+      </Popover.Portal>
+    </Popover.Root>
+  );
+}
+
+/** label of a field with the "?" of its help */
+function FieldLabel({ htmlFor, help, title, children }: { htmlFor: string; help?: string; title?: string; children: ReactNode }) {
+  return (
+    <div className="mb-0.5 flex min-w-0 items-center gap-1">
+      <label htmlFor={htmlFor} className="block min-w-0 text-[11px] font-medium text-slate-500 dark:text-slate-400">
+        {children}
+      </label>
+      {help && <HelpTip id={help} title={title} />}
+    </div>
+  );
+}
+
+/** checkbox with its label and the "?" of its help beside (outside the label, so the click does not toggle) */
+export function CheckField({
+  checked,
+  onChange,
+  label,
+  help,
+  testId,
+  className,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: ReactNode;
+  help?: string;
+  testId?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cx('flex items-center gap-1.5', className)}>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} data-testid={testId} />
+        {label}
+      </label>
+      {help && <HelpTip id={help} title={typeof label === 'string' ? label : undefined} />}
+    </div>
+  );
+}
+
 const inputBase =
   'h-7 w-full min-w-0 rounded border bg-white px-1.5 text-sm num outline-none focus:border-accent-500 focus:ring-1 focus:ring-accent-500 dark:bg-slate-900';
 
@@ -69,13 +153,15 @@ interface NumberFieldProps {
   disabled?: boolean;
   testId?: string;
   ariaLabel?: string;
+  /** key of the help texts (help.<key>.what / .why / .effect): a "?" beside the label */
+  help?: string;
 }
 
 /**
  * Number input: accepts comma or point, converts display units ↔ SI, recalculates on every
  * valid keystroke and shows validation messages of the analysis for its model path.
  */
-export function NumberField({ value, q = 'factor', onChange, path, label, showUnit, className, disabled, testId, ariaLabel }: NumberFieldProps) {
+export function NumberField({ value, q = 'factor', onChange, path, label, showUnit, className, disabled, testId, ariaLabel, help }: NumberFieldProps) {
   const fmt = useFmt();
   const id = useId();
   // text being edited; null while the field is not focused (then the model value is shown)
@@ -90,10 +176,10 @@ export function NumberField({ value, q = 'factor', onChange, path, label, showUn
   return (
     <div className={cx('min-w-0', className)}>
       {label && (
-        <label htmlFor={id} className="mb-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+        <FieldLabel htmlFor={id} help={help} title={label}>
           {label}
           {unit && !showUnit ? <span className="font-normal"> [{unit}]</span> : null}
-        </label>
+        </FieldLabel>
       )}
       <div className="flex items-center gap-1">
         <input
@@ -151,6 +237,7 @@ export function TextField({
   className,
   placeholder,
   testId,
+  help,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -158,14 +245,15 @@ export function TextField({
   className?: string;
   placeholder?: string;
   testId?: string;
+  help?: string;
 }) {
   const id = useId();
   return (
     <div className={className}>
       {label && (
-        <label htmlFor={id} className="mb-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+        <FieldLabel htmlFor={id} help={help} title={label}>
           {label}
-        </label>
+        </FieldLabel>
       )}
       <input
         id={id}
@@ -189,6 +277,7 @@ export function SelectField<T extends string>({
   className,
   testId,
   ariaLabel,
+  help,
 }: {
   value: T;
   options: { value: T; label: string }[];
@@ -197,14 +286,15 @@ export function SelectField<T extends string>({
   className?: string;
   testId?: string;
   ariaLabel?: string;
+  help?: string;
 }) {
   const id = useId();
   return (
     <div className={cx('min-w-0', className)}>
       {label && (
-        <label htmlFor={id} className="mb-0.5 block text-[11px] font-medium text-slate-500 dark:text-slate-400">
+        <FieldLabel htmlFor={id} help={help} title={label}>
           {label}
-        </label>
+        </FieldLabel>
       )}
       <select
         id={id}

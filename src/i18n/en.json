@@ -1202,5 +1202,213 @@
       "run": "Combinations: {done} of {total}"
     },
     "clearSelection": "Clear highlighting ({n})"
+  },
+  "help": {
+    "button": "About this setting",
+    "what": "What it is",
+    "why": "Why",
+    "effect": "What it changes",
+    "scaffold": {
+      "level": {
+        "what": "Deck level that carries the service load of the load class.",
+        "why": "By EN 12811-1 the full service load acts on one level; the other levels carry their self weight (and snow).",
+        "effect": "“Automatic” takes the level with the largest deck area – the largest total load. Another level distributes the forces in standards and ledgers differently: choose it if that level will be loaded."
+      },
+      "g": {
+        "what": "Self weight of the decks per m² of deck area.",
+        "why": "The weight of the members of the drawing is computed from the catalogue; the decks are taken as an area load.",
+        "effect": "Permanent load in all combinations (γ = 1.5; in the S combinations γ = 0.9) and in the beam loads for the beam calculator. Default 0.3 kN/m² – with a reserve for PERI UP decks."
+      },
+      "tol": {
+        "what": "Largest distance over which a part of the drawing is moved onto its connection point.",
+        "why": "In drawings parts often sit millimetres to centimetres off the rosettes and axes; without snapping they would not connect and the model would fall apart.",
+        "effect": "Larger – more parts are connected, but a value too large also connects parts that are not connected in reality. 0 – off. Default 5 cm, at most 20 cm."
+      },
+      "ubk": {
+        "what": "Model of the UBK diagonals: by Annex A of the approval (eccentric head, tab. A.1/A.2) or simplified centric (tab. 15).",
+        "why": "The diagonals give the scaffold its horizontal stiffness; the forces in diagonals and nodes and the displacements depend on their model.",
+        "effect": "“Annex A” matches the approval Z-8.22-863 and PERI ForceControl – default. “Tab. 15” is a simplified variant for comparison: other stiffness and distribution of forces."
+      },
+      "slack": {
+        "what": "Play in the connection of the diagonals that is taken up before the diagonal carries.",
+        "why": "The approval allows the play of the wedge connections to be considered; PERI ForceControl calculates without it.",
+        "effect": "“Per approval” – the diagonals carry only after the play: larger displacements, part of the forces goes into the nodes of the standards. Default – no slack, as PFC."
+      },
+      "splice": {
+        "what": "Whether the joints of the standards (spigots) carry tension.",
+        "why": "A joint that is not secured carries compression only: under tension it opens.",
+        "effect": "“No tension” – the joint opens under tension, as in PFC; safer for the check of uplift and overturning (default). “With tension” – only if the joints are secured with bolts or spring pins."
+      },
+      "cap": {
+        "what": "Where the resistance of the nodes (rosettes) and diagonals is taken from.",
+        "why": "The approval gives different values for standards with 6 and 8 mm rosettes; the stiffness of the model is always that for 6 mm.",
+        "effect": "“By the article” – for each standard by its article, as PFC (default). “As the stiffness: 6 mm” – the smaller values for all standards, with a reserve."
+      },
+      "second": {
+        "what": "Second-order analysis with an inclination of the standards of 1/200 and bow imperfections of the standards.",
+        "why": "A scaffold is a flexible structure; EN 12811-1 requires deformations and imperfections to be considered.",
+        "effect": "Switch off for comparison only: forces and displacements come out smaller than in reality, a loss of stability is not found. Default – on."
+      },
+      "gFavR": {
+        "what": "Additional S combinations: permanent loads with γ = 0.9, without service load, with the maximum wind.",
+        "why": "They check bases lifting off and light scaffolds overturning – as the “Stability” section of PERI ForceControl.",
+        "effect": "On – lifting off and overturning are found that the combinations with γ = 1.5 do not show. Off can hide missing ballast or ties. Acts only outdoors with a maximum wind. Default – on."
+      },
+      "exposure": {
+        "what": "Where the scaffold stands: outdoors or indoors.",
+        "why": "Wind, snow and ice depend on it.",
+        "effect": "“Outdoors” – working wind 0.2 kN/m² and the maximum wind of the site (combinations R and S). “Indoors” – no wind, snow or ice; instead of wind a notional horizontal load of 2.5 % of the service load (at least 0.3 kN) acts."
+      },
+      "terrain": {
+        "what": "Terrain category by EN 1991-1-4: 0 – sea, I – lakes, II – open country, III – suburbs, IV – town.",
+        "why": "The roughness of the terrain changes how the wind speed grows with height.",
+        "effect": "The lower the category, the larger q_p. Acts for the Netherlands, Belgium, Luxembourg and other countries; in Germany q_p follows from the wind zone and the location, the category has no effect. Default II."
+      },
+      "windManual": {
+        "what": "Enter the peak velocity pressure q_p of the maximum wind directly.",
+        "why": "When the wind is given by the project or the client, or the site cannot be determined.",
+        "effect": "The q_p entered is used as it is for the combinations R and S: site, zone and the factor 0.7 are not applied."
+      },
+      "qMax": {
+        "what": "Peak velocity pressure of the maximum wind at the height of the scaffold.",
+        "why": "Sets the wind out of service.",
+        "effect": "The wind load of the combinations R and S is proportional to q_p; 0 – no out-of-service combinations."
+      },
+      "windZone": {
+        "what": "Wind zone 1–4 in Germany by DIN EN 1991-1-4/NA.",
+        "why": "The zone sets the basic wind velocity.",
+        "effect": "“Automatic” – zone from the DIBt table for the district of the site; if the district lies in several zones, choose the zone yourself. The higher the zone, the larger q_p."
+      },
+      "windExposure": {
+        "what": "Location by the NA: inland, coast or islands of the North Sea and the Baltic.",
+        "why": "For the coast and the islands the NA gives own q_p profiles.",
+        "effect": "Coast and islands give a larger q_p than inland."
+      },
+      "windAreaNL": {
+        "what": "Wind area I–III of the Netherlands by NEN-EN 1991-1-4/NB.",
+        "why": "The area sets the basic wind velocity v_b,0 = 29.5 / 27 / 24.5 m/s.",
+        "effect": "“Automatic” – by the municipality of the site. Area I gives the largest q_p."
+      },
+      "vb0Select": {
+        "what": "Basic wind velocity v_b,0 by the national annex (Belgium – by municipality, Luxembourg – 24 m/s).",
+        "why": "Sets q_p together with the terrain category and the height of the scaffold.",
+        "effect": "“Automatic” – by the site. q_p grows with the square of v_b,0."
+      },
+      "vb0": {
+        "what": "Basic wind velocity v_b,0 from the national annex to EN 1991-1-4 of the country where the scaffold stands.",
+        "why": "For countries without a built-in wind map the program does not know v_b,0.",
+        "effect": "q_p is computed by EN 1991-1-4 with the terrain category and the height of the scaffold and grows with the square of v_b,0. 0 – no maximum wind: no out-of-service combinations."
+      },
+      "standing": {
+        "what": "Reduction of the maximum wind by the factor 0.7 for the limited time the scaffold stands (EN 12811-1).",
+        "why": "Scaffolds stand for a short time, so a wind with a shorter return period than for buildings may be used.",
+        "effect": "q_p of the maximum wind is multiplied by 0.7. Switch off if the project or the national code requires the full wind. Default – on."
+      },
+      "snow": {
+        "what": "Consider snow on the decks.",
+        "why": "In winter snow on the decks is an additional vertical load out of service.",
+        "effect": "In the R combinations snow on all decks is added (γ = 1.5); its value is entered in the analysis card."
+      },
+      "snowLoad": {
+        "what": "Snow load per m² of deck.",
+        "why": "Depends on the site and on whether the decks are cleared.",
+        "effect": "Acts on all levels in the R combinations with γ = 1.5. Default 0.75 kN/m²."
+      },
+      "ice": {
+        "what": "Consider ice on the members.",
+        "why": "Ice adds weight and increases the area the wind acts on.",
+        "effect": "A layer of ice is added to all members: more self weight and wind load in all combinations; the thickness is entered in the analysis card."
+      },
+      "iceThickness": {
+        "what": "Thickness of the ice layer on the members.",
+        "why": "Sets the additional weight (900 kg/m³) and the width of the members for the wind.",
+        "effect": "The width of each member for the wind grows by two thicknesses, the weight by that of the ice shell. Default 1 cm."
+      },
+      "loadClass": {
+        "what": "Load class by EN 12811-1 (1–6): uniform service load on the deck from 0.75 to 6.0 kN/m².",
+        "why": "Sets what may be put on the scaffold: people, material, equipment.",
+        "effect": "The service load acts on the loaded level in the working combinations A; out of service (R) with the share 0 % (class 1), 25 % (2–3) or 50 % (4–6). Higher class – larger forces."
+      },
+      "loadName": {
+        "what": "Name of the load for the table and the report.",
+        "why": "So that the load can be recognised in the list and in the report.",
+        "effect": "No effect on the analysis."
+      },
+      "loadCase": {
+        "what": "Kind of load: permanent (G) or variable (Q).",
+        "why": "Permanent loads always act, variable loads while the scaffold is used.",
+        "effect": "G – in all combinations with γ = 1.5 (in S γ = 0.9). Q – fully in the working combinations, out of service with the share by the load class."
+      },
+      "loadKind": {
+        "what": "Type of load: a point force at one point of the part or a uniform load along it.",
+        "why": "Supports, equipment and reactions of structures set on top are mostly forces, distributed loads line loads.",
+        "effect": "Point – a force on each selected part at “Position, %”; line – a load per length over the whole length of each selected part."
+      },
+      "loadDir": {
+        "what": "Direction of the load: vertically down (Z) or horizontal along the X or Y axis of the drawing.",
+        "why": "Horizontal forces – for example from a hoist, a bracing cable or a structure set on top.",
+        "effect": "A horizontal load acts in each combination in its direction: in +x and −x with the respective sign (as the hoist loads LC7/LC8 in PFC)."
+      },
+      "loadWhen": {
+        "what": "In which combinations the load acts.",
+        "why": "Some loads exist only while working (material on the platform), others only out of service (stored material, structure in the parking position).",
+        "effect": "“Working and out of service” – Q out of service with the share by the load class; “working only” – only in the A combinations; “out of service only” – fully in the R combinations."
+      },
+      "loadValue": {
+        "what": "Size of the load: a force for a point or a load per length for a line, characteristic (without partial factors).",
+        "why": "The program applies the partial factors itself.",
+        "effect": "Acts fully on each selected part and is not shared between them."
+      },
+      "loadAt": {
+        "what": "Position of the point force along the part, % of the length from its start.",
+        "why": "The force may act away from a node.",
+        "effect": "0 and 100 % – ends of the part, 50 % – middle. Start – the end with the smaller X (then Y), for standards the lower one."
+      },
+      "plan": {
+        "what": "Loads drawn in the drawing as blocks with a weight (ballast, containers): the weight goes onto the parts under their outline.",
+        "why": "So that these loads need not be entered by hand.",
+        "effect": "On – the weight of the blocks as a permanent load on the parts below. Switch off if these loads are entered by hand, otherwise they are counted twice. Default – on."
+      },
+      "dhb": {
+        "what": "Dynamic horizontal load DHB when a load is set down on the platform by a crane (as in PERI ForceControl).",
+        "why": "A load set down by a crane pushes the platform sideways.",
+        "effect": "In the working combinations share × load (γ = 1.5) is added on the selected parts or the heads of the standards; indoors DHB replaces the notional horizontal load of the decks. Acts only if a load is entered."
+      },
+      "dhbLoad": {
+        "what": "Weight of the load the crane sets down on the platform (characteristic).",
+        "why": "DHB is computed from it.",
+        "effect": "DHB = share × load; 0 – no DHB."
+      },
+      "dhbShare": {
+        "what": "Share of the weight of the load that acts horizontally.",
+        "why": "PERI ForceControl takes 10 %.",
+        "effect": "The horizontal force grows with the share. Default 10 %."
+      },
+      "dhbDir": {
+        "what": "In which directions of the working combinations DHB acts.",
+        "why": "If the direction the load is set down from is known, it can be limited.",
+        "effect": "±x, ±y – in all four working combinations (default); ±x or ±y – only in the combinations of that direction."
+      },
+      "fixName": {
+        "what": "Name of the fixing for the table and the report.",
+        "why": "So that the fixing can be recognised in the list and in the report.",
+        "effect": "No effect on the analysis."
+      },
+      "fixAxes": {
+        "what": "Axes X, Y, Z of the drawing in which the fixing holds the part.",
+        "why": "A wall tie usually holds horizontally, a support on a structure vertically.",
+        "effect": "In the axes chosen the node is held both ways (compression and tension), in the others it is free. The reactions are shown in the table of fixings and in the report."
+      },
+      "fixAt": {
+        "what": "Position of the fixing along the part, % of the length from its start.",
+        "why": "The fixing may sit away from the ends of the part.",
+        "effect": "0 and 100 % – ends, 50 % – middle. Start – the end with the smaller X (then Y), for standards the lower one."
+      },
+      "fixLimit": {
+        "what": "Design resistance of one fixing (for example of a tie).",
+        "why": "So that the program checks the fixing.",
+        "effect": "If entered – the resultant reaction is compared with it (check “fixing”, η). 0 – no check, reactions only."
+      }
+    }
   }
 }

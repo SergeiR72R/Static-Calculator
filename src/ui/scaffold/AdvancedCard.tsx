@@ -1,5 +1,5 @@
 import { advancedChanged, useScaffold } from '../../scaffold/store';
-import { Button, NumberField, SelectField } from '../common';
+import { Button, CheckField, NumberField, SelectField } from '../common';
 import { useFmt } from '../hooks';
 
 /**
@@ -31,6 +31,7 @@ export function AdvancedCard({ levels }: { levels: { z: number; area: number }[]
         <div className="grid grid-cols-1 gap-2">
           <SelectField
             label={fmt.t('scaffold.calc.level')}
+            help="scaffold.level"
             value={String(sc.level)}
             testId="scaffold-calc-level"
             options={[
@@ -39,10 +40,11 @@ export function AdvancedCard({ levels }: { levels: { z: number; area: number }[]
             ]}
             onChange={(v) => sc.setOpts({ level: Number(v) })}
           />
-          <NumberField label={fmt.t('scaffold.loads.g')} q="areaLoad" showUnit value={sc.g} onChange={(v) => sc.setOpts({ g: Math.max(0, v) })} testId="scaffold-load-g" />
-          <NumberField label={fmt.t('scaffold.heal.tol')} q="sectionDim" showUnit value={sc.tol} onChange={(v) => sc.setOpts({ tol: Math.min(Math.max(0, v), 0.2) })} testId="scaffold-tol" />
+          <NumberField label={fmt.t('scaffold.loads.g')} q="areaLoad" showUnit value={sc.g} onChange={(v) => sc.setOpts({ g: Math.max(0, v) })} testId="scaffold-load-g" help="scaffold.g" />
+          <NumberField label={fmt.t('scaffold.heal.tol')} q="sectionDim" showUnit value={sc.tol} onChange={(v) => sc.setOpts({ tol: Math.min(Math.max(0, v), 0.2) })} testId="scaffold-tol" help="scaffold.tol" />
           <SelectField
             label={fmt.t('scaffold.calc.ubkModel')}
+            help="scaffold.ubk"
             value={sc.ubkModel}
             testId="scaffold-calc-ubk"
             options={[
@@ -51,23 +53,18 @@ export function AdvancedCard({ levels }: { levels: { z: number; area: number }[]
             ]}
             onChange={(v) => sc.setOpts({ ubkModel: v === 'table15' ? 'table15' : 'annexA' })}
           />
-          <SelectField label={fmt.t('scaffold.calc.slack')} value={sc.diagSlack ? 'on' : 'off'} testId="scaffold-calc-slack" options={yesNo('scaffold.calc.slackOn', 'scaffold.calc.slackOff')} onChange={(v) => sc.setOpts({ diagSlack: v === 'on' })} />
+          <SelectField label={fmt.t('scaffold.calc.slack')} value={sc.diagSlack ? 'on' : 'off'} testId="scaffold-calc-slack" help="scaffold.slack" options={yesNo('scaffold.calc.slackOn', 'scaffold.calc.slackOff')} onChange={(v) => sc.setOpts({ diagSlack: v === 'on' })} />
           <SelectField
             label={fmt.t('scaffold.calc.splice')}
+            help="scaffold.splice"
             value={sc.spliceNoTension ? 'on' : 'off'}
             testId="scaffold-calc-splice"
             options={yesNo('scaffold.calc.spliceFree', 'scaffold.calc.spliceTension')}
             onChange={(v) => sc.setOpts({ spliceNoTension: v === 'on' })}
           />
-          <SelectField label={fmt.t('scaffold.calc.cap')} value={sc.capByArticle ? 'on' : 'off'} testId="scaffold-calc-cap" options={yesNo('scaffold.calc.capArticle', 'scaffold.calc.capSix')} onChange={(v) => sc.setOpts({ capByArticle: v === 'on' })} />
-          <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={sc.secondOrder} onChange={(e) => sc.setOpts({ secondOrder: e.target.checked })} data-testid="scaffold-calc-second" />
-            {fmt.t('scaffold.calc.secondOrder')}
-          </label>
-          <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={sc.gFavR} onChange={(e) => sc.setOpts({ gFavR: e.target.checked })} data-testid="scaffold-gfav" />
-            {fmt.t('scaffold.loads.gFav')}
-          </label>
+          <SelectField label={fmt.t('scaffold.calc.cap')} value={sc.capByArticle ? 'on' : 'off'} testId="scaffold-calc-cap" help="scaffold.cap" options={yesNo('scaffold.calc.capArticle', 'scaffold.calc.capSix')} onChange={(v) => sc.setOpts({ capByArticle: v === 'on' })} />
+          <CheckField className="text-xs" checked={sc.secondOrder} onChange={(v) => sc.setOpts({ secondOrder: v })} label={fmt.t('scaffold.calc.secondOrder')} help="scaffold.second" testId="scaffold-calc-second" />
+          <CheckField className="text-xs" checked={sc.gFavR} onChange={(v) => sc.setOpts({ gFavR: v })} label={fmt.t('scaffold.loads.gFav')} help="scaffold.gFavR" testId="scaffold-gfav" />
         </div>
         <p className="text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('scaffold.heal.hint')}</p>
         <Button size="sm" className="w-full justify-center" onClick={() => sc.resetAdvanced()} disabled={!changed.length} data-testid="scaffold-advanced-reset">

@@ -3,7 +3,7 @@ import { planBlockLoads } from '../../scaffold/planLoads';
 import { useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import { DHB_SHARE, userLoadTotal, type UserLoad, type UserLoadWhen } from '../../scaffold/userLoads';
-import { Button, Card, NumberField, SelectField, TextField, cx } from '../common';
+import { Button, Card, CheckField, NumberField, SelectField, TextField, cx } from '../common';
 import { useFmt } from '../hooks';
 import { IconInfo } from '../icons';
 
@@ -64,9 +64,10 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
     <Card title={fmt.t('scaffold.loads.title')} testId="scaffold-loads">
       <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.loads.intro')}</p>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-9">
-        <TextField className="col-span-2" label={fmt.t('scaffold.loads.name')} value={name} onChange={setName} placeholder={fmt.t('scaffold.loads.namePlaceholder')} testId="scaffold-load-name" />
+        <TextField className="col-span-2" label={fmt.t('scaffold.loads.name')} value={name} onChange={setName} placeholder={fmt.t('scaffold.loads.namePlaceholder')} testId="scaffold-load-name" help="scaffold.loadName" />
         <SelectField
           label={fmt.t('scaffold.loads.case')}
+          help="scaffold.loadCase"
           value={lc}
           testId="scaffold-load-case"
           options={[
@@ -77,6 +78,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
         />
         <SelectField
           label={fmt.t('scaffold.loads.kind')}
+          help="scaffold.loadKind"
           value={kind}
           testId="scaffold-load-kind"
           options={[
@@ -87,6 +89,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
         />
         <SelectField
           label={fmt.t('scaffold.loads.dir')}
+          help="scaffold.loadDir"
           value={dir}
           testId="scaffold-load-dir"
           options={[
@@ -98,13 +101,14 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
         />
         <SelectField
           label={fmt.t('scaffold.loads.when')}
+          help="scaffold.loadWhen"
           value={when}
           testId="scaffold-load-when"
           options={whenOptions}
           onChange={setWhen}
         />
-        <NumberField label={fmt.t('scaffold.loads.value')} q={kind === 'point' ? 'force' : 'lineLoad'} value={value} onChange={(v) => setValue(Math.max(0, v))} testId="scaffold-load-value" />
-        {kind === 'point' && <NumberField label={fmt.t('scaffold.loads.at')} value={at * 100} onChange={(v) => setAt(Math.min(Math.max(v / 100, 0), 1))} testId="scaffold-load-at" />}
+        <NumberField label={fmt.t('scaffold.loads.value')} q={kind === 'point' ? 'force' : 'lineLoad'} value={value} onChange={(v) => setValue(Math.max(0, v))} testId="scaffold-load-value" help="scaffold.loadValue" />
+        {kind === 'point' && <NumberField label={fmt.t('scaffold.loads.at')} value={at * 100} onChange={(v) => setAt(Math.min(Math.max(v / 100, 0), 1))} testId="scaffold-load-at" help="scaffold.loadAt" />}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Button variant="primary" size="sm" onClick={add} disabled={!sel.length || !(value > 0)} data-testid="scaffold-load-add">
@@ -184,10 +188,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
       {plan && (
         <div className="mt-3 space-y-1 border-t border-slate-200 pt-2 text-xs dark:border-slate-700" data-testid="scaffold-plan-box">
           <div className="flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={sc.planLoads} onChange={(e) => sc.setOpts({ planLoads: e.target.checked })} data-testid="scaffold-plan" />
-              {fmt.t('scaffold.loads.plan')}
-            </label>
+            <CheckField checked={sc.planLoads} onChange={(v) => sc.setOpts({ planLoads: v })} label={fmt.t('scaffold.loads.plan')} help="scaffold.plan" testId="scaffold-plan" />
             {plan.placed.length > 0 && (
               <Button size="sm" variant="ghost" onClick={() => sc.select(planParts)} data-testid="scaffold-plan-show">
                 {fmt.t('scaffold.loads.dhbShow')}
@@ -203,17 +204,15 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
 
       <div className="mt-3 space-y-2 border-t border-slate-200 pt-2 text-xs dark:border-slate-700" data-testid="scaffold-dhb-box">
         <div className="flex flex-wrap items-end gap-2">
-          <label className="flex items-center gap-2 pb-1">
-            <input type="checkbox" checked={sc.dhb > 0} onChange={(e) => sc.setOpts({ dhb: e.target.checked ? DHB_SHARE : 0 })} data-testid="scaffold-dhb" />
-            {fmt.t('scaffold.loads.dhb')}
-          </label>
+          <CheckField className="pb-1" checked={sc.dhb > 0} onChange={(v) => sc.setOpts({ dhb: v ? DHB_SHARE : 0 })} label={fmt.t('scaffold.loads.dhb')} help="scaffold.dhb" testId="scaffold-dhb" />
           {sc.dhb > 0 && (
             <>
-              <NumberField className="w-36" label={fmt.t('scaffold.loads.dhbLoad')} q="force" value={sc.dhbLoad} onChange={(v) => sc.setOpts({ dhbLoad: Math.max(0, v) })} testId="scaffold-dhb-load" />
-              <NumberField className="w-20" label={fmt.t('scaffold.loads.dhbShare')} value={sc.dhb * 100} onChange={(v) => sc.setOpts({ dhb: Math.min(Math.max(v / 100, 0), 1) })} testId="scaffold-dhb-share" />
+              <NumberField className="w-36" label={fmt.t('scaffold.loads.dhbLoad')} q="force" value={sc.dhbLoad} onChange={(v) => sc.setOpts({ dhbLoad: Math.max(0, v) })} testId="scaffold-dhb-load" help="scaffold.dhbLoad" />
+              <NumberField className="w-20" label={fmt.t('scaffold.loads.dhbShare')} value={sc.dhb * 100} onChange={(v) => sc.setOpts({ dhb: Math.min(Math.max(v / 100, 0), 1) })} testId="scaffold-dhb-share" help="scaffold.dhbShare" />
               <SelectField
                 className="w-32"
                 label={fmt.t('scaffold.loads.dhbDir')}
+                help="scaffold.dhbDir"
                 value={sc.dhbDir}
                 testId="scaffold-dhb-dir"
                 options={[

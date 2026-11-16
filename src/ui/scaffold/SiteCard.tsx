@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useScaffold, TERRAINS, type Site, type Terrain } from '../../scaffold/store';
 import { EU_COUNTRIES, fetchElevation, reversePlace, searchPlace, type Place } from '../../scaffold/geo';
 import { siteWind } from '../../scaffold/store';
-import { Button, Card, NumberField, SelectField, cx } from '../common';
+import { Button, Card, CheckField, HelpTip, NumberField, SelectField, cx } from '../common';
 import { DialogShell } from '../DialogShell';
 import { useFmt } from '../hooks';
 import { IconAlert, IconCheck } from '../icons';
@@ -178,12 +178,9 @@ function WindBlock({ height }: { height: number }) {
   return (
     <div className="rounded border border-slate-200 p-2 text-xs dark:border-slate-700" data-testid="site-wind">
       <p className="mb-1 font-semibold">{fmt.t('scaffold.wind.title')}</p>
-      <label className="mb-1 flex items-center gap-2">
-        <input type="checkbox" checked={sc.windManual} onChange={(e) => sc.setOpts({ windManual: e.target.checked })} data-testid="wind-manual" />
-        {fmt.t('scaffold.wind.manual')}
-      </label>
+      <CheckField className="mb-1" checked={sc.windManual} onChange={(v) => sc.setOpts({ windManual: v })} label={fmt.t('scaffold.wind.manual')} help="scaffold.windManual" testId="wind-manual" />
       {sc.windManual ? (
-        <NumberField label="q_p" q="areaLoad" showUnit value={sc.qMax} onChange={(v) => sc.setOpts({ qMax: Math.max(0, v) })} testId="wind-qmax" />
+        <NumberField label="q_p" q="areaLoad" showUnit value={sc.qMax} onChange={(v) => sc.setOpts({ qMax: Math.max(0, v) })} testId="wind-qmax" help="scaffold.qMax" />
       ) : !sc.site ? (
         <p className="text-amber-700 dark:text-amber-300">{fmt.t('scaffold.wind.noSite')}</p>
       ) : de ? (
@@ -191,6 +188,7 @@ function WindBlock({ height }: { height: number }) {
           <div className="grid grid-cols-2 gap-2">
             <SelectField
               label={fmt.t('scaffold.wind.zone')}
+              help="scaffold.windZone"
               value={String(sc.windZone)}
               testId="wind-zone"
               options={[{ value: '0', label: w.zone && !sc.windZone ? fmt.t('scaffold.wind.zoneAuto', { n: w.zone }) : fmt.t('scaffold.wind.zoneNone') }, ...[1, 2, 3, 4].map((n) => ({ value: String(n), label: fmt.t('scaffold.wind.zoneN', { n }) }))]}
@@ -198,6 +196,7 @@ function WindBlock({ height }: { height: number }) {
             />
             <SelectField
               label={fmt.t('scaffold.wind.exposure')}
+              help="scaffold.windExposure"
               value={sc.windExposure}
               testId="wind-exposure"
               options={(['inland', 'coast', 'island'] as const).map((e) => ({ value: e, label: fmt.t(`scaffold.wind.exp.${e}`) }))}
@@ -222,6 +221,7 @@ function WindBlock({ height }: { height: number }) {
         <div className="space-y-1.5">
           <SelectField
             label={fmt.t('scaffold.wind.areaNL')}
+            help="scaffold.windAreaNL"
             value={String(sc.windZone >= 1 && sc.windZone <= 3 ? sc.windZone : 0)}
             testId="wind-zone"
             options={[
@@ -239,6 +239,7 @@ function WindBlock({ height }: { height: number }) {
         <div className="space-y-1.5">
           <SelectField
             label={fmt.t('scaffold.wind.vb0')}
+            help="scaffold.vb0Select"
             value={String(sc.windZone >= 20 ? sc.windZone : 0)}
             testId="wind-vb0-select"
             options={[
@@ -254,15 +255,12 @@ function WindBlock({ height }: { height: number }) {
         </div>
       ) : (
         <div>
-          <NumberField label={fmt.t('scaffold.wind.vb0')} value={sc.vb0} onChange={(v) => sc.setOpts({ vb0: Math.max(0, v) })} testId="wind-vb0" />
+          <NumberField label={fmt.t('scaffold.wind.vb0')} value={sc.vb0} onChange={(v) => sc.setOpts({ vb0: Math.max(0, v) })} testId="wind-vb0" help="scaffold.vb0" />
           <p className="mt-1 text-[11px] text-slate-500">{fmt.t('scaffold.wind.vb0Hint')}</p>
         </div>
       )}
       {!sc.windManual && (
-        <label className="mt-1.5 flex items-center gap-2">
-          <input type="checkbox" checked={sc.standing} onChange={(e) => sc.setOpts({ standing: e.target.checked })} />
-          {fmt.t('scaffold.wind.standing')}
-        </label>
+        <CheckField className="mt-1.5" checked={sc.standing} onChange={(v) => sc.setOpts({ standing: v })} label={fmt.t('scaffold.wind.standing')} help="scaffold.standing" testId="wind-standing" />
       )}
       <p className="mt-1.5 font-medium" data-testid="wind-result">
         {w.qMax > 0
@@ -280,6 +278,10 @@ export function SiteCard({ height }: { height: number }) {
   const outdoor = sc.exposure === 'outdoor';
   return (
     <Card title={fmt.t('scaffold.site.title')} testId="scaffold-site">
+      <div className="mb-0.5 flex items-center gap-1">
+        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">{fmt.t('scaffold.site.exposure')}</span>
+        <HelpTip id="scaffold.exposure" title={fmt.t('scaffold.site.exposure')} />
+      </div>
       <div className="mb-2 flex overflow-hidden rounded-md border border-slate-300 text-xs dark:border-slate-600" role="group" aria-label={fmt.t('scaffold.site.exposure')}>
         {(['outdoor', 'indoor'] as const).map((e) => (
           <button
@@ -318,20 +320,15 @@ export function SiteCard({ height }: { height: number }) {
           </Button>
           <SelectField
             label={fmt.t('scaffold.site.terrain')}
+            help="scaffold.terrain"
             value={sc.terrain}
             testId="site-terrain"
             options={TERRAINS.map((t) => ({ value: t, label: fmt.t(`scaffold.site.terrainOption.${t}`) }))}
             onChange={(v) => sc.setOpts({ terrain: v as Terrain })}
           />
           <WindBlock height={height} />
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={sc.snow} onChange={(e) => sc.setOpts({ snow: e.target.checked })} data-testid="site-snow" />
-            {fmt.t('scaffold.site.snow')}
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={sc.ice} onChange={(e) => sc.setOpts({ ice: e.target.checked })} data-testid="site-ice" />
-            {fmt.t('scaffold.site.ice')}
-          </label>
+          <CheckField className="text-sm" checked={sc.snow} onChange={(v) => sc.setOpts({ snow: v })} label={fmt.t('scaffold.site.snow')} help="scaffold.snow" testId="site-snow" />
+          <CheckField className="text-sm" checked={sc.ice} onChange={(v) => sc.setOpts({ ice: v })} label={fmt.t('scaffold.site.ice')} help="scaffold.ice" testId="site-ice" />
           <p className="text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('scaffold.site.windHint')}</p>
         </div>
       )}

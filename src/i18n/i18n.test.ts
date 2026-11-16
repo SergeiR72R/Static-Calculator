@@ -49,6 +49,24 @@ describe('localization', () => {
     expect(missing).toEqual([]);
   });
 
+  it('every "?" of a setting has its texts, every help text belongs to a setting', () => {
+    const used = new Set<string>();
+    const walk = (dir: string) => {
+      for (const f of readdirSync(dir)) {
+        const p = join(dir, f);
+        if (statSync(p).isDirectory()) walk(p);
+        else if (/\.tsx$/.test(f)) for (const m of readFileSync(p, 'utf8').matchAll(/\b(?:help|id)="(scaffold\.\w+)"/g)) used.add(m[1]);
+      }
+    };
+    walk(join(__dirname, '..'));
+    expect(used.size).toBeGreaterThan(30);
+    const missing: string[] = [];
+    for (const id of used) for (const p of ['what', 'why', 'effect']) for (const l of ['de', 'en', 'ru', 'he'] as const) if (!hasKey(l, `help.${id}.${p}`)) missing.push(`${l} help.${id}.${p}`);
+    expect(missing).toEqual([]);
+    const defined = [...new Set(de.filter((k) => k.startsWith('help.scaffold.')).map((k) => k.split('.').slice(1, 3).join('.')))];
+    expect(defined.filter((id) => !used.has(id))).toEqual([]);
+  });
+
   it('dynamic key families are complete', () => {
     const fams: Record<string, string[]> = {
       'support.types': ['fixed', 'pinned', 'roller', 'slider', 'spring'],

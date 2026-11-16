@@ -151,6 +151,8 @@ export interface ScaffoldState extends ScaffoldOpts {
   setDhbParts: (ids: string[]) => void;
   addLoad: (l: UserLoad) => void;
   removeLoad: (id: string) => void;
+  /** change a load entered by the user (e.g. the combinations it acts in) */
+  updateLoad: (id: string, patch: Partial<UserLoad>) => void;
   setDoc: (doc: ScaffoldDoc | null) => void;
   setOpts: (o: Partial<ScaffoldOpts>) => void;
   select: (parts: string[], girder?: string | null) => void;
@@ -254,6 +256,10 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   },
   removeLoad: (id) => {
     set({ loads: get().loads.filter((l) => l.id !== id) });
+    save(get());
+  },
+  updateLoad: (id, patch) => {
+    set({ loads: get().loads.map((l) => (l.id === id ? { ...l, ...patch } : l)) });
     save(get());
   },
   setBatchRef: (r) => {

@@ -22,7 +22,13 @@ export interface UserLoad {
   /** horizontal: components (x, y) of the force for the combinations of `dir` (e.g. a hoist load
    * "in y" with a part in x); default along `dir` */
   vec?: [number, number];
+  /** combinations: 'all' (default): working, and out of service (Q with the share of the service class);
+   * 'work': working only (a load in service, e.g. a hoist working); 'rest': out of service only, in
+   * full (e.g. a hoist parked) — as the load cases chosen per combination in PERI ForceControl */
+  when?: UserLoadWhen;
 }
+
+export type UserLoadWhen = 'all' | 'work' | 'rest';
 
 /** dynamic horizontal load (ForceControl "DHB"): share of the load moved by the crane (10 %) */
 export const DHB_SHARE = 0.1;

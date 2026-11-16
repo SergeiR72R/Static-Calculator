@@ -777,7 +777,11 @@
       "dir": "Direction",
       "dirZ": "vertical (downwards)",
       "dirX": "horizontal ±x (with the combination)",
-      "dirY": "horizontal ±y (with the combination)"
+      "dirY": "horizontal ±y (with the combination)",
+      "when": "Combinations",
+      "whenAll": "working and out of service (share)",
+      "whenWork": "working only (A)",
+      "whenRest": "out of service only (R, full)"
     },
     "heal": {
       "title": "Snap parts",

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { planBlockLoads } from '../../scaffold/planLoads';
 import { useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
-import { DHB_SHARE, userLoadTotal, type UserLoad } from '../../scaffold/userLoads';
+import { DHB_SHARE, userLoadTotal, type UserLoad, type UserLoadWhen } from '../../scaffold/userLoads';
 import { Button, Card, NumberField, SelectField, TextField, cx } from '../common';
 import { useFmt } from '../hooks';
 import { IconInfo } from '../icons';
@@ -20,6 +20,12 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
   const [value, setValue] = useState(10e3);
   const [at, setAt] = useState(0.5);
   const [dir, setDir] = useState<'z' | 'x' | 'y'>('z');
+  const [when, setWhen] = useState<UserLoadWhen>('all');
+  const whenOptions: { value: UserLoadWhen; label: string }[] = [
+    { value: 'all', label: fmt.t('scaffold.loads.whenAll') },
+    { value: 'work', label: fmt.t('scaffold.loads.whenWork') },
+    { value: 'rest', label: fmt.t('scaffold.loads.whenRest') },
+  ];
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
   const sel = sc.selected.filter((id) => byId.has(id));
   // the selected parts by name
@@ -43,6 +49,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
       at: Math.min(Math.max(at, 0), 1),
       parts: [...sel],
       ...(dir !== 'z' ? { dir } : {}),
+      ...(when !== 'all' ? { when } : {}),
     };
     sc.addLoad(l);
     setName('');
@@ -56,7 +63,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
   return (
     <Card title={fmt.t('scaffold.loads.title')} testId="scaffold-loads">
       <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.loads.intro')}</p>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-8">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-9">
         <TextField className="col-span-2" label={fmt.t('scaffold.loads.name')} value={name} onChange={setName} placeholder={fmt.t('scaffold.loads.namePlaceholder')} testId="scaffold-load-name" />
         <SelectField
           label={fmt.t('scaffold.loads.case')}
@@ -89,6 +96,13 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
           ]}
           onChange={setDir}
         />
+        <SelectField
+          label={fmt.t('scaffold.loads.when')}
+          value={when}
+          testId="scaffold-load-when"
+          options={whenOptions}
+          onChange={setWhen}
+        />
         <NumberField label={fmt.t('scaffold.loads.value')} q={kind === 'point' ? 'force' : 'lineLoad'} value={value} onChange={(v) => setValue(Math.max(0, v))} testId="scaffold-load-value" />
         {kind === 'point' && <NumberField label={fmt.t('scaffold.loads.at')} value={at * 100} onChange={(v) => setAt(Math.min(Math.max(v / 100, 0), 1))} testId="scaffold-load-at" />}
       </div>
@@ -106,6 +120,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
               <tr className="border-b border-slate-200 text-[11px] text-slate-500 dark:border-slate-700">
                 <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.loads.name')}</th>
                 <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.loads.case')}</th>
+                <th className="px-1.5 py-1 text-start font-medium">{fmt.t('scaffold.loads.when')}</th>
                 <th className="px-1.5 py-1 text-end font-medium">{fmt.t('scaffold.loads.value')}</th>
                 <th className="px-1.5 py-1 text-end font-medium">{fmt.t('scaffold.loads.parts')}</th>
                 <th className="px-1.5 py-1 text-end font-medium">Σ</th>
@@ -126,6 +141,21 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
                     <td className="px-1.5 py-1">
                       {l.case}
                       {l.dir && l.dir !== 'z' && <span className="ms-1 text-slate-500">±{l.dir}</span>}
+                    </td>
+                    <td className="px-1.5 py-1">
+                      <select
+                        className="rounded border border-slate-300 bg-transparent px-1 py-0.5 text-xs dark:border-slate-600"
+                        value={l.when ?? 'all'}
+                        data-testid="scaffold-load-when-row"
+                        aria-label={fmt.t('scaffold.loads.when')}
+                        onChange={(e) => sc.updateLoad(l.id, { when: e.target.value as UserLoadWhen })}
+                      >
+                        {whenOptions.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="num px-1.5 py-1 text-end">
                       {l.kind === 'point' ? `${fmt.q(l.value, 'force', 2)} @ ${fmt.num(l.at * 100, 0)} %` : fmt.q(l.value, 'lineLoad', 2)}

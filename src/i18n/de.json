@@ -777,7 +777,11 @@
       "dir": "Richtung",
       "dirZ": "vertikal (nach unten)",
       "dirX": "horizontal ±x (mit der Kombination)",
-      "dirY": "horizontal ±y (mit der Kombination)"
+      "dirY": "horizontal ±y (mit der Kombination)",
+      "when": "Kombinationen",
+      "whenAll": "Betrieb und außer Betrieb (Anteil)",
+      "whenWork": "nur in Betrieb (A)",
+      "whenRest": "nur außer Betrieb (R, voll)"
     },
     "heal": {
       "title": "Teile einrasten",

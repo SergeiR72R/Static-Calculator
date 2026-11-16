@@ -250,6 +250,26 @@ describe('scaffold analysis', () => {
     expect(buildCombos(m, { ...opt, dhbLoad: 0 }).dhb).toBe(0);
   });
 
+  it('user loads in the working or the out-of-service combinations only (as the load cases per combination of PFC)', () => {
+    const st = tower(braced);
+    const lx = st.parts.filter((w) => w.cls.kind === 'ledger' && Math.abs(w.min[2] - 2.22) < 0.1 && w.max[0] - w.min[0] > 1).slice(0, 2);
+    const ids = lx.map((w) => w.part.id);
+    const loads: UserLoad[] = [
+      { id: 'w', name: 'platform live load', case: 'Q', kind: 'point', value: 6e3, at: 0.5, parts: ids, when: 'work' },
+      { id: 'r', name: 'hoist parked', case: 'Q', kind: 'point', value: 4e3, at: 0.5, parts: ids, when: 'rest' },
+      { id: 'g', name: 'hoist mast out of service', case: 'G', kind: 'point', value: 3e3, at: 0.5, parts: ids, when: 'rest' },
+    ];
+    const m = buildScaffoldModel(st, loads);
+    const opt = { ...DEFAULT_ANALYSIS, p: 0, outdoor: true, qMax: 600 };
+    const res = analyzeScaffoldModel(m, opt);
+    const V = (n: string) => res.combos.find((c) => c.name === n)!.sumV;
+    const G = res.totalG;
+    // working: the working load only; out of service: the parked loads in full (no share); stability: G parked × 0.9
+    expect(V('A +x')).toBeCloseTo(GAMMA_F * (G + 2 * 6e3), -2);
+    expect(V('R +x')).toBeCloseTo(GAMMA_F * (G + 2 * 4e3 + 2 * 3e3), -2);
+    expect(V('S +x')).toBeCloseTo(0.9 * (G + 2 * 3e3), -2);
+  });
+
   it('second order increases the sway of the unbraced tower', () => {
     const m = buildScaffoldModel(tower());
     const first = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, secondOrder: false });

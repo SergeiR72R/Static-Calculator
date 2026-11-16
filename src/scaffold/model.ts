@@ -19,7 +19,7 @@ import type { PartKind } from './catalog';
 import { partKg } from './weights';
 import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 import { planBlockLoads, type PlanLoads } from './planLoads';
-import { orderedAxis, type UserLoad } from './userLoads';
+import { orderedAxis, type UserLoad, type UserLoadWhen } from './userLoads';
 
 export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'ubl' | 'tube' | 'anchor' | 'jack';
 
@@ -31,6 +31,7 @@ export interface UserLoadApplied {
   dir?: 'x' | 'y';
   /** force direction (x, y) of a horizontal load, default along `dir` */
   vec?: [number, number];
+  when?: UserLoadWhen;
   nodal: { node: number; F: number }[];
   members: { m: number; q: number }[];
 }
@@ -809,7 +810,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // ---- point loads of the user: a node on the beam / ledger / standard at the place of the load
   /** point loads on parts that may be tubes: placed once the tubes are built */
   const pendingTube: { li: number; id: string; at: number }[] = [];
-  const user: UserLoadApplied[] = userLoads.map((l) => ({ load: l.id, case: l.case, ...(l.dir === 'x' || l.dir === 'y' ? { dir: l.dir, ...(l.vec ? { vec: l.vec } : {}) } : {}), nodal: [], members: [] }));
+  const user: UserLoadApplied[] = userLoads.map((l) => ({ load: l.id, case: l.case, ...(l.when && l.when !== 'all' ? { when: l.when } : {}), ...(l.dir === 'x' || l.dir === 'y' ? { dir: l.dir, ...(l.vec ? { vec: l.vec } : {}) } : {}), nodal: [], members: [] }));
   userLoads.forEach((l, li) => {
     if (l.kind !== 'point') return;
     for (const id of l.parts) {

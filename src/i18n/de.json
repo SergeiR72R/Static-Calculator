@@ -737,6 +737,66 @@
       "title": "Zeichnung",
       "summary": "{n} Teile · {types} Artikel · {girders} Gitterträger"
     },
+    "advice": {
+      "title": "Trägt das Gerüst?",
+      "verdict": {
+        "none": "Noch nicht berechnet",
+        "model": "Zuerst das Modell berichtigen",
+        "fail": "Das Gerüst trägt nicht",
+        "check": "Das Gerüst trägt, aber mit wenig Reserve",
+        "ok": "Das Gerüst trägt"
+      },
+      "verdictText": {
+        "none": "Hinweise unten prüfen und „Berechnen“ wählen. Die Standardeinstellungen passen für jedes PERI UP Flex Gerüst.",
+        "model": "Das Ergebnis ist noch nicht verlässlich: Im Modell sind Fehler, die vor der Beurteilung zu beheben sind.",
+        "fail": "Größte Ausnutzung {eta} %. Was zu ändern ist, steht unten.",
+        "check": "Größte Ausnutzung {eta} % (70 bis 100 %): dem Statiker zur Prüfung geben oder nach den Empfehlungen unten verstärken.",
+        "ok": "Größte Ausnutzung {eta} % – ausreichende Reserve für die Vorbemessung."
+      },
+      "remarks": "Hinweise zum Modell: {n} – bitte prüfen, sie können das Ergebnis beeinflussen.",
+      "fixTitle": "Im Modell zu berichtigen",
+      "todoTitle": "Wo die Reserve klein ist und was verstärkt werden kann",
+      "todoTitleInfo": "Zur Kenntnis",
+      "todoTitleFail": "Was zu ändern ist, damit das Gerüst trägt",
+      "show": "zeigen",
+      "details": "Einzelheiten der Berechnung (Kombinationen, Nachweise, Fußpunkte, Annahmen)",
+      "dir": {
+        "x": " – überwiegend bei Last in X",
+        "y": " – überwiegend bei Last in Y"
+      },
+      "fix": {
+        "duplicates": "Teile doppelt an derselben Stelle gezeichnet: {n} Stellen ({names}). Die überzähligen in der Zeichnung löschen – ihr Gewicht ist doppelt angesetzt.",
+        "defect": "Programmfehler beim Aufbau des Modells ({n} Teile) – Ergebnisse nicht verwenden, bitte melden.",
+        "mechanism": "Das System ist in den Kombinationen {names} verschieblich (Mechanismus): Es fehlen Diagonalen, Auflager oder Befestigungen am Bauwerk.",
+        "unheld": "Teile, die nicht gehalten sind: {n} – Anschlüsse in der Zeichnung prüfen.",
+        "notConverged": "Die Berechnung ist in den Kombinationen {names} nicht konvergiert – Ergebnisse dort nur als Anhalt.",
+        "loose": "Tragende Teile nicht im Tragwerk: {name} – {n} Stk. In der Zeichnung prüfen, woran sie angeschlossen sind.",
+        "lost": "Teile nicht im Modell: {name} – {n} Stk.",
+        "noMaxWind": "Kein Standort angegeben: Der maximale Wind ist nicht angesetzt (nur Arbeitswind 0,2 kN/m²). Standort in der Karte „Standort und Bedingungen“ angeben.",
+        "slender": "Das Gerüst ist hoch und schmal (Höhe = {r} × Breite) und nicht am Bauwerk befestigt. Ist es auf der Baustelle gehalten, in der Karte „Befestigung am Bauwerk“ angeben; sonst ist Ballast nötig."
+      },
+      "do": {
+        "rootHorizontal": "Hauptursache: Das Gerüst trägt die Horizontallast in {axis} schlecht. Mit Befestigungen am Bauwerk oder Diagonalen in dieser Richtung beginnen – die übrigen Überschreitungen unten werden dadurch kleiner.",
+        "stabilityLost": "Stabilitätsverlust in den Kombinationen {names}{dir}: Das Tragwerk trägt die Horizontallast nicht. Diagonalen in dieser Richtung über die ganze Höhe ergänzen, das Gerüst am Bauwerk befestigen oder die Lagenhöhe verringern.",
+        "uplift": "Fußpunkte müssen das Gerüst gegen Abheben halten ({n} Stk.){dir}: Ballast auf die unteren Riegel, Aufstandsfläche verbreitern oder am Bauwerk befestigen.",
+        "node": "Knoten Riegel – Stiel: {n} Teile, bis {eta} %{dir}. Diagonalen in diesen Feldern ergänzen (entlasten die Knoten), Stielabstand oder Last verringern.",
+        "standard": "Stiele und Stielstöße: {n} Teile, bis {eta} %{dir}. Zusätzliche Stiele unter der Last, Diagonalen oder Riegel gegen die Biegung ergänzen oder die Last verringern.",
+        "ledger": "Riegel: {n} Teile, bis {eta} %. Spannweite verringern (Zwischenstiel), verstärkten Riegel UHV oder Gitterträger einsetzen, Belaglast verringern.",
+        "diagonal": "Diagonalen: {n} Teile, bis {eta} %{dir}. Diagonalen in Nachbarfeldern und -lagen derselben Ebene ergänzen oder das Gerüst am Bauwerk befestigen.",
+        "jack": "Spindeln: {n} Teile, bis {eta} %. Spindelauszug verringern oder die Last auf mehr Stiele verteilen.",
+        "tie": "Anker, Kupplungen und Befestigungen: {n} Teile, bis {eta} %{dir}. Weitere Befestigungspunkte oder Diagonalen zur Entlastung ergänzen.",
+        "lifted": "Abhebende Fußpunkte: {n} (zulässig, das Gerüst schaukelt dabei). Ballast oder Befestigung am Bauwerk verringern die Verformungen.",
+        "sway": "Horizontalverschiebung {mm} mm (Höhe / {ratio}): Das Tragwerk ist weich. Diagonalen oder Befestigungen am Bauwerk ergänzen.",
+        "girder": "Gitterträger {name}: {eta} %. Im Balkenrechner öffnen; Spannweite oder Last verringern oder einen höheren Träger einsetzen."
+      }
+    },
+    "adv": {
+      "title": "Erweiterte Einstellungen",
+      "default": "Standard",
+      "changed": "geändert: {n}",
+      "hint": "Keine Änderung nötig: Die Standardwerte folgen der Zulassung Z-8.22-863 und der Berechnung in PERI ForceControl und passen für jedes PERI UP Flex Gerüst.",
+      "reset": "Auf Standardeinstellungen zurücksetzen"
+    },
     "fix": {
       "title": "Befestigung am Bauwerk",
       "intro": "Punkte, an denen das Gerüst am Gebäude (oder einer anderen Konstruktion) gehalten ist und die in der Zeichnung nicht enthalten sind: Teile im 3D-Modell wählen, gehaltene Achsen und Lage am Teil angeben. Die Achsen sind die der Zeichnung; gehalten in beide Richtungen.",

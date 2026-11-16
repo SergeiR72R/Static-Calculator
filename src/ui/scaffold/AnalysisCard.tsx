@@ -7,8 +7,10 @@ import { LIFT_TOL, type CheckKind, type ScaffoldResult } from '../../scaffold/an
 import { analyzeScaffoldParallel } from '../../scaffold/parallel';
 import { useProgress } from './progress';
 import { ProgressBar } from './ProgressBar';
-import { Button, Card, NumberField, SelectField, cx } from '../common';
+import { Button, Card, NumberField, cx } from '../common';
 import { useFmt } from '../hooks';
+import { ETA_FAIL, ETA_OK } from '../../scaffold/advice';
+import { VerdictPanel, useAssessment } from './VerdictPanel';
 import { useStore } from '../../state/store';
 import { batchFromImport } from '../../state/batch';
 import { scaffoldBeam } from '../../scaffold/beams';
@@ -27,16 +29,26 @@ export interface ScaffoldRun {
 
 export function etaColor(eta: number): string {
   if (!(eta >= 0)) return '#94a3b8';
-  if (eta > 1) return '#dc2626';
-  if (eta > 0.9) return '#f59e0b';
-  if (eta > 0.6) return '#84cc16';
+  if (eta > ETA_FAIL) return '#dc2626';
+  if (eta > ETA_OK) return '#f59e0b';
   return '#16a34a';
 }
 
 const CHECKS: CheckKind[] = ['stability', 'unstable', 'conn', 'node', 'tube', 'buckling', 'joint', 'ledger', 'diagonal', 'jack', 'anchor', 'coupler', 'uplift'];
 
 /** Options, start and results of the space frame analysis of the scaffold */
-export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: ScaffoldRun | null; setRun: (r: ScaffoldRun | null) => void }) {
+export function AnalysisCard({
+  st,
+  run,
+  setRun,
+  girders = [],
+}: {
+  st: ScaffoldStructure;
+  run: ScaffoldRun | null;
+  setRun: (r: ScaffoldRun | null) => void;
+  /** lattice girders checked in the beam calculator */
+  girders?: { key: string; eta: number; parts: string[] }[];
+}) {
   const fmt = useFmt();
   const sc = useScaffold();
   const [busy, setBusy] = useState<{ done: number; total: number } | null>(null);
@@ -44,25 +56,13 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<CheckKind | 'all'>('all');
   const [showAll, setShowAll] = useState(false);
+  const [details, setDetails] = useState(false);
   const outdoor = sc.exposure === 'outdoor';
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
   const wind = siteWind(sc, Math.max(st.max[2] - st.min[2], 1));
   const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack, sc.planLoads, sc.spliceNoTension, sc.capByArticle, sc.fixings]);
   const stale = !!run && run.sig !== sig;
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
-  const levels = useMemo(() => {
-    // deck levels as in the model (clusters of deck heights)
-    const out: { z: number; area: number }[] = [];
-    for (const w of st.parts) {
-      if (w.cls.kind !== 'deck') continue;
-      const z = w.min[2];
-      let l = out.find((x) => Math.abs(x.z - z) < 0.3);
-      if (!l) out.push((l = { z, area: 0 }));
-      l.area += (w.max[0] - w.min[0]) * (w.max[1] - w.min[1]);
-    }
-    return out;
-  }, [st]);
-
   const start = async () => {
     const setCalc = useProgress.getState().setCalc;
     setBusy({ done: 0, total: 1 });
@@ -109,7 +109,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
 
   const res = run?.result;
   const failed = res?.combos.filter((c) => !c.ok) ?? [];
-  const maxEta = res ? res.checks.reduce((m, c) => Math.max(m, c.eta), 0) : 0;
+  const assessment = useAssessment(st, run, girders);
   const rows = res ? res.checks.filter((c) => filter === 'all' || c.check === filter) : [];
   const shown = showAll ? rows.slice(0, 400) : rows.slice(0, 25);
   const counts = new Map<CheckKind, { n: number; max: number }>();
@@ -141,7 +141,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
 
   return (
     <Card
-      title={fmt.t('scaffold.calc.title')}
+      title={fmt.t('scaffold.advice.title')}
       testId="scaffold-calc"
       actions={
         <Button variant="primary" size="sm" onClick={() => void start()} disabled={!!busy} data-testid="scaffold-calc-run">
@@ -154,75 +154,24 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           <ProgressBar p={calc} testId="scaffold-calc-progress" />
         </div>
       )}
-      <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.calc.intro')}</p>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        <SelectField
-          label={fmt.t('scaffold.calc.level')}
-          value={String(sc.level)}
-          testId="scaffold-calc-level"
-          options={[
-            { value: '-1', label: fmt.t('scaffold.calc.levelAuto') },
-            ...levels.map((l, k) => ({ value: String(k), label: fmt.t('scaffold.calc.levelOption', { z: fmt.q(l.z, 'length'), a: fmt.num(l.area, 1) }) })),
-          ]}
-          onChange={(v) => sc.setOpts({ level: Number(v) })}
-        />
-        {outdoor && sc.snow && <NumberField label={fmt.t('scaffold.calc.snowLoad')} q="areaLoad" showUnit value={sc.snowLoad} onChange={(v) => sc.setOpts({ snowLoad: Math.max(0, v) })} />}
-        {outdoor && sc.ice && <NumberField label={fmt.t('scaffold.calc.ice')} q="sectionDim" showUnit value={sc.iceThickness} onChange={(v) => sc.setOpts({ iceThickness: Math.max(0, v) })} />}
-        <SelectField
-          label={fmt.t('scaffold.calc.ubkModel')}
-          value={sc.ubkModel}
-          testId="scaffold-calc-ubk"
-          options={[
-            { value: 'annexA', label: fmt.t('scaffold.calc.ubkAnnexA') },
-            { value: 'table15', label: fmt.t('scaffold.calc.ubkTable15') },
-          ]}
-          onChange={(v) => sc.setOpts({ ubkModel: v === 'table15' ? 'table15' : 'annexA' })}
-        />
-        <SelectField
-          label={fmt.t('scaffold.calc.slack')}
-          value={sc.diagSlack ? 'on' : 'off'}
-          testId="scaffold-calc-slack"
-          options={[
-            { value: 'off', label: fmt.t('scaffold.calc.slackOff') },
-            { value: 'on', label: fmt.t('scaffold.calc.slackOn') },
-          ]}
-          onChange={(v) => sc.setOpts({ diagSlack: v === 'on' })}
-        />
-        <SelectField
-          label={fmt.t('scaffold.calc.splice')}
-          value={sc.spliceNoTension ? 'free' : 'tension'}
-          testId="scaffold-calc-splice"
-          options={[
-            { value: 'free', label: fmt.t('scaffold.calc.spliceFree') },
-            { value: 'tension', label: fmt.t('scaffold.calc.spliceTension') },
-          ]}
-          onChange={(v) => sc.setOpts({ spliceNoTension: v === 'free' })}
-        />
-        <SelectField
-          label={fmt.t('scaffold.calc.cap')}
-          value={sc.capByArticle ? 'article' : 'six'}
-          testId="scaffold-calc-cap"
-          options={[
-            { value: 'article', label: fmt.t('scaffold.calc.capArticle') },
-            { value: 'six', label: fmt.t('scaffold.calc.capSix') },
-          ]}
-          onChange={(v) => sc.setOpts({ capByArticle: v === 'article' })}
-        />
-        <label className="flex items-end gap-2 pb-1 text-xs">
-          <input type="checkbox" checked={sc.secondOrder} onChange={(e) => sc.setOpts({ secondOrder: e.target.checked })} data-testid="scaffold-calc-second" />
-          {fmt.t('scaffold.calc.secondOrder')}
-        </label>
-      </div>
-      <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{fmt.t(outdoor ? (wind.qMax > 0 ? 'scaffold.calc.combosOutdoor' : 'scaffold.calc.combosNoMax') : 'scaffold.calc.combosIndoor', { q: fmt.q(wind.qMax, 'areaLoad') })}</p>
+      {outdoor && (sc.snow || sc.ice) && (
+        <div className="mb-2 grid grid-cols-2 gap-2 lg:grid-cols-4">
+          {sc.snow && <NumberField label={fmt.t('scaffold.calc.snowLoad')} q="areaLoad" showUnit value={sc.snowLoad} onChange={(v) => sc.setOpts({ snowLoad: Math.max(0, v) })} />}
+          {sc.ice && <NumberField label={fmt.t('scaffold.calc.ice')} q="sectionDim" showUnit value={sc.iceThickness} onChange={(v) => sc.setOpts({ iceThickness: Math.max(0, v) })} />}
+        </div>
+      )}
+      <VerdictPanel a={assessment} done={!!res} stale={stale} selected={sc.selected} onSelect={(parts) => sc.select(parts)} />
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
       {res && (
-        <div className={cx('mt-3 space-y-3', stale && 'opacity-60')} data-testid="scaffold-calc-result">
-          {stale && <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{fmt.t('scaffold.calc.stale')}</p>}
+        <details className={cx('mt-3', stale && 'opacity-60')} data-testid="scaffold-calc-result" open={details} onToggle={(e) => setDetails((e.target as HTMLDetailsElement).open)}>
+          <summary className="cursor-pointer text-xs font-semibold text-accent-700 dark:text-accent-300" data-testid="scaffold-calc-details">
+            {fmt.t('scaffold.advice.details')}
+          </summary>
+          <div className="mt-2 space-y-3">
+          <p className="text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.calc.intro')}</p>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">{fmt.t(outdoor ? (wind.qMax > 0 ? 'scaffold.calc.combosOutdoor' : 'scaffold.calc.combosNoMax') : 'scaffold.calc.combosIndoor', { q: fmt.q(wind.qMax, 'areaLoad') })}</p>
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="inline-flex items-center gap-1 rounded px-2 py-1 font-semibold text-white" style={{ background: failed.length ? '#dc2626' : etaColor(maxEta) }} data-testid="scaffold-calc-max">
-              {failed.length || maxEta > 1 ? <IconAlert /> : <IconCheck />} max η = {fmt.num(maxEta * 100, 0)} %
-            </span>
             <span className="text-xs text-slate-600 dark:text-slate-300">
               {fmt.t('scaffold.calc.summary', {
                 g: fmt.q(res.totalG, 'force', 1),
@@ -563,7 +512,8 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
             </div>
           )}
           <p className="text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('scaffold.calc.basis')}</p>
-        </div>
+          </div>
+        </details>
       )}
     </Card>
   );

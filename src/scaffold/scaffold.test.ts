@@ -365,6 +365,13 @@ describe('catalogue', () => {
   it('spindle head SRU of the PERIEXPORT (group 109630: spindle + head) is a spindle', () => {
     expect(classifyPart('109630', 'Spindlehead SRU').kind).toBe('jack');
   });
+
+  it('connectors of the beams on top: rail connector RCS 97 joins two rails, cross connector and hook strap are fasteners', () => {
+    expect(classifyPart('', 'Kletterschienenverbinder RCS 97').kind).toBe('beamSplice');
+    expect(classifyPart('', 'Kreuzverbinder RCS').kind).toBe('accessory');
+    expect(classifyPart('', 'Hakenbride Uni HBU 16-26 U200').kind).toBe('accessory');
+    expect(classifyPart('', 'Kletterschiene RCS 748').kind).toBe('beam');
+  });
 });
 
 describe('every part of the drawing in the model', () => {
@@ -405,6 +412,17 @@ describe('every part of the drawing in the model', () => {
     // the joint is not a support by assumption, the far ends are
     expect(m.assumedSupports.some((s) => s.node === joint)).toBe(false);
     expect(m.assumedSupports).toHaveLength(2);
+  });
+
+  it('a beam connector without geometry in the drawing joins the beams ending within its length', () => {
+    const doc = tower((p) => p.push({ art: 'SRU', rot: 'x', t: [0, 1, 5] }, { art: 'SRU', rot: 'x', t: [2.25, 1, 5] }));
+    // rail connector RCS 97 as PERI CAD writes it: no system lines, inserted 0.49 m before the joint
+    doc.parts.push({ id: 'KV', article: '', name: 'Kletterschienenverbinder RCS 97', desc: '', layer: '0', m: [1, 0, 0, 1.75, 0, 1, 0, 0.96, 0, 0, 1, 5.16], geom: { lines: [], rosettes: [] } });
+    const m = buildScaffoldModel(analyzeScaffold(doc));
+    expect(m.audit.counts.joint).toBe(1);
+    expect(m.notes.some((n) => n.key === 'spliceFree')).toBe(false);
+    const [a, b] = m.carriers.filter((c) => c.kind === 'beam').map((c) => c.points!);
+    expect(b[0].node).toBe(a.at(-1)!.node);
   });
 
   it('a ledger in a clamp rosette held at one end only: guardrail, no hinge, in the model', () => {

@@ -8,6 +8,7 @@ import { useFmt } from '../hooks';
 import { BRAND, FullLogo } from '../Brand';
 import { LANG_LOCALE } from '../../units/format';
 import type { ScaffoldRun } from './AnalysisCard';
+import { findingText, useAssessment } from './VerdictPanel';
 import { PART_FATES } from '../../scaffold/model';
 
 const th = 'border border-slate-400 px-1.5 py-0.5 text-start font-semibold';
@@ -22,7 +23,8 @@ const MAX_BASES = 25;
  * Print / PDF report of the scaffold mode (window.print): site and conditions, loads, results of
  * the analysis (if run) and the specification of the parts with their weights.
  */
-export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: ScaffoldRun | null }) {
+export function ScaffoldReport({ st, run, girders = [] }: { st: ScaffoldStructure; run: ScaffoldRun | null; girders?: { key: string; eta: number; parts: string[] }[] }) {
+  const assessment = useAssessment(st, run, girders);
   const fmt = useFmt();
   const sc = useScaffold();
   const doc = sc.doc;
@@ -157,6 +159,30 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
         <p>{fmt.t('scaffold.report.notRun')}</p>
       ) : (
         <>
+          <div className="my-1 border border-slate-400 p-2" data-testid="scaffold-report-verdict">
+            <p className="text-sm font-bold">{fmt.t(`scaffold.advice.verdict.${assessment.verdict}`)}</p>
+            <p>{fmt.t(`scaffold.advice.verdictText.${assessment.verdict}`, { eta: fmt.num(assessment.maxEta * 100, 0) })}</p>
+            {assessment.fix.length > 0 && (
+              <>
+                <p className="mt-1 font-semibold">{fmt.t('scaffold.advice.fixTitle')}</p>
+                <ul className="list-disc ps-5">
+                  {assessment.fix.map((f, k) => (
+                    <li key={k}>{findingText(fmt, f, 'fix')}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {assessment.todo.length > 0 && (
+              <>
+                <p className="mt-1 font-semibold">{fmt.t(assessment.verdict === 'fail' ? 'scaffold.advice.todoTitleFail' : assessment.verdict === 'check' ? 'scaffold.advice.todoTitle' : 'scaffold.advice.todoTitleInfo')}</p>
+                <ul className="list-disc ps-5">
+                  {assessment.todo.map((f, k) => (
+                    <li key={k}>{findingText(fmt, f, 'do')}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
           <p className="font-semibold">
             max η = {pct(maxEta)} ·{' '}
             {fmt.t('scaffold.calc.summary', {

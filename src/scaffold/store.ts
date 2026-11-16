@@ -85,6 +85,17 @@ export interface ScaffoldOpts {
   capByArticle: boolean;
 }
 
+/**
+ * Settings of the model and the analysis that need no attention: their defaults follow the approval and
+ * the calibration with PERI ForceControl and fit every PERI UP Flex scaffold. Shown as "advanced".
+ */
+export const ADVANCED_KEYS = ['g', 'tol', 'level', 'secondOrder', 'gFavR', 'ubkModel', 'diagSlack', 'spliceNoTension', 'capByArticle'] as const satisfies readonly (keyof ScaffoldOpts)[];
+
+/** advanced settings that differ from their defaults */
+export function advancedChanged(o: ScaffoldOpts): (typeof ADVANCED_KEYS)[number][] {
+  return ADVANCED_KEYS.filter((k) => o[k] !== DEFAULT_SCAFFOLD_OPTS[k]);
+}
+
 export interface SiteWind {
   /** peak velocity pressure, N/m² (0: unknown) */
   qp: number;
@@ -159,6 +170,8 @@ export interface ScaffoldState extends ScaffoldOpts {
   removeFixing: (id: string) => void;
   setDoc: (doc: ScaffoldDoc | null) => void;
   setOpts: (o: Partial<ScaffoldOpts>) => void;
+  /** advanced settings back to their defaults */
+  resetAdvanced: () => void;
   select: (parts: string[], girder?: string | null) => void;
   setBatchRef: (r: { id: string; sig: string } | null) => void;
 }
@@ -249,6 +262,10 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   },
   setOpts: (o) => {
     set(o);
+    save(get());
+  },
+  resetAdvanced: () => {
+    set(Object.fromEntries(ADVANCED_KEYS.map((k) => [k, DEFAULT_SCAFFOLD_OPTS[k]])) as Partial<ScaffoldOpts>);
     save(get());
   },
   select: (parts, girder = null) => set({ selected: parts, girder }),

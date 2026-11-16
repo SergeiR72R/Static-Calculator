@@ -737,6 +737,66 @@
       "title": "Drawing",
       "summary": "{n} parts · {types} articles · {girders} lattice girders"
     },
+    "advice": {
+      "title": "Does the scaffold work?",
+      "verdict": {
+        "none": "Not analysed yet",
+        "model": "Put the model right first",
+        "fail": "The scaffold does not work",
+        "check": "The scaffold works, with little reserve",
+        "ok": "The scaffold works"
+      },
+      "verdictText": {
+        "none": "Check the remarks below and choose “Calculate”. The default settings fit every PERI UP Flex scaffold.",
+        "model": "The result is not reliable yet: the model has errors to be put right before judging.",
+        "fail": "Largest utilisation {eta} %. What to change is listed below.",
+        "check": "Largest utilisation {eta} % (70 to 100 %): hand it to the structural engineer or strengthen after the recommendations below.",
+        "ok": "Largest utilisation {eta} % – enough reserve for a preliminary design."
+      },
+      "remarks": "Remarks on the model: {n} – check them, they may affect the result.",
+      "fixTitle": "To put right in the model",
+      "todoTitle": "Where the reserve is small and what can be strengthened",
+      "todoTitleInfo": "For information",
+      "todoTitleFail": "What to change so that the scaffold works",
+      "show": "show",
+      "details": "Details of the analysis (combinations, checks, bases, assumptions)",
+      "dir": {
+        "x": " – mostly with loads along X",
+        "y": " – mostly with loads along Y"
+      },
+      "fix": {
+        "duplicates": "Parts drawn twice at the same place: {n} places ({names}). Delete the extra ones in the drawing – their weight counts twice.",
+        "defect": "Error of the program building the model ({n} parts) – do not use the results, please report.",
+        "mechanism": "The structure is a mechanism in the combinations {names}: diagonals, supports or fixings to the building are missing.",
+        "unheld": "Parts not held by anything: {n} – check their connections in the drawing.",
+        "notConverged": "The analysis did not converge in the combinations {names} – results there are approximate.",
+        "loose": "Load-bearing parts not in the frame: {name} – {n} pcs. Check in the drawing what they connect to.",
+        "lost": "Parts not in the model: {name} – {n} pcs.",
+        "noMaxWind": "No site given: the maximum wind is not applied (working wind 0.2 kN/m² only). Give the site in the card “Site and conditions”.",
+        "slender": "The scaffold is tall and narrow (height = {r} × width) and not fixed to the building. If it is held on site, enter that in the card “Fixings to the building”; otherwise ballast will be needed."
+      },
+      "do": {
+        "rootHorizontal": "Main cause: the scaffold carries the horizontal load along {axis} poorly. Start with fixings to the building or diagonals in that direction – the other overloads below will get smaller.",
+        "stabilityLost": "Stability lost in the combinations {names}{dir}: the frame does not carry the horizontal load. Add diagonals in that direction over the whole height, fix the scaffold to the building or reduce the lift height.",
+        "uplift": "Bases have to hold the scaffold down ({n} pcs){dir}: add ballast on the bottom ledgers, widen the base or fix the scaffold to the building.",
+        "node": "Ledger – standard nodes: {n} parts, up to {eta} %{dir}. Add diagonals in these bays (they relieve the nodes), reduce the standard spacing or the load.",
+        "standard": "Standards and their joints: {n} parts, up to {eta} %{dir}. Add standards under the load, diagonals or ledgers against bending, or reduce the load.",
+        "ledger": "Ledgers: {n} parts, up to {eta} %. Reduce the span (intermediate standard), use a reinforced ledger UHV or a lattice girder, reduce the deck load.",
+        "diagonal": "Diagonals: {n} parts, up to {eta} %{dir}. Add diagonals in neighbouring bays and lifts of the same plane or fix the scaffold to the building.",
+        "jack": "Base jacks: {n} parts, up to {eta} %. Reduce the jack extension or spread the load over more standards.",
+        "tie": "Anchors, couplers and fixings: {n} parts, up to {eta} %{dir}. Add fixing points or diagonals to relieve them.",
+        "lifted": "Bases lifting off: {n} (allowed, but the scaffold rocks). Ballast or a fixing to the building reduce the displacements.",
+        "sway": "Horizontal displacement {mm} mm (height / {ratio}): the frame is soft. Add diagonals or fixings to the building.",
+        "girder": "Lattice girder {name}: {eta} %. Open it in the beam calculator; reduce the span or the load or use a deeper girder."
+      }
+    },
+    "adv": {
+      "title": "Advanced settings",
+      "default": "default",
+      "changed": "changed: {n}",
+      "hint": "No change needed: the defaults follow the approval Z-8.22-863 and the analysis of PERI ForceControl and fit every PERI UP Flex scaffold.",
+      "reset": "Reset to the default settings"
+    },
     "fix": {
       "title": "Fixings to the building",
       "intro": "Points where the scaffold is held by the building (or another structure) that the drawing does not contain: choose parts in the 3D model, the axes held and the place along the part. Axes of the drawing; held in both directions.",

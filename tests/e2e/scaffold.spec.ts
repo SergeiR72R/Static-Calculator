@@ -146,8 +146,21 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await page.getByTestId('mode-scaffold').click();
   await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
   await expect(page.getByTestId('scaffold-calc')).toBeVisible();
+  // before the analysis: no verdict yet, the remarks on the model are there (no site: no maximum wind)
+  await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', 'none');
+  await expect(page.getByTestId('scaffold-verdict-title')).toHaveText('Расчёт ещё не выполнен');
+  await expect(page.getByTestId('scaffold-fix-list-noMaxWind')).toBeVisible();
+  // the advanced settings are closed and at their defaults
+  await expect(page.getByTestId('scaffold-advanced')).toContainText('по умолчанию');
+  await expect(page.getByTestId('scaffold-calc-ubk')).toBeHidden();
   await page.getByTestId('scaffold-calc-run').click();
   await expect(page.getByTestId('scaffold-calc-result')).toBeVisible({ timeout: 20_000 });
+  // the answer at a glance: the scaffold works / little reserve / does not work
+  await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', /^(ok|check|fail)$/);
+  await expect(page.getByTestId('scaffold-verdict-title')).toContainText('Леса');
+  // the tables of the analysis are details, closed at first
+  await expect(page.getByTestId('scaffold-calc-bases')).toBeHidden();
+  await page.getByTestId('scaffold-calc-details').click();
   // the progress bars of opening and of the analysis are gone when done
   await expect(page.getByTestId('scaffold-calc-progress')).toHaveCount(0);
   await expect(page.getByTestId('scaffold-load-progress')).toHaveCount(0);
@@ -158,6 +171,7 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await page.getByTestId('mode-scaffold').click();
   await expect(page.getByTestId('scaffold-calc-result')).toBeVisible();
   await expect(page.getByTestId('scaffold-calc-max')).toHaveText(maxText);
+  await page.getByTestId('scaffold-calc-details').click();
   const eta = Number((await page.getByTestId('scaffold-calc-max').innerText()).replace(/[^\d]/g, ''));
   expect(eta).toBeGreaterThan(10);
   // four working combinations, checks of nodes and standards, bases
@@ -176,10 +190,19 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   // changed input marks the results as out of date; maximum wind adds the out-of-service combinations
   await page.getByTestId('wind-manual').check();
   await page.getByTestId('wind-qmax').fill('0,8');
-  await expect(page.getByTestId('scaffold-calc-result')).toContainText('результаты устарели');
+  await expect(page.getByTestId('scaffold-verdict')).toContainText('результаты устарели');
+  // the maximum wind is given now: that remark is gone
+  await expect(page.getByTestId('scaffold-fix-list-noMaxWind')).toHaveCount(0);
   await page.getByTestId('scaffold-calc-run').click();
   await expect(page.getByTestId('scaffold-calc-result')).toContainText('R +x', { timeout: 20_000 });
-  await expect(page.getByTestId('scaffold-calc-result')).not.toContainText('результаты устарели');
+  await expect(page.getByTestId('scaffold-verdict')).not.toContainText('результаты устарели');
+  // advanced settings: a change is counted, marks the result as out of date, and can be reset
+  await page.getByTestId('scaffold-advanced').locator('summary').click();
+  await page.getByTestId('scaffold-calc-slack').selectOption('on');
+  await expect(page.getByTestId('scaffold-advanced-changed')).toContainText('1');
+  await page.getByTestId('scaffold-advanced-reset').click();
+  await expect(page.getByTestId('scaffold-advanced-changed')).toHaveCount(0);
+  await expect(page.getByTestId('scaffold-calc-slack')).toHaveValue('off');
   // print report: conditions, results and the specification with weights
   await page.emulateMedia({ media: 'print' });
   await page.evaluate("window.dispatchEvent(new Event('beforeprint'))");
@@ -187,6 +210,7 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await expect(report).toBeVisible();
   await expect(report).toContainText('Расчёт лесов PERI UP Flex');
   await expect(report).toContainText('max η');
+  await expect(page.getByTestId('scaffold-report-verdict')).toContainText('Леса');
   await expect(report).toContainText('R +x');
   await expect(page.getByTestId('scaffold-report-bom')).toContainText('Vertikalstiel UVR 200');
   await expect(page.getByTestId('scaffold-report-bom')).toContainText('Итого');

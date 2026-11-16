@@ -247,10 +247,6 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
             )}
           </div>
         )}
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={sc.gFavR} onChange={(e) => sc.setOpts({ gFavR: e.target.checked })} data-testid="scaffold-gfav" />
-          {fmt.t('scaffold.loads.gFav')}
-        </label>
         <p className="flex items-start gap-1 text-[11px] text-slate-500">
           <IconInfo className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t('scaffold.loads.dhbHint')}
         </p>

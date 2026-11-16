@@ -652,6 +652,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // ground: the lowest standard or spindle (not the lowest part: a part may lie far off by mistake)
   const ground = Math.min(...cols.map((c) => c.z0), ...jacks.map((w) => w.min[2]));
   /** `foot`: lowest point of the spindle clamped in the upper standard (its plate), null without a spindle */
+  /** parts that are a piece of a member of another part (head jack in a link, spindle of a standard on a beam) */
+  const absorbed = new Set<string>();
   const links: { lower: number; upper: number; part: string; foot: number | null; head: string[] }[] = [];
   /** spindles under base supports: foot below the bottom of the standard (virtual: added by the program) */
   const feet: { col: number; foot: number; part: string; virtual?: boolean }[] = [];
@@ -732,6 +734,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     if (carried) {
       carried.c.inter.push({ node: c.ns[0], offset: [carried.pr.q[0] - c.x, carried.pr.q[1] - c.y, carried.pr.q[2] - c.z0], t: Math.min(Math.max(carried.pr.t, 0), 1) });
       c.onCarrier = true;
+      // its spindle is the rigid arm from the carrier to the bottom of the standard
+      for (const w of under) absorbed.add(w.part.id);
       return;
     }
     // spindles of all kinds, base standards (on a spindle not in the drawing), the lowest level and
@@ -915,7 +919,12 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // splices UK 70: the beams whose ends lie in the coupling are joined rigidly there (continuous beam)
   for (const w of st.parts) {
     if (w.cls.kind !== 'beamSplice') continue;
-    const inBox = (p: V3) => [0, 1, 2].every((i) => p[i] > w.min[i] - SPLICE_GROW && p[i] < w.max[i] + SPLICE_GROW);
+    // without geometry in the drawing (rail connector RCS 97: its insertion point only): the beam ends
+    // within its length (from its name) of that point
+    const noGeom = !w.lines.length;
+    const reach = noGeom ? Number(/(\d{2,3})\s*$/.exec(w.part.name)?.[1] ?? 60) / 100 : 0;
+    const at: V3 = [w.part.m[3], w.part.m[7], w.part.m[11]];
+    const inBox = (p: V3) => (noGeom ? len3(p, at) <= reach + SPLICE_GROW : [0, 1, 2].every((i) => p[i] > w.min[i] - SPLICE_GROW && p[i] < w.max[i] + SPLICE_GROW));
     const ends: { c: Carrier; e: 0 | 1; P: V3 }[] = [];
     for (const c of carriers)
       if (c.kind === 'beam')
@@ -1304,8 +1313,6 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // the lower standard (head jack, bearing plates, a beam): that piece is clamped in the lower standard
   // and hinged under the plate (the only hinge of the joint).
   const PIN = (): MemberEnd => ({ offset: [0, 0, 0], k: [Infinity, Infinity, Infinity, Infinity, 0, 0] });
-  /** parts that are a piece of a member of another part (head jack in a link): weight with that member */
-  const absorbed = new Set<string>();
   for (const l of links) {
     const first = fm.length;
     linkMembers(l);

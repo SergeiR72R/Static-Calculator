@@ -7,7 +7,7 @@ import { KIND_COLOR, LOAD_CLASSES, PART_KINDS, type PartKind } from '../../scaff
 import { batchFromImport } from '../../state/batch';
 import { beamSummary, type BeamSummary } from '../batch/summary';
 import { warningText } from '../batch/BatchPanel';
-import { Button, Card, NumberField, SelectField, cx } from '../common';
+import { Button, Card, SelectField, cx } from '../common';
 import { useFmt, type Fmt } from '../hooks';
 import { IconAlert, IconChevronRight, IconInfo, IconPrint, IconUpload, IconX } from '../icons';
 import { downloadExportScript, openScaffoldFiles } from './openDxf';
@@ -15,6 +15,7 @@ import { SiteCard } from './SiteCard';
 import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './AnalysisCard';
 import { LoadsCard } from './LoadsCard';
 import { FixingsCard } from './FixingsCard';
+import { AdvancedCard } from './AdvancedCard';
 import { orderedAxis } from '../../scaffold/userLoads';
 import { ScaffoldReport } from './ScaffoldReport';
 import { useProgress, useScaffoldRun } from './progress';
@@ -205,6 +206,7 @@ export default function ScaffoldApp() {
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
   const models = useMemo(() => (st && doc ? st.girders.map((g) => ({ g, m: girderBeamModel(g, { p, g: sc.g }, doc.fileName) })) : []), [st, doc, p, sc.g]);
   const sums = useMemo(() => models.map(({ m }) => beamSummary(m)), [models]);
+  const girderEtas = useMemo(() => models.map(({ g }, k) => ({ key: g.key, eta: sums[k].eta, parts: g.parts })), [models, sums]);
   const girderColor = useMemo(() => Object.fromEntries(models.map(({ g }, k) => [g.key, etaColor(sums[k])])), [models, sums]);
   const shown = useMemo(() => (st ? { ...st, parts: st.parts.filter((w) => !hidden.has(w.cls.kind)) } : null), [st, hidden]);
   // fixings to the building: their points on the parts (as the model places them) and the axes held
@@ -283,6 +285,15 @@ export default function ScaffoldApp() {
     if (g) sc.select(g.parts, g.key);
     else sc.select([id]);
   };
+  // deck levels as in the model (clusters of deck heights)
+  const levels: { z: number; area: number }[] = [];
+  for (const w of st.parts) {
+    if (w.cls.kind !== 'deck') continue;
+    const z = w.min[2];
+    let l = levels.find((x) => Math.abs(x.z - z) < 0.3);
+    if (!l) levels.push((l = { z, area: 0 }));
+    l.area += (w.max[0] - w.min[0]) * (w.max[1] - w.min[1]);
+  }
   const kinds = PART_KINDS.filter((k) => st.parts.some((w) => w.cls.kind === k));
   const selPart = sc.selected.length === 1 && !sc.girder ? byId.get(sc.selected[0]) : undefined;
   const warnings = st.issues.filter((i) => i.severity === 'warning').length;
@@ -333,19 +344,8 @@ export default function ScaffoldApp() {
               options={Object.entries(LOAD_CLASSES).map(([k, v]) => ({ value: k, label: fmt.t('scaffold.loads.classOption', { n: k, p: fmt.q(v * 1e3, 'areaLoad') }) }))}
               onChange={(v) => sc.setOpts({ loadClass: Number(v) })}
             />
-            <NumberField label={fmt.t('scaffold.loads.g')} q="areaLoad" showUnit value={sc.g} onChange={(v) => sc.setOpts({ g: Math.max(0, v) })} testId="scaffold-load-g" />
           </div>
           <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('scaffold.loads.hint')}</p>
-        </Card>
-
-        <Card title={fmt.t('scaffold.heal.title')}>
-          <NumberField label={fmt.t('scaffold.heal.tol')} q="sectionDim" showUnit value={sc.tol} onChange={(v) => sc.setOpts({ tol: Math.min(Math.max(0, v), 0.2) })} testId="scaffold-tol" />
-          <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{fmt.t('scaffold.heal.hint')}</p>
-          {st.moves.length > 0 && (
-            <button type="button" className="mt-2 text-xs font-medium text-rose-700 underline dark:text-rose-400" onClick={() => sc.select(moved)} data-testid="scaffold-show-moved">
-              {fmt.t('scaffold.heal.show', { n: st.moves.length })}
-            </button>
-          )}
         </Card>
 
         <Card
@@ -376,9 +376,13 @@ export default function ScaffoldApp() {
             ))}
           </ul>
         </Card>
+
+        <AdvancedCard levels={levels} />
       </aside>
 
       <section className="min-w-0 space-y-3 p-3">
+        <AnalysisCard st={st} run={run} setRun={setRun} girders={girderEtas} />
+
         <Card
           title={fmt.t('scaffold.view.title')}
           testId="scaffold-view"
@@ -420,9 +424,8 @@ export default function ScaffoldApp() {
               <input type="checkbox" checked={byEta} onChange={(e) => setByEta(e.target.checked)} />
               {fmt.t('scaffold.view.byEta')}
               <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                <span className="inline-block h-2 w-3 rounded-sm bg-[#16a34a]" />≤ 60 %
-                <span className="inline-block h-2 w-3 rounded-sm bg-[#84cc16]" />≤ 90 %
-                <span className="inline-block h-2 w-3 rounded-sm bg-[#f59e0b]" />≤ 100 %
+                <span className="inline-block h-2 w-3 rounded-sm bg-[#16a34a]" />≤ 70 %
+                <span className="inline-block h-2 w-3 rounded-sm bg-[#f59e0b]" />70 – 100 %
                 <span className="inline-block h-2 w-3 rounded-sm bg-[#dc2626]" />&gt; 100 %
               </span>
             </label>
@@ -443,8 +446,6 @@ export default function ScaffoldApp() {
         <LoadsCard st={st} />
 
         <FixingsCard st={st} />
-
-        <AnalysisCard st={st} run={run} setRun={setRun} />
 
         <Card
           title={fmt.t('scaffold.girders.title')}
@@ -526,7 +527,7 @@ export default function ScaffoldApp() {
 
       </section>
     </main>
-      {printing && <ScaffoldReport st={st} run={run} />}
+      {printing && <ScaffoldReport st={st} run={run} girders={girderEtas} />}
     </>
   );
 }

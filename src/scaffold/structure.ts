@@ -413,7 +413,7 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
       const w = parts.find((p) => p.part.id === ids[0])!;
       issues.push({ key: 'duplicate', params: { name: w.part.name, n: ids.length }, parts: ids, severity: 'warning' });
     }
-  const noGeom = parts.filter((w) => !w.lines.length && !w.rosettes.length && w.cls.kind !== 'coupler');
+  const noGeom = parts.filter((w) => !w.lines.length && !w.rosettes.length && w.cls.kind !== 'coupler' && w.cls.kind !== 'accessory' && w.cls.kind !== 'beamSplice');
   if (noGeom.length) issues.push({ key: 'noGeometry', params: { n: noGeom.length, names: [...new Set(noGeom.map((w) => w.part.name))].join(', ') }, parts: noGeom.map((w) => w.part.id), severity: 'warning' });
   if (doc.exported) {
     const x = doc.exported;

@@ -97,7 +97,9 @@ export function classifyPart(article: string, name: string, desc = ''): PartClas
   if (g && !flex) return { kind: 'girder', girder: g[1].toUpperCase() === 'A' ? (g[2] === '50' ? 'ULA50HD' : 'ULA70HD') : g[2] === '50' ? 'ULS50' : 'ULS70' };
   if (/treppe|leiter|durchstieg|podest|\bUAS\b|\bUA[ACFILW]\b/i.test(text) && !/geländer|belag|tafel/i.test(text)) return { kind: 'stair' };
   if (/geländer|holm\b|rückenschutz|schutzwand|sicherheitstür|\bUP[AGSK]\b|\bUA[GH]\b/i.test(text)) return { kind: 'guard' };
-  if (/universalkupplung|\bUK ?70\b/i.test(text)) return { kind: 'beamSplice' };
+  if (/universalkupplung|\bUK ?70\b|kletterschienenverbinder/i.test(text)) return { kind: 'beamSplice' };
+  // fasteners of the beams on top (cross connector RCS, hook strap HBU): no members
+  if (/kreuzverbinder|hakenbride|\bHBU\b/i.test(text)) return { kind: 'accessory' };
   if (/\b(SRU|RCS)\b|stahlriegel|kletterschiene|multiträger|\b(HEB|HEA|IPE|UPE|GT ?24|VT ?20)\b/i.test(text) && !/spindelkopf/i.test(text)) return { kind: 'beam' };
   if (/klemmrosette|rohrverbinder|verbinder ULT|\bULT\b|schr(aube)?\b|mutter|bolzen|stecker|\bM ?\d+ ?x ?\d+|polyschutz|keder|dübel|ringschraube|spindelkopf|spindelsicherung|distanzhalter|richtstütz|traverse/i.test(text))
     return { kind: 'accessory' };

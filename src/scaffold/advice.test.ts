@@ -63,6 +63,15 @@ describe('plain answer of the scaffold analysis', () => {
     expect(a.fix.map((f) => f.key)).toEqual(['loose', 'issue.ledgerOneEndDecked', 'note.deckNoSupport', 'noMaxWind']);
   });
 
+  it('no maximum wind: the remark says why (no site, no zone, no wind map, q_p 0)', () => {
+    const key = (noMaxWind: 'site' | 'zone' | 'vb0' | 'qp' | false) => assessScaffold({ issues: [], result: null, noMaxWind }).fix.map((f) => f.key);
+    expect(key('site')).toEqual(['noMaxWind']);
+    expect(key('zone')).toEqual(['noWindZone']);
+    expect(key('vb0')).toEqual(['noVb0']);
+    expect(key('qp')).toEqual(['noQp']);
+    expect(key(false)).toEqual([]);
+  });
+
   it('parts drawn twice: one remark for all places', () => {
     const dup = (name: string, id: string) => ({ key: 'duplicate', params: { name, n: 2 }, parts: [id, id + 'b'], severity: 'warning' as const });
     const a = assessScaffold({ issues: [dup('Federstecker', 'a'), dup('Federstecker', 'c'), dup('UH 100', 'e')], result: null });

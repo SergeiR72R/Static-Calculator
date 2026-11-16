@@ -12,8 +12,8 @@ export type DxfWorkerMessage =
 
 const post = (m: DxfWorkerMessage) => (self as unknown as Worker).postMessage(m);
 
-self.onmessage = async (e: MessageEvent<{ file: File }>) => {
-  const { file } = e.data;
+self.onmessage = async (e: MessageEvent<{ file: File; allowEmpty?: boolean }>) => {
+  const { file, allowEmpty } = e.data;
   try {
     // read in pieces: progress by bytes
     const parts: Uint8Array[] = [];
@@ -44,7 +44,7 @@ self.onmessage = async (e: MessageEvent<{ file: File }>) => {
         lastP = frac;
         post({ type: 'progress', phase: 'parse', frac });
       }
-    });
+    }, { allowEmpty });
     post({ type: 'done', doc });
   } catch (err) {
     post({ type: 'error', key: err instanceof ScaffoldImportError ? err.message : 'scaffold.err.read' });

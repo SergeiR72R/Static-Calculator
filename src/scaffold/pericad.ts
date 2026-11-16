@@ -322,7 +322,11 @@ function mul34(a: number[], b: number[]): number[] {
  * Parse the text of a PERI CAD DXF. Throws ScaffoldImportError with an i18n key. `progress` gets the
  * share of the records read (0…1).
  */
-export function parsePeriCadDxf(text: string, fileName = '', progress?: (frac: number) => void): ScaffoldDoc {
+/**
+ * allowEmpty: a drawing of parts of the older kind only is read without parts (its PERIEXPORT file
+ * brings them); otherwise that is an error
+ */
+export function parsePeriCadDxf(text: string, fileName = '', progress?: (frac: number) => void, opts?: { allowEmpty?: boolean }): ScaffoldDoc {
   const head = text.slice(0, 32);
   if (head.startsWith('AC10')) throw new ScaffoldImportError('scaffold.err.dwg');
   if (head.startsWith('AutoCAD Binary DXF')) throw new ScaffoldImportError('scaffold.err.binary');
@@ -393,7 +397,7 @@ export function parsePeriCadDxf(text: string, fileName = '', progress?: (frac: n
   const aecParts = aecPartCount(text);
   // parts of the older kind exploded in AutoCAD: references of their display blocks
   const inserted = readInsertedParts(secs.get('ENTITIES') ?? [], blocks);
-  if (!raws.length && !inserted.length) {
+  if (!raws.length && !inserted.length && !(opts?.allowEmpty && aecParts)) {
     const proxies = (secs.get('ENTITIES') ?? []).some((r) => r.type === 'ACAD_PROXY_ENTITY');
     throw new ScaffoldImportError(aecParts ? 'scaffold.err.aec' : proxies ? 'scaffold.err.proxy' : 'scaffold.err.noParts');
   }

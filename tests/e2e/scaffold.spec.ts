@@ -83,6 +83,15 @@ test('scaffold mode: both files are asked for; a DXF with older parts without it
   await expect(page.getByTestId('toast')).toContainText('_peri.txt');
   await expect(page.getByTestId('toast')).toContainText('до 7 деталей');
   await expect(page.getByTestId('scaffold-drop-hint')).toContainText('_peri.txt');
+  // a drawing of parts of the older kind only opens together with its …_peri.txt
+  const onlyOld = classes + periDxf([]);
+  const exp = ['PERIEXPORT\t1\tINSUNITS=6', 'T=PERI_AEC_DB_BAUTEIL\tHandle=1A\tArtNr=109630\tBezeichnung=Spindel\tMin=0,0,0\tMax=0.04,0.04,0.6', 'T=PERI_AEC_DB_BAUTEIL\tHandle=1B\tArtNr=109630\tBezeichnung=Spindel\tMin=2,0,0\tMax=2.04,0.04,0.6'].join('\r\n');
+  await page.getByTestId('scaffold-file').setInputFiles([
+    { name: 'old.dxf', mimeType: 'application/dxf', buffer: Buffer.from(onlyOld) },
+    { name: 'old_peri.txt', mimeType: 'text/plain', buffer: Buffer.from(exp) },
+  ]);
+  await expect(page.getByTestId('toast')).toContainText('2 из выгрузки');
+  await expect(page.getByTestId('scaffold-file-name')).toHaveText('old.dxf');
 });
 
 test('scaffold mode: a DWG is rejected with the hint to save as DXF', async ({ page }) => {
@@ -128,6 +137,9 @@ test('scaffold mode: site found by name, confirmed on the map; indoors without w
   await expect(page.getByTestId('site-wind')).toContainText('Neu-Ulm');
   await expect(page.getByTestId('wind-check')).toHaveCount(0);
   await expect(page.getByTestId('wind-result')).toContainText('0,65');
+  // the site with its wind is given: no remark on the wind left
+  await expect(page.getByTestId('scaffold-fix-list-noMaxWind')).toHaveCount(0);
+  await expect(page.getByTestId('scaffold-fix-list-noWindZone')).toHaveCount(0);
   await page.getByTestId('wind-zone').selectOption('4');
   await expect(page.getByTestId('wind-result')).toContainText('0,95');
   await page.getByTestId('wind-zone').selectOption('0');
@@ -157,6 +169,11 @@ test('scaffold mode: without internet the site can be entered by coordinates', a
   await page.getByTestId('site-elevation').fill('480');
   await page.getByTestId('site-confirm').click();
   await expect(page.getByTestId('site-summary')).toContainText('48,4000°, 9,9900°');
+  // the site is given: the remark says what is missing now (no wind map without the country), not the site
+  await expect(page.getByTestId('scaffold-fix-list-noMaxWind')).toHaveCount(0);
+  await expect(page.getByTestId('scaffold-fix-list-noVb0')).toBeVisible();
+  await page.getByTestId('wind-vb0').fill('25');
+  await expect(page.getByTestId('scaffold-fix-list-noVb0')).toHaveCount(0);
 });
 
 test('scaffold mode: space frame analysis with results in tables and in 3D', async ({ page }) => {
@@ -258,6 +275,10 @@ test('scaffold mode: user loads on selected parts, DHB in the analysis and the r
   await page.getByTestId('mode-scaffold').click();
   await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
   await expect(page.getByTestId('scaffold-loads')).toBeVisible();
+  // seldom needed: under a spoiler, closed, nothing set yet
+  await expect(page.getByTestId('scaffold-load-name')).toBeHidden();
+  await expect(page.getByTestId('scaffold-loads-toggle')).toContainText('не заданы');
+  await page.getByTestId('scaffold-loads-toggle').click();
   // nothing selected: nothing to add to
   await expect(page.getByTestId('scaffold-load-add')).toBeDisabled();
   // a girder row selects its parts; 12 kN on each, permanent
@@ -273,6 +294,8 @@ test('scaffold mode: user loads on selected parts, DHB in the analysis and the r
   await expect(page.getByTestId('scaffold-dhb')).toBeChecked();
   await page.getByTestId('scaffold-dhb-load').fill('100');
   await expect(page.getByTestId('scaffold-dhb-total')).toContainText('10');
+  // what is set shows in the title of the closed card
+  await expect(page.getByTestId('scaffold-loads-toggle')).toContainText('1 + DHB');
   await page.getByTestId('scaffold-calc-run').click();
   await expect(page.getByTestId('scaffold-calc-result')).toBeVisible({ timeout: 20_000 });
   await expect(page.getByTestId('scaffold-calc-user')).toContainText('DHB');
@@ -280,6 +303,9 @@ test('scaffold mode: user loads on selected parts, DHB in the analysis and the r
   await page.reload();
   await page.getByTestId('mode-scaffold').click();
   await expect(page.getByTestId('scaffold-loads-table')).toContainText('Платформа');
+  // the card is closed again after the reload; its title tells what is set
+  await expect(page.getByTestId('scaffold-loads-toggle')).toContainText('1 + DHB');
+  await page.getByTestId('scaffold-loads-toggle').click();
   // report
   await page.emulateMedia({ media: 'print' });
   await page.evaluate("window.dispatchEvent(new Event('beforeprint'))");
@@ -297,6 +323,7 @@ test('scaffold mode: fixings to the building set by hand, shown in 3D, forces in
   await page.getByTestId('mode-scaffold').click();
   await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
   await expect(page.getByTestId('scaffold-fixings')).toBeVisible();
+  await page.getByTestId('scaffold-fixings-toggle').click();
   await expect(page.getByTestId('scaffold-fix-add')).toBeDisabled();
   // the girder T1 held in y at its end (to a wall)
   await page.getByTestId('scaffold-girder-T1').click();
@@ -321,6 +348,8 @@ test('scaffold mode: fixings to the building set by hand, shown in 3D, forces in
   await page.reload();
   await page.getByTestId('mode-scaffold').click();
   await expect(page.getByTestId('scaffold-fix-table')).toContainText('Стена');
+  await expect(page.getByTestId('scaffold-fixings-toggle')).toContainText('1');
+  await page.getByTestId('scaffold-fixings-toggle').click();
   await page.locator('[data-testid^="scaffold-fix-remove-"]').first().click();
   await expect(page.getByTestId('scaffold-fix-table')).toHaveCount(0);
 });

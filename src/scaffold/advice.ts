@@ -48,8 +48,11 @@ export interface AssessInput {
   defects?: ScaffoldModel['defects'];
   /** lattice girders checked in the beam calculator */
   girders?: { key: string; eta: number; parts: string[] }[];
-  /** outdoors without a maximum wind (no site given) */
-  noMaxWind?: boolean;
+  /**
+   * outdoors without a maximum wind, and why: no site ('site' or true), no wind zone found for it
+   * ('zone'), no wind map for its country ('vb0'), q_p entered as 0 ('qp')
+   */
+  noMaxWind?: boolean | 'site' | 'zone' | 'vb0' | 'qp';
   /** height and smallest width of the scaffold in plan, m */
   height?: number;
   width?: number;
@@ -121,7 +124,10 @@ export function assessScaffold(inp: AssessInput): Assessment {
     if (inp.audit?.listed.some((l) => l.fate === 'loose') && (n.key === 'ledgerLoose' || n.key === 'diagonalFree' || n.key === 'tubeFree' || n.key === 'bracketFree')) continue;
     fix.push({ key: `note.${n.key}`, level: 'warn', parts: n.parts, params: { ...n.params, n: n.parts.length } });
   }
-  if (inp.noMaxWind) fix.push({ key: 'noMaxWind', level: 'warn', parts: [] });
+  if (inp.noMaxWind) {
+    const key = { site: 'noMaxWind', zone: 'noWindZone', vb0: 'noVb0', qp: 'noQp' }[inp.noMaxWind === true ? 'site' : inp.noMaxWind];
+    fix.push({ key, level: 'warn', parts: [] });
+  }
   // slender and not held: it will overturn without ties or ballast
   const slender = inp.height && inp.width ? inp.height / Math.max(inp.width, 0.1) : 0;
   if (slender > 3 && !inp.held) fix.push({ key: 'slender', level: res ? 'warn' : 'info', parts: [], params: { r: Math.round(slender * 10) / 10 } });

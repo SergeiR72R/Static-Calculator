@@ -3,7 +3,7 @@ import { planBlockLoads } from '../../scaffold/planLoads';
 import { useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import { DHB_SHARE, userLoadTotal, type UserLoad, type UserLoadWhen } from '../../scaffold/userLoads';
-import { Button, Card, CheckField, NumberField, SelectField, TextField, cx } from '../common';
+import { Button, CheckField, FoldCard, FoldState, NumberField, SelectField, TextField, cx } from '../common';
 import { useFmt } from '../hooks';
 import { IconInfo } from '../icons';
 
@@ -61,7 +61,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
   for (const l of sc.loads) totals[l.case] += userLoadTotal(l, byId);
 
   return (
-    <Card title={fmt.t('scaffold.loads.title')} testId="scaffold-loads">
+    <FoldCard title={fmt.t('scaffold.loads.title')} testId="scaffold-loads" state={<FoldState items={[...(sc.loads.length ? [String(sc.loads.length)] : []), ...(sc.dhb > 0 && sc.dhbLoad > 0 ? ['DHB'] : [])]} />}>
       <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.loads.intro')}</p>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-9">
         <TextField className="col-span-2" label={fmt.t('scaffold.loads.name')} value={name} onChange={setName} placeholder={fmt.t('scaffold.loads.namePlaceholder')} testId="scaffold-load-name" help="scaffold.loadName" />
@@ -250,6 +250,6 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
           <IconInfo className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t('scaffold.loads.dhbHint')}
         </p>
       </div>
-    </Card>
+    </FoldCard>
   );
 }

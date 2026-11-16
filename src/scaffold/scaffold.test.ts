@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { insertMatrix, parsePeriCadDxf, place, ScaffoldImportError } from './pericad';
+import { mergePeriExport, parsePeriExport } from './periExport';
 import { buildScaffoldModel } from './model';
 import { analyzeScaffold, girderBeamModel } from './structure';
 import { classifyPart } from './catalog';
@@ -112,6 +113,26 @@ describe('PERI CAD DXF reader', () => {
     expect(err('AC1032\u0000\u0000binary')).toBe('scaffold.err.dwg');
     expect(err('hello world\nfoo')).toBe('scaffold.err.format');
     expect(err('  0\r\nSECTION\r\n  2\r\nENTITIES\r\n  0\r\nLINE\r\n  0\r\nENDSEC\r\n  0\r\nEOF\r\n')).toBe('scaffold.err.noParts');
+  });
+});
+
+describe('drawing of parts of the older kind only', () => {
+  // the DXF says (CLASSES) that it has parts of the older kind, which AutoCAD does not write
+  const classes = '  0\r\nSECTION\r\n  2\r\nCLASSES\r\n  0\r\nCLASS\r\n  1\r\nPERI_AEC_DB_BAUTEIL\r\n  2\r\nAecDbBauteil\r\n  3\r\nPERI\r\n 90\r\n0\r\n 91\r\n2\r\n  0\r\nENDSEC\r\n';
+  const dxf = classes + periDxf([]);
+  const exp = ['PERIEXPORT\t1\tINSUNITS=6', 'T=PERI_AEC_DB_BAUTEIL\tHandle=1A\tArtNr=109630\tBezeichnung=Spindel\tMin=0,0,0\tMax=0.04,0.04,0.6', 'T=PERI_AEC_DB_BAUTEIL\tHandle=1B\tArtNr=109630\tBezeichnung=Spindel\tMin=2,0,0\tMax=2.04,0.04,0.6'].join('\r\n');
+
+  it('alone it is an error that asks for PERIEXPORT', () => {
+    expect(() => parsePeriCadDxf(dxf, 'a.dxf')).toThrow('scaffold.err.aec');
+  });
+
+  it('with its …_peri.txt the parts come from the export', () => {
+    const doc = parsePeriCadDxf(dxf, 'a.dxf', undefined, { allowEmpty: true });
+    expect(doc.parts).toHaveLength(0);
+    expect(doc.aecParts).toBe(2);
+    const merged = mergePeriExport(doc, parsePeriExport(exp)!, 'a_peri.txt');
+    expect(merged.parts).toHaveLength(2);
+    expect(merged.exported?.added).toBe(2);
   });
 });
 

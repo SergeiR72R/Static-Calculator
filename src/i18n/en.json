@@ -775,7 +775,10 @@
         "loose": "Load-bearing parts not in the frame: {name} – {n} pcs. Check in the drawing what they connect to.",
         "lost": "Parts not in the model: {name} – {n} pcs.",
         "noMaxWind": "No site given: the maximum wind is not applied (working wind 0.2 kN/m² only). Give the site in the card “Site and conditions”.",
-        "slender": "The scaffold is tall and narrow (height = {r} × width) and not fixed to the building. If it is held on site, enter that in the card “Fixings to the building”; otherwise ballast will be needed."
+        "slender": "The scaffold is tall and narrow (height = {r} × width) and not fixed to the building. If it is held on site, enter that in the card “Fixings to the building”; otherwise ballast will be needed.",
+        "noWindZone": "No wind zone (area) is found for the chosen site – the maximum wind is missing (working wind 0.2 kN/m² only). Choose the zone in the card “Site and conditions”.",
+        "noVb0": "There is no built-in wind map for the chosen site – the maximum wind is missing (working wind 0.2 kN/m² only). Enter v_b,0 from the national annex or q_p directly in the card “Site and conditions”.",
+        "noQp": "q_p of the maximum wind is entered by hand as 0 – the maximum wind is missing. Enter q_p in the card “Site and conditions”."
       },
       "do": {
         "rootHorizontal": "Main cause: the scaffold carries the horizontal load along {axis} poorly. Start with fixings to the building or diagonals in that direction – the other overloads below will get smaller.",
@@ -952,7 +955,7 @@
       "noParts": "The DXF contains no PERI CAD parts.",
       "proxy": "The PERI parts were saved as proxy objects – save the DXF with PERI CAD loaded.",
       "read": "The DXF could not be read.",
-      "aec": "The DXF contains no readable parts: all parts of the drawing are of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL), which AutoCAD does not write to DXF. In a copy: QSELECT → type PERI_AEC_DB_BAUTEIL_GRUPPE → EXPLODE; then QSELECT → type PERI_AEC_DB_BAUTEIL → EXPLODE; save the DXF."
+      "aec": "The DXF contains no readable parts: all parts of the drawing are of the older PERI CAD kind (PERI_AEC_DB_BAUTEIL), which AutoCAD does not write to the DXF. Run the command PERIEXPORT in AutoCAD and open the DXF together with the file …⁠_peri.txt."
     },
     "site": {
       "title": "Site and conditions",
@@ -1193,7 +1196,9 @@
       "loaded": "Parts added from the AutoCAD export: {n}",
       "errFormat": "This file is not a PERIEXPORT file.",
       "errNoDxf": "Open the DXF of the drawing first, then the file …⁠_peri.txt.",
-      "missing": "Drawing loaded: {n} parts. It has up to {m} more parts of the older PERI CAD kind that are not in the DXF – open the file …⁠_peri.txt for it (command PERIEXPORT)."
+      "missing": "Drawing loaded: {n} parts. It has up to {m} more parts of the older PERI CAD kind that are not in the DXF – open the file …⁠_peri.txt for it (command PERIEXPORT).",
+      "loadedBoth": "Drawing loaded: {n} parts, {m} of them from the export …⁠_peri.txt",
+      "empty": "The DXF and the export …⁠_peri.txt contain no readable PERI parts. Run PERIEXPORT in this drawing again."
     },
     "progress": {
       "read": "Reading the file",
@@ -1204,7 +1209,10 @@
       "prepare": "Preparing: looking for mechanisms…",
       "run": "Combinations: {done} of {total}"
     },
-    "clearSelection": "Clear highlighting ({n})"
+    "clearSelection": "Clear highlighting ({n})",
+    "fold": {
+      "none": "none"
+    }
   },
   "help": {
     "button": "About this setting",

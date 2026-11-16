@@ -10,21 +10,21 @@ import { useProgress } from './progress';
 const frame = () => new Promise((r) => setTimeout(r, 30));
 
 /** the DXF read on the page itself (no workers) */
-async function parseHere(f: File): Promise<ScaffoldDoc> {
+async function parseHere(f: File, allowEmpty: boolean): Promise<ScaffoldDoc> {
   const setLoad = useProgress.getState().setLoad;
   setLoad({ phase: 'scaffold.progress.parse', frac: null });
   await frame();
-  return parsePeriCadDxf(new TextDecoder('utf-8').decode(await f.arrayBuffer()), f.name);
+  return parsePeriCadDxf(new TextDecoder('utf-8').decode(await f.arrayBuffer()), f.name, undefined, { allowEmpty });
 }
 
 /** the DXF read in a worker, with the progress of reading and parsing */
-function parseInWorker(f: File): Promise<ScaffoldDoc> {
+function parseInWorker(f: File, allowEmpty: boolean): Promise<ScaffoldDoc> {
   const setLoad = useProgress.getState().setLoad;
   let w: Worker;
   try {
     w = new DxfWorker();
   } catch {
-    return parseHere(f);
+    return parseHere(f, allowEmpty);
   }
   return new Promise((resolve, reject) => {
     w.onmessage = (e: MessageEvent<DxfWorkerMessage>) => {
@@ -40,9 +40,9 @@ function parseInWorker(f: File): Promise<ScaffoldDoc> {
       e.preventDefault();
       w.terminate();
       // the worker could not start (e.g. blocked): on the page
-      parseHere(f).then(resolve, reject);
+      parseHere(f, allowEmpty).then(resolve, reject);
     };
-    w.postMessage({ file: f });
+    w.postMessage({ file: f, allowEmpty });
   });
 }
 
@@ -56,8 +56,26 @@ async function readText(f: File): Promise<string> {
   }
 }
 
-/** Read a DXF of PERI CAD and make it the drawing of the scaffold mode (part of the lazily loaded scaffold mode). */
-export async function openDxfFile(f: File, withExport = false): Promise<boolean> {
+/** the parts of the PERIEXPORT files added to a drawing; null (with a message) if a file is not an export */
+async function withExports(doc: ScaffoldDoc, txt: File[]): Promise<ScaffoldDoc | null> {
+  let d = doc;
+  for (const f of txt) {
+    const ex = parsePeriExport(await readText(f));
+    if (!ex) {
+      useProgress.getState().setLoad(null);
+      useStore.getState().showToast('scaffold.export.errFormat');
+      return null;
+    }
+    d = mergePeriExport(d, ex, f.name);
+  }
+  return d;
+}
+
+/**
+ * Read a DXF of PERI CAD with its PERIEXPORT files (…_peri.txt) and make it the drawing of the scaffold
+ * mode (part of the lazily loaded scaffold mode). The drawing is shown once all its files are read.
+ */
+export async function openDxfFile(f: File, txt: File[] = []): Promise<boolean> {
   const app = useStore.getState();
   if (/\.dwg$/i.test(f.name)) {
     app.showToast('scaffold.err.dwg');
@@ -66,14 +84,24 @@ export async function openDxfFile(f: File, withExport = false): Promise<boolean>
   const { setLoad } = useProgress.getState();
   try {
     setLoad({ phase: 'scaffold.progress.read', frac: 0 });
-    const doc = await parseInWorker(f);
+    // a drawing of parts of the older kind only: its parts come from the export
+    let doc = await parseInWorker(f, txt.length > 0);
+    if (txt.length) {
+      setLoad({ phase: 'scaffold.progress.export', frac: null });
+      await frame();
+      const d = await withExports(doc, txt);
+      if (!d) return false;
+      doc = d;
+      if (!doc.parts.length) throw new ScaffoldImportError('scaffold.export.empty');
+    }
     // the structure is worked out while the page renders the new drawing (the bar stays until then)
     setLoad({ phase: 'scaffold.progress.structure', frac: null });
     await frame();
     useScaffold.getState().setDoc(doc);
     if (app.appMode !== 'scaffold') app.setPrefs({ appMode: 'scaffold' });
     // old-kind parts not in the DXF and no export file with it: ask for the …_peri.txt
-    if (doc.aecParts && !withExport) app.showToast('scaffold.export.missing', { n: doc.parts.length, m: doc.aecParts });
+    if (txt.length) app.showToast('scaffold.export.loadedBoth', { n: doc.parts.length, m: doc.exported?.added ?? 0 });
+    else if (doc.aecParts) app.showToast('scaffold.export.missing', { n: doc.parts.length, m: doc.aecParts });
     else app.showToast('scaffold.loaded', { n: doc.parts.length });
     return true;
   } catch (e) {
@@ -87,32 +115,30 @@ export async function openDxfFile(f: File, withExport = false): Promise<boolean>
 export async function openExportFile(f: File): Promise<boolean> {
   const app = useStore.getState();
   const sc = useScaffold.getState();
-  useProgress.getState().setLoad({ phase: 'scaffold.progress.export', frac: null });
-  const ex = parsePeriExport(await readText(f));
-  if (!ex) {
-    useProgress.getState().setLoad(null);
-    app.showToast('scaffold.export.errFormat');
-    return false;
-  }
   if (!sc.doc) {
-    useProgress.getState().setLoad(null);
     app.showToast('scaffold.export.errNoDxf');
     return false;
   }
+  useProgress.getState().setLoad({ phase: 'scaffold.progress.export', frac: null });
+  await frame();
+  const doc = await withExports(sc.doc, [f]);
+  if (!doc) return false;
   useProgress.getState().setLoad({ phase: 'scaffold.progress.structure', frac: null });
   await frame();
-  const doc = mergePeriExport(sc.doc, ex, f.name);
   sc.setDoc(doc);
   app.showToast('scaffold.export.loaded', { n: doc.exported?.added ?? 0 });
   return true;
 }
 
-/** Several files at once: the DXF first, then the export files. */
+/** Several files at once: the DXF with its export files, or export files for the open drawing. */
 export async function openScaffoldFiles(files: File[]): Promise<void> {
   const dxf = files.filter((f) => !/\.txt$/i.test(f.name));
   const txt = files.filter((f) => /\.txt$/i.test(f.name));
-  for (const f of dxf.slice(0, 1)) if (!(await openDxfFile(f, txt.length > 0))) return;
-  for (const f of txt) await openExportFile(f);
+  if (dxf.length) {
+    await openDxfFile(dxf[0], txt);
+    return;
+  }
+  for (const f of txt) if (!(await openExportFile(f))) return;
 }
 
 /** The AutoLISP command PERIEXPORT as a file to save */

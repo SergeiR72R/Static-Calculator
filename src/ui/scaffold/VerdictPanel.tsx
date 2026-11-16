@@ -31,7 +31,17 @@ export function useAssessment(
 ): Assessment {
   const sc = useScaffold();
   const height = st.max[2] - st.min[2];
-  const noMaxWind = sc.exposure === 'outdoor' && !(siteWind(sc, Math.max(height, 1)).qMax > 0);
+  // no maximum wind outdoors: why (no site, no zone found for it, no wind map for its country, q_p 0)
+  const noMaxWind =
+    sc.exposure !== 'outdoor' || siteWind(sc, Math.max(height, 1)).qMax > 0
+      ? false
+      : sc.windManual
+        ? 'qp'
+        : !sc.site
+          ? 'site'
+          : ['de', 'nl', 'be', 'lu'].includes(sc.site.country)
+            ? 'zone'
+            : 'vb0';
   return useMemo(
     () =>
       assessScaffold({

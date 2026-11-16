@@ -775,7 +775,10 @@
         "loose": "Tragende Teile nicht im Tragwerk: {name} – {n} Stk. In der Zeichnung prüfen, woran sie angeschlossen sind.",
         "lost": "Teile nicht im Modell: {name} – {n} Stk.",
         "noMaxWind": "Kein Standort angegeben: Der maximale Wind ist nicht angesetzt (nur Arbeitswind 0,2 kN/m²). Standort in der Karte „Standort und Bedingungen“ angeben.",
-        "slender": "Das Gerüst ist hoch und schmal (Höhe = {r} × Breite) und nicht am Bauwerk befestigt. Ist es auf der Baustelle gehalten, in der Karte „Befestigung am Bauwerk“ angeben; sonst ist Ballast nötig."
+        "slender": "Das Gerüst ist hoch und schmal (Höhe = {r} × Breite) und nicht am Bauwerk befestigt. Ist es auf der Baustelle gehalten, in der Karte „Befestigung am Bauwerk“ angeben; sonst ist Ballast nötig.",
+        "noWindZone": "Für den gewählten Standort ist keine Windzone (kein Windgebiet) bestimmt – der maximale Wind fehlt (nur Arbeitswind 0,2 kN/m²). Wählen Sie die Zone in der Karte „Standort und Bedingungen“.",
+        "noVb0": "Für den gewählten Standort gibt es keine hinterlegte Windkarte – der maximale Wind fehlt (nur Arbeitswind 0,2 kN/m²). Geben Sie v_b,0 aus dem nationalen Anhang oder q_p direkt in der Karte „Standort und Bedingungen“ ein.",
+        "noQp": "q_p des maximalen Windes ist von Hand mit 0 eingegeben – der maximale Wind fehlt. Geben Sie q_p in der Karte „Standort und Bedingungen“ ein."
       },
       "do": {
         "rootHorizontal": "Hauptursache: Das Gerüst trägt die Horizontallast in {axis} schlecht. Mit Befestigungen am Bauwerk oder Diagonalen in dieser Richtung beginnen – die übrigen Überschreitungen unten werden dadurch kleiner.",
@@ -952,7 +955,7 @@
       "noParts": "Die DXF enthält keine PERI-CAD-Teile.",
       "proxy": "PERI-Teile wurden als Proxy-Objekte gespeichert – DXF mit geladenem PERI CAD speichern.",
       "read": "Die DXF konnte nicht gelesen werden.",
-      "aec": "Die DXF enthält keine lesbaren Teile: alle Teile der Zeichnung sind vom älteren PERI-CAD-Typ (PERI_AEC_DB_BAUTEIL), AutoCAD schreibt sie nicht in die DXF. In einer Kopie: SSCHNELL → Typ PERI_AEC_DB_BAUTEIL_GRUPPE → URSPRUNG; dann SSCHNELL → Typ PERI_AEC_DB_BAUTEIL → URSPRUNG; DXF speichern."
+      "aec": "Die DXF enthält keine lesbaren Teile: alle Teile der Zeichnung sind vom älteren PERI-CAD-Typ (PERI_AEC_DB_BAUTEIL), AutoCAD schreibt sie nicht in die DXF. Führen Sie in AutoCAD den Befehl PERIEXPORT aus und öffnen Sie die DXF zusammen mit der Datei …⁠_peri.txt."
     },
     "site": {
       "title": "Standort und Bedingungen",
@@ -1193,7 +1196,9 @@
       "loaded": "Teile aus dem AutoCAD-Export ergänzt: {n}",
       "errFormat": "Diese Datei ist kein PERIEXPORT.",
       "errNoDxf": "Zuerst die DXF der Zeichnung öffnen, dann die Datei …⁠_peri.txt.",
-      "missing": "Zeichnung geladen: {n} Teile. Sie enthält bis zu {m} weitere Teile des älteren PERI-CAD-Typs, die nicht in der DXF stehen – öffnen Sie dazu die Datei …⁠_peri.txt (Befehl PERIEXPORT)."
+      "missing": "Zeichnung geladen: {n} Teile. Sie enthält bis zu {m} weitere Teile des älteren PERI-CAD-Typs, die nicht in der DXF stehen – öffnen Sie dazu die Datei …⁠_peri.txt (Befehl PERIEXPORT).",
+      "loadedBoth": "Zeichnung geladen: {n} Teile, davon {m} aus dem Export …⁠_peri.txt",
+      "empty": "DXF und Export …⁠_peri.txt enthalten keine lesbaren PERI-Teile. Führen Sie PERIEXPORT in dieser Zeichnung erneut aus."
     },
     "progress": {
       "read": "Datei lesen",
@@ -1204,7 +1209,10 @@
       "prepare": "Vorbereitung: Mechanismen suchen…",
       "run": "Kombinationen: {done} von {total}"
     },
-    "clearSelection": "Hervorhebung aufheben ({n})"
+    "clearSelection": "Hervorhebung aufheben ({n})",
+    "fold": {
+      "none": "keine"
+    }
   },
   "help": {
     "button": "Erläuterung zur Einstellung",

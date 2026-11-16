@@ -364,6 +364,43 @@ export function Card({ title, children, className, actions, testId }: { title?: 
   );
 }
 
+/**
+ * Card under a spoiler: closed by default, the title with a short state (e.g. how many are set);
+ * for what is seldom needed.
+ */
+export function FoldCard({ title, state, children, testId, defaultOpen }: { title: ReactNode; state?: ReactNode; children: ReactNode; testId?: string; defaultOpen?: boolean }) {
+  return (
+    <details
+      data-testid={testId}
+      open={defaultOpen}
+      className="group rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 [&::-webkit-details-marker]:hidden" data-testid={testId ? `${testId}-toggle` : undefined}>
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
+          <span className="inline-block w-3 text-slate-400 transition-transform group-open:rotate-90 rtl:-scale-x-100" aria-hidden>
+            ▸
+          </span>
+          {title}
+        </span>
+        {state}
+      </summary>
+      <div className="px-3 pb-3">{children}</div>
+    </details>
+  );
+}
+
+/** short state in the title of a FoldCard: what is set, or "none" */
+export function FoldState({ items }: { items: string[] }) {
+  const fmt = useFmt();
+  return items.length ? (
+    <span className="rounded-full bg-accent-700 px-2 py-0.5 text-[10px] font-semibold text-white" data-testid="fold-state">
+      {items.join(' + ')}
+    </span>
+  ) : (
+    <span className="text-[11px] font-normal text-slate-500">{fmt.t('scaffold.fold.none')}</span>
+  );
+}
+
 export function Badge({ ok, children }: { ok: boolean; children: ReactNode }) {
   return (
     <span

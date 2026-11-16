@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import type { UserFixing } from '../../scaffold/userLoads';
-import { Button, Card, HelpTip, NumberField, TextField, cx } from '../common';
+import { Button, FoldCard, FoldState, HelpTip, NumberField, TextField, cx } from '../common';
 import { useFmt } from '../hooks';
 
 const AXES = ['x', 'y', 'z'] as const;
@@ -36,7 +36,7 @@ export function FixingsCard({ st }: { st: ScaffoldStructure }) {
   const toggle = (d: 'x' | 'y' | 'z') => setDirs((v) => (v.includes(d) ? v.filter((x) => x !== d) : [...v, d]));
 
   return (
-    <Card title={fmt.t('scaffold.fix.title')} testId="scaffold-fixings">
+    <FoldCard title={fmt.t('scaffold.fix.title')} testId="scaffold-fixings" state={<FoldState items={sc.fixings.length ? [String(sc.fixings.length)] : []} />}>
       <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.fix.intro')}</p>
       <div className="grid grid-cols-2 items-end gap-2 lg:grid-cols-6">
         <TextField className="col-span-2" label={fmt.t('scaffold.fix.name')} value={name} onChange={setName} placeholder={fmt.t('scaffold.fix.namePlaceholder')} testId="scaffold-fix-name" help="scaffold.fixName" />
@@ -107,6 +107,6 @@ export function FixingsCard({ st }: { st: ScaffoldStructure }) {
           </table>
         </div>
       )}
-    </Card>
+    </FoldCard>
   );
 }

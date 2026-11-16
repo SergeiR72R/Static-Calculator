@@ -17,7 +17,7 @@ import { findPeriProduct, periSI } from '../sections/peri';
 import { deckedLedger, type ScaffoldStructure, type WorldPart } from './structure';
 import type { PartKind } from './catalog';
 import { partKg } from './weights';
-import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
+import { COUPLER_SLIP_K, E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 import { planBlockLoads, type PlanLoads } from './planLoads';
 import { orderedAxis, type UserFixing, type UserLoad, type UserLoadWhen } from './userLoads';
 
@@ -523,6 +523,12 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   };
   // lattice girders as equivalent beams along their top chord
   const trussSec = (ea: number): Section3 => ({ EA: ea, EIy: 1, EIz: 1, GJ: 1 });
+  /** a scaffold tube between two couplers: the tube in series with the slip of both couplers */
+  const tubeSec = (i: number, j: number): Section3 => {
+    const L = Math.max(len3(nodes[i], nodes[j]), 0.05);
+    const EA = E_STEEL * TUBES.t32.A;
+    return trussSec(L / (L / EA + 2 / COUPLER_SLIP_K));
+  };
   const girderPanels: { part: string; m: { i: number; j: number; sec: Section3; truss: boolean }[] }[] = [];
   const flexRosettes: { p: V3; car: Carrier; part: string; t: number }[] = [];
   const connectorPosts: { i: number; j: number; part: string }[] = [];
@@ -1210,7 +1216,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     const far = addNode(a.atStructure);
     for (const dof of [0, 1, 2]) supports.push({ node: far, dof, k: Infinity });
     anchors.push({ member: fm.length, part: a.id, node: n });
-    fm.push({ i: n, j: far, sec: trussSec(E_STEEL * TUBES.t32.A), truss: true });
+    fm.push({ i: n, j: far, sec: tubeSec(n, far), truss: true });
     mm.push({ kind: 'anchor', part: a.id, tube: 't32', g: TUBES.t32.g });
     // the tube coupled to further standards on the way: it braces them
     let prev = n;
@@ -1219,7 +1225,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       if (kv < 0) continue;
       const nv = colNode(kv, p[2], 0.03);
       if (nv === prev) continue;
-      fm.push({ i: prev, j: nv, sec: trussSec(E_STEEL * TUBES.t32.A), truss: true });
+      fm.push({ i: prev, j: nv, sec: tubeSec(prev, nv), truss: true });
       mm.push({ kind: 'tube', part: a.id, tube: 't32', g: 0 });
       prev = nv;
     }
@@ -1240,7 +1246,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     const [A, B] = [cross[0], cross[cross.length - 1]];
     const na = colNode(A.k, A.z, 0.03);
     const nb = colNode(B.k, B.z, 0.03);
-    fm.push({ i: na, j: nb, sec: trussSec(E_STEEL * TUBES.t32.A), truss: true });
+    fm.push({ i: na, j: nb, sec: tubeSec(na, nb), truss: true });
     mm.push({ kind: 'tube', part: w.part.id, tube: 't32', g: TUBES.t32.g });
   }
   // point loads on tubes (ties of a hoist …): at the node of the tube nearest to the point (an end

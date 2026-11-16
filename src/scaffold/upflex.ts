@@ -267,6 +267,14 @@ export const JOINT = { k: 12900 * kNcm, MRd: 113 * kNcm, NRd: 100 * kN };
 /** couplers EN 74-1 class B: design slip resistance (permissible 9.1 kN × 1.5) */
 export const COUPLER_RD = 9.1 * 1.5 * kN;
 
+/**
+ * slip stiffness of a coupler along the tube (secant): 15 kN at a slip of 3 mm, calibrated with PERI
+ * ForceControl 18_012 (EN 74-1 class B allows up to 7 mm at the characteristic slip force, see the
+ * decision log R-033 / O-7). A tube on couplers is a spring of its two couplers in series with the
+ * tube (as the axial slip diagrams of the coupler hinges in PERI ForceControl).
+ */
+export const COUPLER_SLIP_K = (15 * kN) / 0.003;
+
 export interface DiagonalData {
   /** axial stiffness in tension / compression, N */
   eaT: number;

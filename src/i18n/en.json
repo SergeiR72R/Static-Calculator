@@ -789,10 +789,12 @@
         "ledger": "Ledgers: {n} parts, up to {eta} %. Reduce the span (intermediate standard), use a reinforced ledger UHV or a lattice girder, reduce the deck load.",
         "diagonal": "Diagonals: {n} parts, up to {eta} %{dir}. Add diagonals in neighbouring bays and lifts of the same plane or fix the scaffold to the building.",
         "jack": "Base jacks: {n} parts, up to {eta} %. Reduce the jack extension or spread the load over more standards.",
-        "tie": "Anchors, couplers and fixings: {n} parts, up to {eta} %{dir}. Add fixing points or diagonals to relieve them.",
+        "tie": "Anchors and fixings to the building: {n} parts, up to {eta} %{dir}. Add fixing points or diagonals to relieve them.",
         "lifted": "Bases lifting off: {n} (allowed, but the scaffold rocks). Ballast or a fixing to the building reduce the displacements.",
         "sway": "Horizontal displacement {mm} mm (height / {ratio}): the frame is soft. Add diagonals or fixings to the building.",
-        "girder": "Lattice girder {name}: {eta} %. Open it in the beam calculator; reduce the span or the load or use a deeper girder."
+        "girder": "Lattice girder {name}: {eta} %. Open it in the beam calculator; reduce the span or the load or use a deeper girder.",
+        "coupler": "Tubes on couplers: {n} parts, up to {eta} %{dir}. The coupler may slip on the tube: add a safety coupler right next to the loaded one or replace the tube by a PERI UP ledger or diagonal.",
+        "ledgerSway": "Ledgers: {n} parts, up to {eta} %{dir} – bending from the sway of the scaffold under wind, not from the deck load. Add diagonals in the adjacent bays or a fixing to the building: they take the moment off the ledgers."
       }
     },
     "adv": {

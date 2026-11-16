@@ -789,10 +789,12 @@
         "ledger": "Riegel: {n} Teile, bis {eta} %. Spannweite verringern (Zwischenstiel), verstärkten Riegel UHV oder Gitterträger einsetzen, Belaglast verringern.",
         "diagonal": "Diagonalen: {n} Teile, bis {eta} %{dir}. Diagonalen in Nachbarfeldern und -lagen derselben Ebene ergänzen oder das Gerüst am Bauwerk befestigen.",
         "jack": "Spindeln: {n} Teile, bis {eta} %. Spindelauszug verringern oder die Last auf mehr Stiele verteilen.",
-        "tie": "Anker, Kupplungen und Befestigungen: {n} Teile, bis {eta} %{dir}. Weitere Befestigungspunkte oder Diagonalen zur Entlastung ergänzen.",
+        "tie": "Anker und Befestigungen am Bauwerk: {n} Teile, bis {eta} %{dir}. Weitere Befestigungspunkte oder Diagonalen zur Entlastung ergänzen.",
         "lifted": "Abhebende Fußpunkte: {n} (zulässig, das Gerüst schaukelt dabei). Ballast oder Befestigung am Bauwerk verringern die Verformungen.",
         "sway": "Horizontalverschiebung {mm} mm (Höhe / {ratio}): Das Tragwerk ist weich. Diagonalen oder Befestigungen am Bauwerk ergänzen.",
-        "girder": "Gitterträger {name}: {eta} %. Im Balkenrechner öffnen; Spannweite oder Last verringern oder einen höheren Träger einsetzen."
+        "girder": "Gitterträger {name}: {eta} %. Im Balkenrechner öffnen; Spannweite oder Last verringern oder einen höheren Träger einsetzen.",
+        "coupler": "Rohre an Kupplungen: {n} Teile, bis {eta} %{dir}. Die Kupplung kann auf dem Rohr rutschen: eine Sicherungskupplung direkt an die belastete setzen oder das Rohr durch einen PERI-UP-Riegel oder eine Diagonale ersetzen.",
+        "ledgerSway": "Riegel: {n} Teile, bis {eta} %{dir} – Biegung aus dem Schwanken des Gerüsts unter Wind, nicht aus der Belaglast. Diagonalen in den Nachbarfeldern oder eine Befestigung am Bauwerk ergänzen: sie nehmen das Moment aus den Riegeln."
       }
     },
     "adv": {

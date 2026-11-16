@@ -72,6 +72,21 @@ describe('plain answer of the scaffold analysis', () => {
     expect(key(false)).toEqual([]);
   });
 
+  it('tubes on couplers are not anchors; ledgers bent out of service by the sway', () => {
+    const a = assessScaffold({
+      issues: [],
+      result: result([
+        { check: 'coupler', eta: 0.78, combo: 'R −x' },
+        { check: 'ledger', eta: 0.72, combo: 'S +x' },
+        { check: 'ledger', eta: 0.71, combo: 'S −x' },
+      ]),
+    });
+    expect(a.todo.map((t) => t.key)).toEqual(['coupler', 'ledgerSway']);
+    // a ledger bent in service (the deck load) keeps the advice on the span
+    const b = assessScaffold({ issues: [], result: result([{ check: 'ledger', eta: 0.8, combo: 'A +x' }]) });
+    expect(b.todo.map((t) => t.key)).toEqual(['ledger']);
+  });
+
   it('parts drawn twice: one remark for all places', () => {
     const dup = (name: string, id: string) => ({ key: 'duplicate', params: { name, n: 2 }, parts: [id, id + 'b'], severity: 'warning' as const });
     const a = assessScaffold({ issues: [dup('Federstecker', 'a'), dup('Federstecker', 'c'), dup('UH 100', 'e')], result: null });

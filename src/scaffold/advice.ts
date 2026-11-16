@@ -69,7 +69,9 @@ const GROUPS: { key: string; checks: CheckKind[] }[] = [
   { key: 'ledger', checks: ['ledger'] },
   { key: 'diagonal', checks: ['diagonal'] },
   { key: 'jack', checks: ['jack'] },
-  { key: 'tie', checks: ['anchor', 'coupler', 'fixing'] },
+  { key: 'tie', checks: ['anchor', 'fixing'] },
+  // tubes on couplers between standards (bracing, a tube instead of a ledger): no anchors
+  { key: 'coupler', checks: ['coupler'] },
 ];
 
 /** issues of the import that have to be put right in the drawing, and notes of the model of that kind */
@@ -153,8 +155,10 @@ export function assessScaffold(inp: AssessInput): Assessment {
       const list = bad.length ? bad : near;
       if (!list.length) continue;
       const dir = mainDir(list.map((c) => c.combo));
+      // ledgers bent out of service (no or a part of the service load): by the sway under the wind
+      const sway = g.key === 'ledger' && list.every((c) => /^[RS] /.test(c.combo));
       todo.push({
-        key: g.key,
+        key: sway ? 'ledgerSway' : g.key,
         level: bad.length ? 'fail' : 'warn',
         parts: [...new Set(list.map((c) => c.part))],
         params: { n: new Set(list.map((c) => c.part)).size, eta: Math.round(max * 100), ...(dir ? { dir } : {}) },

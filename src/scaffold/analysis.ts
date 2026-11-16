@@ -55,6 +55,10 @@ export interface AnalysisOptions {
   spliceNoTension?: boolean;
   /** with spliceNoTension: play of a joint in tension (it carries tension once opened by this), m */
   spliceSlack?: number;
+  /** bow imperfections of the standards (second order): local L_el/250 between the ledgers, global
+   * L_tot/500 over the height, as equivalent loads in the direction of the combination (as PERI
+   * ForceControl, load case "AI"); default on */
+  bows?: boolean;
   /** global sway imperfection (inclination), default 1/200 */
   sway?: number;
 }
@@ -62,7 +66,7 @@ export interface AnalysisOptions {
 /** global sway imperfection of PERI ForceControl */
 export const SWAY = 1 / 200;
 
-export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level: -1, outdoor: true, qWork: 200, qMax: 0, cf: 1.2, snow: 0, ice: 0, secondOrder: true, dhb: 0.1, dhbLoad: 0, gFavR: true, diagSlack: false, spliceNoTension: true };
+export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level: -1, outdoor: true, qWork: 200, qMax: 0, cf: 1.2, snow: 0, ice: 0, secondOrder: true, dhb: 0.1, dhbLoad: 0, gFavR: true, diagSlack: false, spliceNoTension: true, bows: true };
 
 /** partial factor of favourable permanent loads in the out-of-service combinations */
 export const GAMMA_G_FAV = 0.9;
@@ -197,6 +201,8 @@ export function weakDofs(model: ScaffoldModel): number[] {
 interface Combo {
   name: string;
   loads: Loads3;
+  /** horizontal direction of the combination (sway, wind, bow imperfections) */
+  dir: V3;
 }
 
 /** unit vectors of the four horizontal directions */
@@ -375,7 +381,7 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
     // dynamic horizontal load (replaces the notional load of the decks)
     if (lc.dhbForce && (opt.dhbDir ?? 'xy').includes(d[0] !== 0 ? 'x' : 'y')) addScaled(c, lc.dhb(d), GAMMA_F);
     if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
-    combos.push({ name: `A ${dn}`, loads: c });
+    combos.push({ name: `A ${dn}`, loads: c, dir: d });
   }
   if (opt.outdoor && opt.qMax > 0) {
     // out of service: permanent loads γ = 1.5 + share of the service load + maximum wind
@@ -389,7 +395,7 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
       addScaled(c, v, 1);
       addScaled(c, lc.wind(d, 0.2), GAMMA_F * opt.qMax);
       if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
-      combos.push({ name: `R ${dn}`, loads: c });
+      combos.push({ name: `R ${dn}`, loads: c, dir: d });
     }
     // stability (lifting off, overturning): permanent loads favourable γ = 0.9, maximum wind
     if (opt.gFavR)
@@ -401,7 +407,7 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
         addScaled(c, v, 1);
         addScaled(c, lc.wind(d, 0.2), GAMMA_F * opt.qMax);
         if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
-        combos.push({ name: `S ${dn}`, loads: c });
+        combos.push({ name: `S ${dn}`, loads: c, dir: d });
       }
   }
   return { combos, level: lc.level, totalG: lc.totalG, totalQ: lc.totalQ, userG: lc.userG, userQ: lc.userQ, dhb: lc.dhbForce };
@@ -445,7 +451,8 @@ export class NearlyFreeError extends Error {
 }
 
 /** non-linear solution of one combination; `onStep` after every iteration (its number) */
-function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder0: boolean, onStep?: (it: number) => void, withSlack = false, spliceNoTension = false, spliceSlack = 0): Solved {
+function solveCombo(fr: Frame3, model: ScaffoldModel, loads0: Loads3, secondOrder0: boolean, onStep?: (it: number) => void, withSlack = false, spliceNoTension = false, spliceSlack = 0, bow?: (Ns: Float64Array) => Loads3): Solved {
+  let loads = loads0;
   const { frame, members } = model;
   let secondOrder = secondOrder0;
   let stability: Solved['stability'];
@@ -511,6 +518,11 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
   for (it = 1; it <= MAX; it++) {
     if (it > 1) onStep?.(it - 1);
     makeStates(Ns, it === 1);
+    // bow imperfections from the axial forces of the step before
+    if (bow && secondOrder && Ns) {
+      const b = bow(Ns);
+      loads = { nodal: Float64Array.from(loads0.nodal, (v, i) => v + b.nodal[i]), member: [...loads0.member, ...b.member] };
+    }
     try {
       r = fr.solve(loads, states, supActive, { reuse: true });
       if (it === 1) {
@@ -704,6 +716,48 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       lcr[k] = Math.max((hi - lo) * (top ? 2 : 1), 0.25);
     });
   }
+  // bow imperfections: per standard its segments between held nodes (local, L_el/250) and the whole
+  // height (global, L_tot/500); equivalent loads q = 8·N·e/L² with the opposite forces at the ends
+  const bowSegs: { members: number[]; a: number; b: number; L: number; e: number }[] = [];
+  for (const ns of colNodes.values()) {
+    const col = model.nodeColumn[ns[0]];
+    const mk = frame.members.map((_, k) => k).filter((k) => members[k].kind === 'standard' && model.nodeColumn[frame.members[k].i] === col);
+    if (!mk.length) continue;
+    const z = (n: number) => frame.nodes[n][2];
+    mk.sort((p, q) => z(frame.members[p].i) - z(frame.members[q].i));
+    const lowN = frame.members[mk[0]].i;
+    const topN = frame.members[mk[mk.length - 1]].j;
+    const H = z(topN) - z(lowN);
+    if (H > 0.3) bowSegs.push({ members: mk, a: lowN, b: topN, L: H, e: H / 500 });
+    let seg: number[] = [];
+    let start = lowN;
+    for (const k of mk) {
+      seg.push(k);
+      const j = frame.members[k].j;
+      if (held[j] || k === mk[mk.length - 1]) {
+        const L = z(j) - z(start);
+        if (L > 0.3) bowSegs.push({ members: seg, a: start, b: j, L, e: L / 250 });
+        seg = [];
+        start = j;
+      }
+    }
+  }
+  const bowLoads = (Ns: Float64Array, d: V3): Loads3 => {
+    const out = emptyLoads3(frame);
+    for (const g of bowSegs) {
+      let N = 0;
+      for (const k of g.members) N += Math.max(-Ns[k], 0);
+      N /= g.members.length;
+      if (N <= 0) continue;
+      const q = (8 * N * g.e) / (g.L * g.L);
+      for (const k of g.members) out.member.push({ m: k, q: [q * d[0], q * d[1], 0] });
+      for (const n of [g.a, g.b]) {
+        out.nodal[n * 6] -= (q * g.L * d[0]) / 2;
+        out.nodal[n * 6 + 1] -= (q * g.L * d[1]) / 2;
+      }
+    }
+    return out;
+  };
   // ledger connections by node (for the interaction standard / connection)
   const connAt = new Map<number, { k: number; e: number }[]>();
   frame.members.forEach((m, k) => {
@@ -741,7 +795,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
   const runCombo = (cb: Combo) => {
     let sol: Solved;
     try {
-      sol = solveCombo(fr, model, cb.loads, opt.secondOrder, onStep, !!opt.diagSlack, !!opt.spliceNoTension, opt.spliceSlack ?? 0);
+      sol = solveCombo(fr, model, cb.loads, opt.secondOrder, onStep, !!opt.diagSlack, !!opt.spliceNoTension, opt.spliceSlack ?? 0, opt.bows === false ? undefined : (Ns) => bowLoads(Ns, cb.dir));
     } catch (e) {
       // a nearly free degree of freedom (some stiffness left, but far too little): held by a weak
       // spring as the free ones, and the combination again

@@ -406,3 +406,17 @@ leeseitige Reihe (18_013: ±x 124 / 134 mm, 18_011: 28 mm). Die Lagerreaktionen 
 abhebenden Fußpunkte stimmen dabei überein (18_013 S x: 18 / 18, Reihen 0 / 87 / 0 / 182 gegen
 0 / 82 / 0 / 189 kN). 18_012: R ±x 24,5 mm (17,4 / 17,9) mit 47 statt 32 / 34 abhebenden
 Fußpunkten, R ±y 5 mm (10,3).
+
+**Weitere Abgleichsschritte.**
+- Vorkrümmung der Ständer wie FC (Lastfall „AI“, Abschnitt 1.6 der FC-Berichte): lokal L_el/250
+  zwischen gehaltenen Knoten, global L_tot/500 über die Höhe einer Ständerreihe, als Ersatzlasten
+  q = 8·N·e/L² in Richtung der Kombination mit N aus der Iteration (Theorie II. Ordnung). Die
+  Rohrnachweise der Ständer stimmen mit den FC-Schnittgrößen exakt (UVH 18_012 LCC2: 0,723 gegen
+  0,73; UVR 0,633 gegen 0,63), Unterschiede kommen also nur aus den Momenten.
+- 18_012: FC-Ständerreihen V(11·j + i), i = Linie in x aufsteigend, j = Reihe in y aufsteigend;
+  „+Y“ in FC entspricht −y der Zeichnung. Reaktionen je Reihe stimmen damit gut (A +x: 120 / 37 /
+  29 kN gegen 121 / 37 / 29). Die maximalen Verschiebungen von FC liegen in 18_012 innerhalb langer
+  Stäbe (Stab 8338 / 8572 bei 658–673 mm, Rohre bzw. Träger) – lokale Biegung, nicht die
+  Knotenverschiebung des Gerüsts; sie sind mit `dh` nicht vergleichbar.
+- Windlasten 18_012: Arbeitswind x 29,0 kN (28,9), y 19,8 + DHB 30 (50,6), maximaler Wind x 47,9
+  (47,7), y 32,6 (34,0).

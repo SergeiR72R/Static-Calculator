@@ -322,6 +322,19 @@ describe('ledger diagonals UBL', () => {
 });
 
 describe('supports, mechanisms, parallel runs', () => {
+  it('bow imperfections of the standards (L_el/250, L_tot/500) raise the bending of the standards', () => {
+    const m = buildScaffoldModel(tower(braced));
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: false, p: 6000 };
+    // mean of the governing moments of the standards
+    const tube = (r: ReturnType<typeof analyzeScaffoldModel>) => {
+      const t = r.checks.filter((c) => c.check === 'tube');
+      return t.reduce((a, c) => a + (c.M ?? 0), 0) / t.length;
+    };
+    const withBows = tube(analyzeScaffoldModel(m, opt));
+    const without = tube(analyzeScaffoldModel(m, { ...opt, bows: false }));
+    expect(withBows).toBeGreaterThan(without * 1.03);
+  });
+
   it('as PERI ForceControl: a base lifted off holds nothing; standard joints carry no tension', () => {
     const m = buildScaffoldModel(tower(braced));
     const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 2500, keep: true };

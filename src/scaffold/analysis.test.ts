@@ -215,12 +215,12 @@ describe('scaffold analysis', () => {
     expect(res.combos.map((c) => c.name[0]).join('')).toBe('AAAARRRRSSSS');
     for (const c of res.combos) {
       expect(c.ok).toBe(true);
-      // working: everything × 1.5; out of service: permanent × 1.5 + share of Q, no user Q;
+      // working: everything × 1.5; out of service: permanent × 1.5 + share of Q (user Q too);
       // stability: permanent × 0.9 (favourable)
       const V = c.name.startsWith('A')
         ? GAMMA_F * (res.totalG + res.totalQ + cb.userG + cb.userQ)
         : c.name.startsWith('R')
-          ? GAMMA_F * (res.totalG + cb.userG + share * res.totalQ)
+          ? GAMMA_F * (res.totalG + cb.userG + share * (res.totalQ + cb.userQ))
           : 0.9 * (res.totalG + cb.userG);
       expect(c.sumV).toBeCloseTo(V, -2);
     }
@@ -322,6 +322,22 @@ describe('ledger diagonals UBL', () => {
 });
 
 describe('supports, mechanisms, parallel runs', () => {
+  it('horizontal loads of the user act in the combinations of their axis with the sign of the combination', () => {
+    const st = tower(braced);
+    const std = st.parts.filter((w) => w.cls.kind === 'standard' && w.min[2] > 1).slice(0, 2);
+    const H: UserLoad = { id: 'H', name: 'hoist', case: 'Q', kind: 'point', value: 4000, at: 0.5, parts: std.map((w) => w.part.id), dir: 'x' };
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: false, keep: true, secondOrder: false };
+    const sumRx = (withLoad: boolean, name: string) => {
+      const m = buildScaffoldModel(st, withLoad ? [H] : []);
+      const c = analyzeScaffoldModel(m, opt).combos.find((x) => x.name === name)!;
+      return m.bases.reduce((s, b) => s + c.reactions![b.sup], 0);
+    };
+    // 2 standards × 4 kN × γ 1.5, against the direction of the combination's x
+    expect(sumRx(true, 'A +x') - sumRx(false, 'A +x')).toBeCloseTo(-12000, -1);
+    expect(sumRx(true, 'A −x') - sumRx(false, 'A −x')).toBeCloseTo(12000, -1);
+    expect(sumRx(true, 'A +y') - sumRx(false, 'A +y')).toBeCloseTo(0, -1);
+  });
+
   it('bow imperfections of the standards (L_el/250, L_tot/500) raise the bending of the standards', () => {
     const m = buildScaffoldModel(tower(braced));
     const opt = { ...DEFAULT_ANALYSIS, outdoor: false, p: 6000 };

@@ -773,7 +773,11 @@
       "dhbDir": "Richtung",
       "plan": "Ballast und Lasten aus der Zeichnung (Blöcke mit Gewicht, nach ihren Abmessungen)",
       "planSummary": "{n} Körper auf dem Gerüst, Σ {f} als ständige Last auf {m} Riegel/Träger.",
-      "planUnplaced": "{n} weitere liegen nicht auf dem Gerüst (Unterlagen, separat berechnete Plattform) und werden nicht angesetzt."
+      "planUnplaced": "{n} weitere liegen nicht auf dem Gerüst (Unterlagen, separat berechnete Plattform) und werden nicht angesetzt.",
+      "dir": "Richtung",
+      "dirZ": "vertikal (nach unten)",
+      "dirX": "horizontal ±x (mit der Kombination)",
+      "dirY": "horizontal ±y (mit der Kombination)"
     },
     "heal": {
       "title": "Teile einrasten",

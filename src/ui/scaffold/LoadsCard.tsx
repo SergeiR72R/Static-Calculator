@@ -19,6 +19,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
   const [kind, setKind] = useState<'point' | 'line'>('point');
   const [value, setValue] = useState(10e3);
   const [at, setAt] = useState(0.5);
+  const [dir, setDir] = useState<'z' | 'x' | 'y'>('z');
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
   const sel = sc.selected.filter((id) => byId.has(id));
   // the selected parts by name
@@ -41,6 +42,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
       value,
       at: Math.min(Math.max(at, 0), 1),
       parts: [...sel],
+      ...(dir !== 'z' ? { dir } : {}),
     };
     sc.addLoad(l);
     setName('');
@@ -54,7 +56,7 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
   return (
     <Card title={fmt.t('scaffold.loads.title')} testId="scaffold-loads">
       <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.loads.intro')}</p>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-8">
         <TextField className="col-span-2" label={fmt.t('scaffold.loads.name')} value={name} onChange={setName} placeholder={fmt.t('scaffold.loads.namePlaceholder')} testId="scaffold-load-name" />
         <SelectField
           label={fmt.t('scaffold.loads.case')}
@@ -75,6 +77,17 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
             { value: 'line', label: fmt.t('scaffold.loads.line') },
           ]}
           onChange={setKind}
+        />
+        <SelectField
+          label={fmt.t('scaffold.loads.dir')}
+          value={dir}
+          testId="scaffold-load-dir"
+          options={[
+            { value: 'z', label: fmt.t('scaffold.loads.dirZ') },
+            { value: 'x', label: fmt.t('scaffold.loads.dirX') },
+            { value: 'y', label: fmt.t('scaffold.loads.dirY') },
+          ]}
+          onChange={setDir}
         />
         <NumberField label={fmt.t('scaffold.loads.value')} q={kind === 'point' ? 'force' : 'lineLoad'} value={value} onChange={(v) => setValue(Math.max(0, v))} testId="scaffold-load-value" />
         {kind === 'point' && <NumberField label={fmt.t('scaffold.loads.at')} value={at * 100} onChange={(v) => setAt(Math.min(Math.max(v / 100, 0), 1))} testId="scaffold-load-at" />}
@@ -110,7 +123,10 @@ export function LoadsCard({ st }: { st: ScaffoldStructure }) {
                         {l.name}
                       </button>
                     </td>
-                    <td className="px-1.5 py-1">{l.case}</td>
+                    <td className="px-1.5 py-1">
+                      {l.case}
+                      {l.dir && l.dir !== 'z' && <span className="ms-1 text-slate-500">±{l.dir}</span>}
+                    </td>
                     <td className="num px-1.5 py-1 text-end">
                       {l.kind === 'point' ? `${fmt.q(l.value, 'force', 2)} @ ${fmt.num(l.at * 100, 0)} %` : fmt.q(l.value, 'lineLoad', 2)}
                     </td>

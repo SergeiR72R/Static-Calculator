@@ -26,6 +26,10 @@ export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk
 export interface UserLoadApplied {
   load: string;
   case: 'G' | 'Q';
+  /** horizontal along x / y (in the combinations of that direction, with their sign), else vertical */
+  dir?: 'x' | 'y';
+  /** force direction (x, y) of a horizontal load, default along `dir` */
+  vec?: [number, number];
   nodal: { node: number; F: number }[];
   members: { m: number; q: number }[];
 }
@@ -716,7 +720,9 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   const mm: ModelMember[] = [];
   /** length of a member between its connection points (the rigid arms excluded) */
   // ---- point loads of the user: a node on the beam / ledger / standard at the place of the load
-  const user: UserLoadApplied[] = userLoads.map((l) => ({ load: l.id, case: l.case, nodal: [], members: [] }));
+  /** point loads on parts that may be tubes: placed once the tubes are built */
+  const pendingTube: { li: number; id: string; at: number }[] = [];
+  const user: UserLoadApplied[] = userLoads.map((l) => ({ load: l.id, case: l.case, ...(l.dir === 'x' || l.dir === 'y' ? { dir: l.dir, ...(l.vec ? { vec: l.vec } : {}) } : {}), nodal: [], members: [] }));
   userLoads.forEach((l, li) => {
     if (l.kind !== 'point') return;
     for (const id of l.parts) {
@@ -741,6 +747,9 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         user[li].nodal.push({ node: h.head, F: l.value });
         continue;
       }
+      // perhaps a tube (tie, brace): after the tubes are built
+      pendingTube.push({ li, id, at });
+      continue;
       note('userLoadIgnored', id, { name: l.name });
     }
   });
@@ -994,6 +1003,23 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     fm.push({ i: na, j: nb, sec: trussSec(E_STEEL * TUBES.t32.A), truss: true });
     mm.push({ kind: 'tube', part: w.part.id, tube: 't32', g: TUBES.t32.g });
   }
+  // point loads on tubes (ties of a hoist …): at the node of the tube nearest to the point (an end
+  // sticking out beyond its coupler goes to the coupler)
+  for (const { li, id, at } of pendingTube) {
+    const w = byId.get(id);
+    const tm = w ? fm.map((_, k) => k).filter((k) => mm[k].part === id && (mm[k].kind === 'tube' || mm[k].kind === 'anchor')) : [];
+    const ml = w && longestLine(w);
+    if (!tm.length || !ml) {
+      note('userLoadIgnored', id, { name: userLoads[li].name });
+      continue;
+    }
+    const [A, B] = orderedAxis(ml[0], ml[1]);
+    const P: V3 = [A[0] + at * (B[0] - A[0]), A[1] + at * (B[1] - A[1]), A[2] + at * (B[2] - A[2])];
+    let best = -1;
+    for (const k of tm) for (const n of [fm[k].i, fm[k].j]) if (best < 0 || len3(nodes[n], P) < len3(nodes[best], P)) best = n;
+    user[li].nodal.push({ node: best, F: userLoads[li].value });
+  }
+
 
   // ---- standards (after all nodes on them exist)
   cols.forEach((c) => {

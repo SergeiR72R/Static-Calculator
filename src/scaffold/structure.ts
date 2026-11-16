@@ -505,6 +505,22 @@ function findAnchors(parts: WorldPart[], columns: Column[]): Anchor[] {
       const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
       if (L > 1e-6 && Math.abs(b[2] - a[2]) / L > 0.25) continue;
     }
+    // couplers along the tube at standards: coupled at two standards it is a tie / brace between them,
+    // also with an end sticking out (e.g. the ties of a hoist mast), not an anchor
+    const Lt = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    const atStandards = new Set<Column>();
+    if (Lt > 1e-6)
+      for (const c of couplers) {
+        if (isFlange(c)) continue;
+        const q = pos(c);
+        const sp = ((q[0] - a[0]) * (b[0] - a[0]) + (q[1] - a[1]) * (b[1] - a[1]) + (q[2] - a[2]) * (b[2] - a[2])) / Lt;
+        if (sp < -0.05 || sp > Lt + 0.05) continue;
+        const p: V3 = [a[0] + (sp * (b[0] - a[0])) / Lt, a[1] + (sp * (b[1] - a[1])) / Lt, a[2] + (sp * (b[2] - a[2])) / Lt];
+        if (Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]) > 0.1) continue;
+        const col = colAt(p);
+        if (col) atStandards.add(col);
+      }
+    if (atStandards.size >= 2) continue;
     for (const [s, e] of [
       [a, b],
       [b, a],

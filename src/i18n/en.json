@@ -773,7 +773,11 @@
       "dhbDir": "Direction",
       "plan": "Ballast and loads from the drawing (blocks with a weight, by their dimensions)",
       "planSummary": "{n} bodies on the scaffold, Σ {f} as permanent load on {m} ledgers/beams.",
-      "planUnplaced": "{n} more do not lie on the scaffold (pads, platform calculated separately) and are not applied."
+      "planUnplaced": "{n} more do not lie on the scaffold (pads, platform calculated separately) and are not applied.",
+      "dir": "Direction",
+      "dirZ": "vertical (downwards)",
+      "dirX": "horizontal ±x (with the combination)",
+      "dirY": "horizontal ±y (with the combination)"
     },
     "heal": {
       "title": "Snap parts",

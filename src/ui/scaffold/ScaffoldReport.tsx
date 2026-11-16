@@ -114,7 +114,8 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
               <td className={td}>
                 {sc.loads.map((l) => (
                   <div key={l.id}>
-                    {l.name} ({l.case}): {l.kind === 'point' ? `${fmt.q(l.value, 'force', 2)} @ ${fmt.num(l.at * 100, 0)} %` : fmt.q(l.value, 'lineLoad', 2)} × {l.parts.length} · Σ {fmt.q(userLoadTotal(l, byId), 'force', 1)}
+                    {l.name} ({l.case}
+                    {l.dir && l.dir !== 'z' ? `, ±${l.dir}` : ''}): {l.kind === 'point' ? `${fmt.q(l.value, 'force', 2)} @ ${fmt.num(l.at * 100, 0)} %` : fmt.q(l.value, 'lineLoad', 2)} × {l.parts.length} · Σ {fmt.q(userLoadTotal(l, byId), 'force', 1)}
                   </div>
                 ))}
                 {[...planGroups].map(([n, g]) => (

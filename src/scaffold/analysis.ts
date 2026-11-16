@@ -329,9 +329,22 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
   // loads of the user: permanent and variable
   const ug = emptyLoads3(frame);
   const uq = emptyLoads3(frame);
+  // horizontal loads of the user towards +x / +y (in the combinations of that direction with their sign)
+  const uh = { G: [emptyLoads3(frame), emptyLoads3(frame)], Q: [emptyLoads3(frame), emptyLoads3(frame)] };
   let userG = 0;
   let userQ = 0;
   for (const u of model.user ?? []) {
+    if (u.dir) {
+      const i = u.dir === 'x' ? 0 : 1;
+      const v = u.vec ?? (i === 0 ? [1, 0] : [0, 1]);
+      const ld = uh[u.case][i];
+      for (const p of u.nodal) {
+        ld.nodal[p.node * 6] += p.F * v[0];
+        ld.nodal[p.node * 6 + 1] += p.F * v[1];
+      }
+      for (const l of u.members) ld.member.push({ m: l.m, q: [l.q * v[0], l.q * v[1], 0] });
+      continue;
+    }
     const ld = u.case === 'G' ? ug : uq;
     let sum = 0;
     for (const p of u.nodal) {
@@ -345,6 +358,13 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
     if (u.case === 'G') userG += sum;
     else userQ += sum;
   }
+  /** horizontal user loads of the case in the direction d (along x or y, with the sign of d) */
+  const userH = (cs: 'G' | 'Q', d: V3): Loads3 => {
+    const w = emptyLoads3(frame);
+    const i = d[0] !== 0 ? 0 : 1;
+    addScaled(w, uh[cs][i], Math.sign(d[i]));
+    return w;
+  };
   /** dynamic horizontal load: share of the load moved by the crane, equal parts at the DHB nodes */
   const dhbForce = (opt.dhb ?? 0) > 0 && (opt.dhbLoad ?? 0) > 0 && model.dhbNodes?.length ? (opt.dhb ?? 0) * (opt.dhbLoad ?? 0) : 0;
   const dhb = (d: V3): Loads3 => {
@@ -356,7 +376,7 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
     }
     return w;
   };
-  return { g, q, s, ug, uq, wind, notional, dhb, dhbForce, level, totalG, totalQ, userG, userQ };
+  return { g, q, s, ug, uq, userH, wind, notional, dhb, dhbForce, level, totalG, totalQ, userG, userQ };
 }
 
 /** combinations of EN 12811-1 (working and out of service), γ_F = 1.5, with sway imperfection */
@@ -381,6 +401,8 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
     // dynamic horizontal load (replaces the notional load of the decks)
     if (lc.dhbForce && (opt.dhbDir ?? 'xy').includes(d[0] !== 0 ? 'x' : 'y')) addScaled(c, lc.dhb(d), GAMMA_F);
     if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
+    addScaled(c, lc.userH('G', d), GAMMA_F);
+    addScaled(c, lc.userH('Q', d), GAMMA_F);
     combos.push({ name: `A ${dn}`, loads: c, dir: d });
   }
   if (opt.outdoor && opt.qMax > 0) {
@@ -390,11 +412,13 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
       addScaled(v, lc.g, GAMMA_F);
       addScaled(v, lc.ug, GAMMA_F);
       addScaled(v, lc.q, GAMMA_F * share);
+      addScaled(v, lc.uq, GAMMA_F * share);
       if (opt.snow > 0) addScaled(v, lc.s, GAMMA_F);
       const c = emptyLoads3(model.frame);
       addScaled(c, v, 1);
       addScaled(c, lc.wind(d, 0.2), GAMMA_F * opt.qMax);
       if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
+      addScaled(c, lc.userH('G', d), GAMMA_F);
       combos.push({ name: `R ${dn}`, loads: c, dir: d });
     }
     // stability (lifting off, overturning): permanent loads favourable γ = 0.9, maximum wind
@@ -407,6 +431,7 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
         addScaled(c, v, 1);
         addScaled(c, lc.wind(d, 0.2), GAMMA_F * opt.qMax);
         if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
+        addScaled(c, lc.userH('G', d), GAMMA_F);
         combos.push({ name: `S ${dn}`, loads: c, dir: d });
       }
   }

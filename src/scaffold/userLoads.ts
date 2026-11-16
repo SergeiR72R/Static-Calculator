@@ -7,7 +7,8 @@ import type { WorldPart } from './structure';
 export interface UserLoad {
   id: string;
   name: string;
-  /** G: permanent (in the out-of-service combinations too), Q: variable (working combinations only) */
+  /** G: permanent (in all combinations), Q: variable (working combinations, out of service with the
+   * share of the service class) */
   case: 'G' | 'Q';
   /** point: force on every part (N) at `at` of its length; line: N/m along the whole part */
   kind: 'point' | 'line';
@@ -15,6 +16,12 @@ export interface UserLoad {
   /** position along the part from its start (the end with the smaller x, then y, then z), 0…1 */
   at: number;
   parts: string[];
+  /** direction: vertical downwards (default) or horizontal along x / y, then acting in the combinations
+   * in that direction with their sign (as the hoist loads LC7 / LC8 of PERI ForceControl) */
+  dir?: 'z' | 'x' | 'y';
+  /** horizontal: components (x, y) of the force for the combinations of `dir` (e.g. a hoist load
+   * "in y" with a part in x); default along `dir` */
+  vec?: [number, number];
 }
 
 /** dynamic horizontal load (ForceControl "DHB"): share of the load moved by the crane (10 %) */

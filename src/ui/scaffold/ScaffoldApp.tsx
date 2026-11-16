@@ -13,6 +13,7 @@ import { IconAlert, IconChevronRight, IconInfo, IconPrint, IconUpload, IconX } f
 import { downloadExportScript, openScaffoldFiles } from './openDxf';
 import { SiteCard } from './SiteCard';
 import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './AnalysisCard';
+import { LoadsCard } from './LoadsCard';
 import { ScaffoldReport } from './ScaffoldReport';
 import { useProgress, useScaffoldRun } from './progress';
 import { ProgressBar } from './ProgressBar';
@@ -241,7 +242,12 @@ export default function ScaffoldApp() {
       .filter(Boolean)
       .join(' — ');
   };
-  const pick = (id: string | null) => {
+  const pick = (id: string | null, add?: boolean) => {
+    // Ctrl / Shift: several parts (e.g. for a load)
+    if (add) {
+      if (id) sc.select(sc.selected.includes(id) ? sc.selected.filter((x) => x !== id) : [...sc.selected, id]);
+      return;
+    }
     if (!id) return sc.select([]);
     const g = partGirder.get(id);
     if (g) sc.select(g.parts, g.key);
@@ -403,6 +409,8 @@ export default function ScaffoldApp() {
             )}
           </div>
         </Card>
+
+        <LoadsCard st={st} />
 
         <AnalysisCard st={st} run={run} setRun={setRun} />
 

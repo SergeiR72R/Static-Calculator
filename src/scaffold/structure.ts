@@ -89,6 +89,8 @@ export interface Anchor {
   atStandard: V3;
   atStructure: V3;
   length: number;
+  /** further points where the tube is coupled to standards (the tube braces them) */
+  via?: V3[];
 }
 
 export interface ScaffoldStructure {
@@ -509,6 +511,44 @@ function findAnchors(parts: WorldPart[], columns: Column[]): Anchor[] {
       w.cls = { kind: 'anchor' };
       break;
     }
+    // (an end at a standard: within a coupler's reach of its axis)
+    const atCol = (p: V3) => columns.some((c) => Math.hypot(c.x - p[0], c.y - p[1]) <= 0.1 && p[2] >= c.z0 - 0.1 && p[2] <= c.z1 + 0.1);
+    if (w.cls.kind === 'anchor' || atCol(a) || atCol(b)) continue;
+    // a tube coupled along its length to standards with a free end beyond the couplers (towards the
+    // structure, which is not drawn): an anchor at the free end on the outer side of the scaffold
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    if (L < 0.3) continue;
+    const t: V3 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L, (b[2] - a[2]) / L];
+    const on: { c: WorldPart; s: number; p: V3 }[] = [];
+    for (const c of couplers) {
+      if (isFlange(c)) continue;
+      const q = pos(c);
+      const sp = (q[0] - a[0]) * t[0] + (q[1] - a[1]) * t[1] + (q[2] - a[2]) * t[2];
+      if (sp < -0.05 || sp > L + 0.05) continue;
+      const p: V3 = [a[0] + sp * t[0], a[1] + sp * t[1], a[2] + sp * t[2]];
+      if (Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]) > 0.1 || !colAt(p)) continue;
+      on.push({ c, s: sp, p });
+    }
+    if (!on.length) continue;
+    on.sort((x, y) => x.s - y.s);
+    const cx = columns.reduce((v, c) => v + c.x, 0) / columns.length;
+    const cy = columns.reduce((v, c) => v + c.y, 0) / columns.length;
+    const ends = [
+      { e: a, s: on[0], free: on[0].s },
+      { e: b, s: on[on.length - 1], free: L - on[on.length - 1].s },
+    ].filter((x) => x.free >= 0.1);
+    if (!ends.length) continue;
+    const out1 = ends.reduce((x, y) => (Math.hypot(y.e[0] - cx, y.e[1] - cy) > Math.hypot(x.e[0] - cx, x.e[1] - cy) ? y : x));
+    out.push({
+      id: w.part.id,
+      couplers: on.map((o) => o.c.part.id),
+      flange: [],
+      atStandard: out1.s.p,
+      atStructure: out1.e,
+      length: Math.hypot(out1.e[0] - out1.s.p[0], out1.e[1] - out1.s.p[1]),
+      via: on.filter((o) => o !== out1.s).map((o) => o.p),
+    });
+    w.cls = { kind: 'anchor' };
   }
   return out;
 }

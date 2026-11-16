@@ -7,6 +7,7 @@ import { storage } from '../state/persist';
 import type { ScaffoldDoc } from './pericad';
 import { STANDING_FACTOR, germanWindZone, qpEN, qpGermany, type Admin, type ExposureDE } from './wind';
 import { VB0_LU, VB0_NL, belgianVb0, dutchTerrain, dutchWindArea, qpNetherlands } from './windBenelux';
+import { DHB_SHARE, type UserLoad } from './userLoads';
 
 const KEY = 'balken.scaffold';
 const OPT_KEY = 'balken.scaffoldOpts';
@@ -64,6 +65,10 @@ export interface ScaffoldOpts {
   vb0: number;
   /** factor 0.7 for the standing time of the scaffold */
   standing: boolean;
+  /** dynamic horizontal load with user loads: share of the vertical loads (0: none) */
+  dhb: number;
+  /** permanent loads favourable (γ = 0.9) in the out-of-service combinations */
+  gFavR: boolean;
 }
 
 export interface SiteWind {
@@ -114,7 +119,7 @@ export function siteWind(o: ScaffoldOpts, height: number): SiteWind {
   return { qp: 0, qMax: 0, source: 'none' };
 }
 
-export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true };
+export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true, dhb: DHB_SHARE, gFavR: true };
 
 export interface ScaffoldState extends ScaffoldOpts {
   doc: ScaffoldDoc | null;
@@ -124,6 +129,11 @@ export interface ScaffoldState extends ScaffoldOpts {
   girder: string | null;
   /** beam list created from this drawing: id and signature of drawing + options */
   batchRef: { id: string; sig: string } | null;
+  /** loads entered by the user and the drawing they belong to */
+  loads: UserLoad[];
+  loadsFile: string | null;
+  addLoad: (l: UserLoad) => void;
+  removeLoad: (id: string) => void;
   setDoc: (doc: ScaffoldDoc | null) => void;
   setOpts: (o: Partial<ScaffoldOpts>) => void;
   select: (parts: string[], girder?: string | null) => void;
@@ -141,14 +151,15 @@ function loadDoc(): ScaffoldDoc | null {
   }
 }
 
-function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef'] } {
-  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null };
+function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null } {
+  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null, loads: [] as UserLoad[], loadsFile: null as string | null };
   try {
     const saved = JSON.parse(storage.get(OPT_KEY) ?? '{}');
     // options of version 1: deck self weight was the old default 0.20 kN/m² → new default
     if (!saved.v) delete saved.g;
     delete saved.v;
     Object.assign(o, saved);
+    if (!Array.isArray(o.loads)) o.loads = [];
   } catch {
     /* ignore */
   }
@@ -156,7 +167,7 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef'] } {
 }
 
 function save(s: ScaffoldState) {
-  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef'] } = {
+  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null } = {
     v: 2,
     loadClass: s.loadClass,
     g: s.g,
@@ -176,7 +187,11 @@ function save(s: ScaffoldState) {
     windExposure: s.windExposure,
     vb0: s.vb0,
     standing: s.standing,
+    dhb: s.dhb,
+    gFavR: s.gFavR,
     batchRef: s.batchRef,
+    loads: s.loads,
+    loadsFile: s.loadsFile,
   };
   storage.set(OPT_KEY, JSON.stringify(o));
 }
@@ -187,7 +202,9 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   selected: [],
   girder: null,
   setDoc: (doc) => {
-    set({ doc, selected: [], girder: null, batchRef: null });
+    // the loads of the user belong to the drawing: kept when the same drawing comes again
+    const keep = !!doc && doc.fileName === get().loadsFile;
+    set({ doc, selected: [], girder: null, batchRef: null, ...(keep ? {} : { loads: [], loadsFile: doc?.fileName ?? null }) });
     save(get());
     // a drawing too large for the storage of the browser is not kept for the next visit; the one
     // stored before goes too (else it would come back after a reload)
@@ -198,6 +215,14 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
     save(get());
   },
   select: (parts, girder = null) => set({ selected: parts, girder }),
+  addLoad: (l) => {
+    set({ loads: [...get().loads, l], loadsFile: get().doc?.fileName ?? null });
+    save(get());
+  },
+  removeLoad: (id) => {
+    set({ loads: get().loads.filter((l) => l.id !== id) });
+    save(get());
+  },
   setBatchRef: (r) => {
     set({ batchRef: r });
     save(get());

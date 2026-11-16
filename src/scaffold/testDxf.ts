@@ -180,8 +180,10 @@ export function towerParts(): TestPart[] {
  * with the y axis vertical (as PERI CAD drawings modelled in a rotated coordinate system).
  * `exploded`: parts of these kinds are written as older PERI CAD parts exploded in AutoCAD, i.e.
  * references of the display block "PERI_<article>_PartDisplayName_3D" (blocks in metres, scaled).
+ * `nested`: parts of these kinds as converted PERI CAD parts: a dynamic block "<article>" holding the
+ * display block, referenced from an anonymous block "*U…" (as the spindles of a converted drawing).
  */
-export function periDxf(parts: TestPart[], scale = 1, yUp = false, exploded: (keyof typeof ARTS)[] = []): string {
+export function periDxf(parts: TestPart[], scale = 1, yUp = false, exploded: (keyof typeof ARTS)[] = [], nested: (keyof typeof ARTS)[] = []): string {
   const out: string[] = [];
   const tag = (c: number, v: string | number) => out.push(String(c).padStart(3, ' '), String(v));
   let h = 0x100;
@@ -233,7 +235,7 @@ export function periDxf(parts: TestPart[], scale = 1, yUp = false, exploded: (ke
   tag(0, 'ENDBLK');
   for (const a of used) {
     // display blocks of exploded parts are in metres
-    const f = exploded.includes(a as keyof typeof ARTS) ? 1 : scale;
+    const f = exploded.includes(a as keyof typeof ARTS) || nested.includes(a as keyof typeof ARTS) ? 1 : scale;
     tag(0, 'BLOCK');
     tag(5, handle());
     tag(2, blockName(a));
@@ -268,11 +270,41 @@ export function periDxf(parts: TestPart[], scale = 1, yUp = false, exploded: (ke
       tag(0, 'ENDBLK');
     }
   }
+  // dynamic blocks of converted parts and the anonymous blocks referencing them
+  const anon: Record<string, string> = {};
+  nested.forEach((a, k) => {
+    const art = ARTS[a].article;
+    for (const [name, inner] of [
+      [art, `PERI_${art}_PartDisplayName_3D`],
+      [`*U${k + 1}`, art],
+    ]) {
+      tag(0, 'BLOCK');
+      tag(5, handle());
+      tag(2, name);
+      pt(10, [0, 0, 0], 1);
+      tag(0, 'INSERT');
+      tag(5, handle());
+      tag(2, inner);
+      pt(10, [0, 0, 0], 1);
+      tag(0, 'ENDBLK');
+    }
+    anon[a] = `*U${k + 1}`;
+  });
   tag(0, 'ENDSEC');
   tag(0, 'SECTION');
   tag(2, 'ENTITIES');
   for (const p of parts) {
     const R = ROT[p.rot];
+    if (anon[p.art]) {
+      tag(0, 'INSERT');
+      tag(5, handle());
+      tag(8, '0');
+      tag(2, anon[p.art]);
+      pt(10, p.t);
+      for (const c of [41, 42, 43]) tag(c, scale);
+      tag(50, { x: 0, y: 90, nx: 180 }[p.rot]);
+      continue;
+    }
     if (exploded.includes(p.art)) {
       tag(0, 'INSERT');
       tag(5, handle());

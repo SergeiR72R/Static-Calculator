@@ -76,6 +76,20 @@ describe('PERI CAD DXF reader', () => {
     }
   });
 
+  it('converted parts as dynamic blocks: spindles inside anonymous blocks "*U…"', () => {
+    for (const scale of [1, 1000]) {
+      const parts = towerParts();
+      for (const ax of [0, 2, 4]) for (const ay of [0, 2]) parts.push({ art: 'UJB', rot: 'x', t: [ax - 0.075, ay - 0.075, -0.205] });
+      const st = analyzeScaffold(parsePeriCadDxf(periDxf(parts, scale, false, [], ['UJB']), 'tower.dxf'));
+      const ujb = st.parts.filter((w) => w.part.article === '100412');
+      expect(ujb).toHaveLength(6);
+      expect(ujb.every((w) => w.cls.kind === 'jack')).toBe(true);
+      const m = buildScaffoldModel(st);
+      for (const b of m.bases) expect(m.frame.nodes[b.node][2]).toBeCloseTo(-0.205, 6);
+      expect(m.members.filter((x) => x.kind === 'jack' && x.jack === 'foot')).toHaveLength(6);
+    }
+  });
+
   it('placement of a block reference: rotation, scale and the extrusion direction (OCS)', () => {
     const q: [number, number, number] = [1, 0, 0];
     expect(place(insertMatrix([5, 6, 7], [2, 2, 2], 90, [0, 0, 1]), q).map((v) => +v.toFixed(9))).toEqual([5, 8, 7]);
@@ -223,6 +237,25 @@ describe('scaffold structure', () => {
     expect(s.anchors[0].flange).toHaveLength(1);
     expect(s.parts.filter((w) => w.cls.kind === 'anchor')).toHaveLength(1);
     expect(s.issues.find((i) => i.key === 'anchors')?.params).toEqual({ n: 1 });
+  });
+
+  it('anchors: tube coupled along its length to two standards, the free end towards the structure', () => {
+    const s = analyzeScaffold(
+      tower((p) => {
+        // tube along y beside the standard (4, 2) from y = 1.5 to 2.5, coupled to it in the middle (the
+        // coupler is placed beside the tube as PERI CAD does), 0.5 m free at both ends
+        p.push({ art: 'TUBE', rot: 'y', t: [4.05, 1.5, 1.2] });
+        p.push({ art: 'RA', rot: 'x', t: [4.05 + 0.076, 2, 1.2 - 0.05] });
+      }),
+    );
+    expect(s.anchors).toHaveLength(1);
+    const a = s.anchors[0];
+    // the end outwards (y = 2.5, away from the middle of the scaffold) is at the structure
+    expect(a.atStructure[1]).toBeCloseTo(2.5, 6);
+    expect(a.atStandard[1]).toBeCloseTo(2, 6);
+    expect(a.length).toBeCloseTo(0.5, 6);
+    const m = buildScaffoldModel(s);
+    expect(m.anchors).toHaveLength(1);
   });
 
   it('parts list with weights from the PERI parts list', () => {

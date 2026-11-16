@@ -1,6 +1,7 @@
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import { LOAD_CLASSES } from '../../scaffold/catalog';
 import { siteWind, useScaffold } from '../../scaffold/store';
+import { userLoadTotal } from '../../scaffold/userLoads';
 import { useFmt } from '../hooks';
 import { BRAND, FullLogo } from '../Brand';
 import { LANG_LOCALE } from '../../units/format';
@@ -35,7 +36,8 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
   const checks = res ? res.checks.slice(0, MAX_CHECKS) : [];
   const failedChecks = res ? res.checks.filter((c) => c.eta > 1).length : 0;
   const bases = res ? [...res.bases].sort((a, b) => b.Vmax - a.Vmax) : [];
-  const uplift = res ? res.bases.filter((b) => b.Vmin < 0) : [];
+  const uplift = res ? res.bases.filter((b) => b.Vmin < -1) : [];
+  const lifted = res ? res.bases.filter((b) => b.lifted && b.Vmin >= -1).length : 0;
   const windText = [
     wind.qMax > 0 ? fmt.t('scaffold.wind.result', { qp: fmt.q(wind.qp, 'areaLoad'), q: fmt.q(wind.qMax, 'areaLoad'), h: fmt.q(height, 'length', 1) }) : fmt.t('scaffold.wind.none'),
     wind.source === 'de' && wind.zone ? fmt.t('scaffold.wind.zoneN', { n: wind.zone }) : '',
@@ -94,6 +96,25 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
             <td className={td}>
               {sc.loadClass} ({fmt.q((LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3, 'areaLoad')}) · {fmt.t('scaffold.report.deckG')}: {fmt.q(sc.g, 'areaLoad')}
             </td>
+          </tr>
+          {sc.loads.length > 0 && (
+            <tr data-testid="scaffold-report-loads">
+              <th className={th}>{fmt.t('scaffold.loads.title')}</th>
+              <td className={td}>
+                {sc.loads.map((l) => (
+                  <div key={l.id}>
+                    {l.name} ({l.case}): {l.kind === 'point' ? `${fmt.q(l.value, 'force', 2)} @ ${fmt.num(l.at * 100, 0)} %` : fmt.q(l.value, 'lineLoad', 2)} × {l.parts.length} · Σ {fmt.q(userLoadTotal(l, byId), 'force', 1)}
+                  </div>
+                ))}
+                <div>
+                  {sc.dhb > 0 ? fmt.t('scaffold.report.dhb', { p: fmt.num(sc.dhb * 100, 1), h: fmt.q(res?.dhb ?? 0, 'force', 2) }) : fmt.t('scaffold.report.noDhb')}
+                </div>
+              </td>
+            </tr>
+          )}
+          <tr>
+            <th className={th}>{fmt.t('scaffold.report.method')}</th>
+            <td className={td}>{fmt.t(sc.gFavR ? 'scaffold.report.methodText' : 'scaffold.report.methodTextG15')}</td>
           </tr>
           <tr>
             <th className={th}>{fmt.t('scaffold.report.size')}</th>
@@ -193,6 +214,7 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
           <p>
             {fmt.t('scaffold.calc.basesMax', { v: fmt.q(res.bases.reduce((m, b) => Math.max(m, b.Vmax), 0), 'force', 1), h: fmt.q(res.bases.reduce((m, b) => Math.max(m, b.H), 0), 'force', 1) })}
             {uplift.length > 0 && ` ${fmt.t('scaffold.report.uplift', { n: uplift.length })}`}
+            {lifted > 0 && ` ${fmt.t('scaffold.calc.lifted', { n: lifted })}`}
           </p>
           <table className="my-1 border-collapse">
             <thead>
@@ -206,14 +228,14 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
               </tr>
             </thead>
             <tbody>
-              {[...uplift, ...bases.filter((b) => b.Vmin >= 0)].slice(0, Math.max(MAX_BASES, uplift.length)).map((b) => {
+              {[...uplift, ...bases.filter((b) => b.Vmin >= -1)].slice(0, Math.max(MAX_BASES, uplift.length)).map((b) => {
                 const w = byId.get(b.part);
                 return (
                   <tr key={b.node}>
                     <td className={td}>{name(b.part)}</td>
                     <td className={tn}>{w ? [w.min[0] - st.min[0], w.min[1] - st.min[1], w.min[2] - st.min[2]].map((v) => fmt.num(v, 2)).join(' / ') : ''}</td>
                     <td className={tn}>{fmt.q(b.Vmax, 'force', 1)}</td>
-                    <td className={tn} style={{ color: b.Vmin < 0 ? '#b91c1c' : undefined }}>
+                    <td className={tn} style={{ color: b.Vmin < -1 ? '#b91c1c' : undefined }}>
                       {fmt.q(b.Vmin, 'force', 1)}
                     </td>
                     <td className={tn}>{fmt.q(b.H, 'force', 1)}</td>

@@ -69,6 +69,8 @@ const ARTICLES: Record<string, PartClass> = {
   '124805': { kind: 'flexEnd' },
   '124806': { kind: 'flexConnector' },
   '124781': { kind: 'flexElement', flexLength: 1.5 },
+  // spindle of the spindle head SRU (109630) under the SRU beams
+  '109952': { kind: 'jack' },
 };
 
 export function classifyPart(article: string, name: string, desc = ''): PartClass {

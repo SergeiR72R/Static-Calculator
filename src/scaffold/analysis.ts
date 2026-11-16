@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { COUPLER_RD, E_STEEL, JACK, JOINT, LEDGERS, TUBES, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
+import { COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
 
 const G = 9.81;
 
@@ -31,9 +31,29 @@ export interface AnalysisOptions {
   ice: number;
   /** second-order theory with sway imperfection */
   secondOrder: boolean;
+  /**
+   * dynamic horizontal load (DHB) with user loads: share of all vertical loads (self weight, service
+   * load, user loads), at the tops of the standards reaching the top, in the working combinations
+   */
+  dhb?: number;
+  /** permanent loads favourable (γ = 0.9) in the out-of-service combinations, else γ = 1.5 */
+  gFavR?: boolean;
+  /**
+   * slack of the diagonals after the approval (0.1 / 0.3 cm …); off as in PERI ForceControl, whose
+   * results this analysis follows
+   */
+  diagSlack?: boolean;
+  /** global sway imperfection (inclination), default 1/200 */
+  sway?: number;
 }
 
-export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level: -1, outdoor: true, qWork: 200, qMax: 0, cf: 1.3, snow: 0, ice: 0, secondOrder: true };
+/** global sway imperfection of PERI ForceControl */
+export const SWAY = 1 / 200;
+
+export const DEFAULT_ANALYSIS: AnalysisOptions = { p: 2000, loadClass: 3, level: -1, outdoor: true, qWork: 200, qMax: 0, cf: 1.3, snow: 0, ice: 0, secondOrder: true, dhb: 0.025, gFavR: true, diagSlack: false };
+
+/** partial factor of favourable permanent loads in the out-of-service combinations */
+export const GAMMA_G_FAV = 0.9;
 
 /** partial factor for all actions (EN 12811-1, 10.3.2) */
 export const GAMMA_F = 1.5;
@@ -80,6 +100,8 @@ export interface BaseResult {
   Vmax: number;
   Vmin: number;
   H: number;
+  /** lifted off in a combination (reaction 0, allowed: one-sided support) */
+  lifted?: boolean;
   combo: string;
 }
 
@@ -121,6 +143,10 @@ export interface ScaffoldResult {
   level: number;
   totalG: number;
   totalQ: number;
+  /** loads of the user (characteristic, N) and the dynamic horizontal load (N, 0: none) */
+  userG?: number;
+  userQ?: number;
+  dhb?: number;
   /** number of unknowns */
   unknowns: number;
   /** degrees of freedom without stiffness held by a weak spring (mechanisms) */
@@ -279,15 +305,45 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
     }
     return w;
   };
-  return { g, q, s, wind, notional, level, totalG, totalQ };
+  // loads of the user: permanent and variable
+  const ug = emptyLoads3(frame);
+  const uq = emptyLoads3(frame);
+  let userG = 0;
+  let userQ = 0;
+  for (const u of model.user ?? []) {
+    const ld = u.case === 'G' ? ug : uq;
+    let sum = 0;
+    for (const p of u.nodal) {
+      ld.nodal[p.node * 6 + 2] -= p.F;
+      sum += p.F;
+    }
+    for (const l of u.members) {
+      ld.member.push({ m: l.m, q: [0, 0, -l.q] });
+      sum += l.q * mlen[l.m];
+    }
+    if (u.case === 'G') userG += sum;
+    else userQ += sum;
+  }
+  /** dynamic horizontal load: share of all vertical loads, equal parts at the tops of the standards */
+  const dhbForce = userG + userQ > 0 && (opt.dhb ?? 0) > 0 && model.dhbNodes?.length ? (opt.dhb ?? 0) * (totalG + totalQ + userG + userQ) : 0;
+  const dhb = (d: V3): Loads3 => {
+    const w = emptyLoads3(frame);
+    const F = dhbForce / model.dhbNodes.length;
+    for (const n of model.dhbNodes) {
+      w.nodal[n * 6] += F * d[0];
+      w.nodal[n * 6 + 1] += F * d[1];
+    }
+    return w;
+  };
+  return { g, q, s, ug, uq, wind, notional, dhb, dhbForce, level, totalG, totalQ, userG, userQ };
 }
 
 /** combinations of EN 12811-1 (working and out of service), γ_F = 1.5, with sway imperfection */
-export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combos: Combo[]; level: number; totalG: number; totalQ: number } {
+export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combos: Combo[]; level: number; totalG: number; totalQ: number; userG: number; userQ: number; dhb: number } {
   const lc = buildLoadCases(model, opt);
-  const nCols = Math.max(1, new Set(Array.from(model.nodeColumn).filter((c) => c >= 0)).size);
-  // inclination at the standard joints, reduced for n standards side by side (EN 12811-1, 10.2.2.2)
-  const psi = opt.secondOrder ? 0.01 * Math.sqrt(0.5 + 1 / nCols) : 0;
+  // global sway imperfection 1/200 as in PERI ForceControl (EN 12811-1, 10.2.2.2 would give
+  // 0.01·√(0.5 + 1/n) for n standards side by side)
+  const psi = opt.secondOrder ? (opt.sway ?? SWAY) : 0;
   const share = opt.loadClass <= 1 ? 0 : opt.loadClass <= 3 ? 0.25 : 0.5;
   const combos: Combo[] = [];
   for (const [dn, d] of DIRS) {
@@ -295,17 +351,23 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
     const v = emptyLoads3(model.frame);
     addScaled(v, lc.g, GAMMA_F);
     addScaled(v, lc.q, GAMMA_F);
+    addScaled(v, lc.ug, GAMMA_F);
+    addScaled(v, lc.uq, GAMMA_F);
     const c = emptyLoads3(model.frame);
     addScaled(c, v, 1);
     if (opt.outdoor && opt.qWork > 0) addScaled(c, lc.wind(d, 0.4), GAMMA_F * opt.qWork);
-    else addScaled(c, lc.notional(d), GAMMA_F);
+    else if (!lc.dhbForce) addScaled(c, lc.notional(d), GAMMA_F);
+    // dynamic horizontal load (replaces the notional load of the decks)
+    if (lc.dhbForce) addScaled(c, lc.dhb(d), GAMMA_F);
     if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
     combos.push({ name: `A ${dn}`, loads: c });
   }
   if (opt.outdoor && opt.qMax > 0)
     for (const [dn, d] of DIRS) {
       const v = emptyLoads3(model.frame);
-      addScaled(v, lc.g, GAMMA_F);
+      const gG = opt.gFavR ? GAMMA_G_FAV : GAMMA_F;
+      addScaled(v, lc.g, gG);
+      addScaled(v, lc.ug, gG);
       addScaled(v, lc.q, GAMMA_F * share);
       if (opt.snow > 0) addScaled(v, lc.s, GAMMA_F);
       const c = emptyLoads3(model.frame);
@@ -314,7 +376,7 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
       if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
       combos.push({ name: `R ${dn}`, loads: c });
     }
-  return { combos, level: lc.level, totalG: lc.totalG, totalQ: lc.totalQ };
+  return { combos, level: lc.level, totalG: lc.totalG, totalQ: lc.totalQ, userG: lc.userG, userQ: lc.userQ, dhb: lc.dhbForce };
 }
 
 interface Solved {
@@ -346,7 +408,7 @@ export class NearlyFreeError extends Error {
 }
 
 /** non-linear solution of one combination; `onStep` after every iteration (its number) */
-function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder0: boolean, onStep?: (it: number) => void): Solved {
+function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder0: boolean, onStep?: (it: number) => void, withSlack = false): Solved {
   const { frame, members } = model;
   let secondOrder = secondOrder0;
   let stability: Solved['stability'];
@@ -378,7 +440,7 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
         if (dstate[k] === 0) st.active = false;
         else {
           // first step: linear, without slack
-          st.elong = first ? 0 : dstate[k] * m.diag.slack;
+          st.elong = first || !withSlack ? 0 : dstate[k] * m.diag.slack;
           st.eaFactor = dstate[k] > 0 ? 1 : m.diag.eaC / m.diag.eaT;
         }
       } else {
@@ -439,7 +501,8 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads: Loads3, secondOrder
       const t = axis[k].t;
       let d = 0;
       for (let c = 0; c < 3; c++) d += (r.u[fmk.j * 6 + c] - r.u[fmk.i * 6 + c]) * t[c];
-      const s = d > m.diag.slack ? 1 : d < -m.diag.slack ? -1 : 0;
+      const slack = withSlack ? m.diag.slack : 0;
+      const s = d > slack ? 1 : d < -slack ? -1 : 0;
       // a diagonal that keeps switching stays out (its slack is not used up reliably)
       if (s !== dstate[k] && flips[k] < 4) {
         flips[k]++;
@@ -509,7 +572,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
     for (const n of [m.i, m.j]) (partsAt.get(n) ?? partsAt.set(n, new Set()).get(n)!).add(members[k].part);
   });
   const unstable = new Set<string>();
-  const { combos, level, totalG, totalQ } = buildCombos(model, opt);
+  const { combos, level, totalG, totalQ, userG, userQ, dhb } = buildCombos(model, opt);
   const best = new Map<string, PartCheck>();
   const put = (c: PartCheck) => {
     if (!Number.isFinite(c.eta)) c.eta = 99;
@@ -591,7 +654,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
   const runCombo = (cb: Combo) => {
     let sol: Solved;
     try {
-      sol = solveCombo(fr, model, cb.loads, opt.secondOrder, onStep);
+      sol = solveCombo(fr, model, cb.loads, opt.secondOrder, onStep, !!opt.diagSlack);
     } catch (e) {
       // a nearly free degree of freedom (some stiffness left, but far too little): held by a weak
       // spring as the free ones, and the combination again
@@ -714,14 +777,17 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
           put({ part: m.part, check: 'ledger', eta: u, combo: cb.name, N: sf.N, M: sf.My, V: sf.Vz });
         }
         const mid = sectionForces(mr, mr.L / 2);
-        put({ part: m.part, check: 'ledger', eta: Math.abs(mid.My) / sec.w.My + Math.abs(mid.N) / sec.w.N, combo: cb.name, N: mid.N, M: mid.My, V: mid.Vz });
+        const sp = sec.span ?? sec.w;
+        put({ part: m.part, check: 'ledger', eta: Math.abs(mid.My) / sp.My + Math.abs(mid.N) / sp.N, combo: cb.name, N: mid.N, M: mid.My, V: mid.Vz });
       } else if (m.kind === 'jack') {
         // spindle: cosine interaction (DIN 4425, 7.1) at the clamped end; a spindle pair through a
         // platform carries compression only
         for (const x of [0, mr.L]) {
           const sf = sectionForces(mr, x);
           const M = Math.hypot(sf.My, sf.Mz);
-          put({ part: m.part, check: 'jack', eta: tubeUtilisation(sf.N / JACK.NRd, M / JACK.MRd), combo: cb.name, N: sf.N, M, V: Math.hypot(sf.Vy, sf.Vz) });
+          // as PERI ForceControl: base jacks N / N_R + M / M_R, head jacks under beams N / N_c,Rd
+          const eta = m.jack === 'head' && !m.link ? Math.max(-sf.N, 0) / JACK_CHECK.head.NcRd : Math.abs(sf.N) / JACK_CHECK.foot.NR + M / JACK_CHECK.foot.MR;
+          put({ part: m.part, check: 'jack', eta, combo: cb.name, N: sf.N, M, V: Math.hypot(sf.Vy, sf.Vz), detail: m.jack === 'head' && !m.link ? 'EN 1993-1-1, 6.9' : 'DIN 4420-1, Tab. 7' });
         }
         if (m.link && mr.N > 100) put({ part: m.part, check: 'uplift', eta: 1.01, combo: cb.name, N: mr.N });
       } else if (m.diag) {
@@ -798,16 +864,19 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       // lifted off (released) or pulled (kept two-sided): uplift
       const lifted = (V === 0 && r.u[b.node * 6 + 2] > 1e-7) || V < -1;
       const o = baseRes.get(b.node);
-      if (!o) baseRes.set(b.node, { part: b.part, node: b.node, Vmax: V, Vmin: lifted ? Math.min(V, -1) : V, H, combo: cb.name });
+      if (!o) baseRes.set(b.node, { part: b.part, node: b.node, Vmax: V, Vmin: V, H, combo: cb.name, ...(lifted ? { lifted: true } : {}) });
       else {
         if (V > o.Vmax) {
           o.Vmax = V;
           o.combo = cb.name;
         }
-        o.Vmin = Math.min(o.Vmin, lifted ? Math.min(V, -1) : V);
+        o.Vmin = Math.min(o.Vmin, V);
+        if (lifted) o.lifted = true;
         o.H = Math.max(o.H, H);
       }
-      if (lifted) put({ part: b.part, check: 'uplift', eta: 1.01, combo: cb.name, N: Math.min(V, 0) });
+      // a base that lifts off is allowed (one-sided support, as in PERI ForceControl); a base that
+      // has to hold the scaffold down (kept two-sided: lifting off would leave a mechanism) is not
+      if (V < -1) put({ part: b.part, check: 'uplift', eta: 1.01, combo: cb.name, N: V });
     }
     for (const s of model.assumedSupports) {
       const V = r.reactions[s.sup + 2];
@@ -839,6 +908,9 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       level,
       totalG,
       totalQ,
+      userG,
+      userQ,
+      dhb,
       unknowns: fr.unknowns,
       weak: soft.length,
       factorisations: fr.factorisations,
@@ -898,6 +970,7 @@ export function mergeResults(parts: ScaffoldResult[], order: string[]): Scaffold
         if (b.Vmax > o.Vmax) [o.Vmax, o.combo] = [b.Vmax, b.combo];
         o.Vmin = Math.min(o.Vmin, b.Vmin);
         o.H = Math.max(o.H, b.H);
+        if (b.lifted) o.lifted = true;
       }
     }
     for (const a of r.anchors) {

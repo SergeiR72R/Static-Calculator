@@ -738,11 +738,32 @@
       "summary": "{n} parts · {types} articles · {girders} lattice girders"
     },
     "loads": {
-      "title": "Deck load (EN 12811-1)",
+      "title": "User loads",
       "class": "Service class",
       "classOption": "Class {n} – {p}",
       "g": "Self weight of the decks",
-      "hint": "Every deck gives half of its load to each of its two supports (girders or ledgers). Self weight of the lattice girders included; combinations 1.5·G + 1.5·Q and 1.0·G + 1.5·Q."
+      "hint": "Every deck gives half of its load to each of its two supports (girders or ledgers). Self weight of the lattice girders included; combinations 1.5·G + 1.5·Q and 1.0·G + 1.5·Q.",
+      "intro": "Loads that are not in the drawing: a structure on top (calculated separately, its reactions), a loading platform, ballast. Select parts in the 3D view (Ctrl/Shift + click: several), enter the load and add it. Vertical, downwards. G – permanent (in all combinations), Q – variable (working condition only).",
+      "name": "Name",
+      "namePlaceholder": "e.g. platform reactions",
+      "case": "Case",
+      "caseG": "G – permanent",
+      "caseQ": "Q – variable",
+      "kind": "Type",
+      "point": "point load per part",
+      "line": "line load along the length",
+      "value": "Value",
+      "at": "Position, % of length",
+      "add": "Add to the selected ({n})",
+      "selectHint": "Select parts in the 3D view (Ctrl/Shift + click: several). The position counts from the end with the smaller x (then y, z).",
+      "parts": "Parts",
+      "missing": "{n} parts are not in the current drawing",
+      "remove": "Remove the load",
+      "total": "Total: G = {g}, Q = {q} (characteristic)",
+      "dhb": "Dynamic horizontal load DHB",
+      "dhbShare": "DHB share, %",
+      "gFav": "Out of service: permanent loads with γ = 0.9 (as PERI ForceControl)",
+      "dhbHint": "DHB is computed when there are user loads: the given % of all vertical loads (self weight, Q, user loads) in equal parts at the tops of the standards that reach the top, in the working condition in the wind direction (γ = 1.5) – as PERI ForceControl."
     },
     "heal": {
       "title": "Snap parts",
@@ -771,7 +792,7 @@
     },
     "view": {
       "title": "3D model",
-      "hint": "Drag: rotate · right button: pan · wheel: zoom · click: select a part or girder",
+      "hint": "Drag: rotate · right button: pan · wheel: zoom · click: select a part or girder · Ctrl/Shift + click: several",
       "toggle": "Show / hide",
       "girderColors": "girders by η:",
       "byEta": "Colour the parts by utilisation η"
@@ -876,7 +897,7 @@
     },
     "calc": {
       "title": "Scaffold analysis (space frame)",
-      "intro": "The scaffold is analysed as a space frame: continuous standards, ledgers with semi-rigid rosette connections, diagonals with slack, anchors, bases without tension. Loads and combinations after DIN EN 12811-1 (γF = 1.5), stiffness and node checks after the approval Z-8.22-863.",
+      "intro": "The scaffold is analysed as a space frame, as in PERI ForceControl: continuous standards, ledgers with semi-rigid rosette connections, diagonals (without slack), lattice girders connected at both chords, anchors, bases without tension. Loads and combinations after DIN EN 12811-1 (γF = 1.5), stiffness and node checks after the approval Z-8.22-863.",
       "run": "Calculate",
       "rerun": "Recalculate",
       "running": "Calculating… {done} / {total}",
@@ -945,7 +966,9 @@
       },
       "basis": "Basis: approval Z-8.22-863 (moment–rotation curves, resistances of nodes, diagonals, joints), DIN EN 12811-1, PERI UP Tabellenbuch. Decks do not brace. Does not replace the verification by the structural engineer; comparison with RSTAB will follow.",
       "mechanismParts": "{n} parts are not held (mechanism) – kept in place by weak springs in the analysis. Check in the drawing. Show.",
-      "stabilityLost": "stability lost with second order – results of first order; show the zone ({n} parts)"
+      "stabilityLost": "stability lost with second order – results of first order; show the zone ({n} parts)",
+      "summaryUser": "user G = {g}, Q = {q} · DHB = {h}",
+      "lifted": "{n} bases lift off (reaction 0) – allowed, the system stays stable. Show."
     },
     "wind": {
       "title": "Maximum wind",
@@ -1008,7 +1031,12 @@
       "unitKg": "Weight per piece, kg",
       "total": "Total",
       "noWeight": "No weight in the parts database: {n} pcs – not in the total.",
-      "failed": "Checks with η > 100 %: {n} – all of them in the program (filter by check, colours in 3D)."
+      "failed": "Checks with η > 100 %: {n} – all of them in the program (filter by check, colours in 3D).",
+      "dhb": "DHB: {p} % of the vertical loads, total {h}",
+      "noDhb": "DHB not applied",
+      "method": "Method",
+      "methodText": "As PERI ForceControl: second-order theory, sway 1/200, diagonals without slack, γ = 1.5 (out of service: permanent γ = 0.9), spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed).",
+      "methodTextG15": "Second-order theory, sway 1/200, diagonals without slack, γ = 1.5 in all combinations, spindles after DIN 4420-1 tab. 7, bases without tension (lifting off allowed)."
     },
     "export": {
       "hint": "Parts of the older PERI CAD kind (e.g. base jacks) are not in the DXF: load the script in AutoCAD (APPLOAD), run PERIEXPORT and open the file …_peri.txt here together with the DXF.",

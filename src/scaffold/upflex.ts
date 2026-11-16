@@ -46,10 +46,12 @@ export interface LedgerSection {
   g: number;
   /** resistances of the ledger cross-section 50 mm from the standard axis (table 13) */
   w: { N: number; My: number; Vz: number; Mx: number; Mz: number; Vy: number };
+  /** in the span (reinforced ledgers UHV: couple of the chords), else as `w` */
+  span?: { N: number; My: number };
 }
 
 /** ledger profiles RHP 60 × 30 (strong axis y = vertical loads) */
-export const LEDGERS: Record<'r20' | 'r30' | 'r24', LedgerSection> = {
+export const LEDGERS: Record<'r20' | 'r30' | 'r24' | 'uhv', LedgerSection> = {
   r20: {
     name: 'RHP 60×30×2,0 S355',
     A: 3.34 * cm2,
@@ -67,6 +69,22 @@ export const LEDGERS: Record<'r20' | 'r30' | 'r24', LedgerSection> = {
     J: 17.1 * cm4,
     g: 4.05,
     w: { N: 117 * kN, My: 175 * kNcm, Vz: 60.0 * kN, Mx: 129 * kNcm, Mz: 154 * kNcm, Vy: 67.6 * kN },
+  },
+  /**
+   * reinforced ledger UHV Plus: top chord RHP 60×30×3 (as UH Plus 100 / 125), bottom chord RHP
+   * 40×20×3, chord axes 11 cm apart (sections of the PERI ForceControl model). As one beam: both
+   * chords for the bending stiffness; at the connection the top chord alone (resistances of r30),
+   * in the span the couple of the chord forces (bottom chord S235/320: 3.01 cm² · 32 / 1.1).
+   */
+  uhv: {
+    name: 'UHV Plus (RHP 60×30×3 + RHP 40×20×3, h = 11 cm)',
+    A: 7.82 * cm2,
+    Iy: (20.5 + 1.68 + ((4.81 * 3.01) / 7.82) * 11 ** 2) * cm4,
+    Iz: (6.8 + 5.21) * cm4,
+    J: (17.1 + 4.57) * cm4,
+    g: 7.2,
+    w: { N: 117 * kN, My: 175 * kNcm, Vz: 60.0 * kN, Mx: 129 * kNcm, Mz: 154 * kNcm, Vy: 67.6 * kN },
+    span: { N: 117 * kN + ((3.01 * 32) / 1.1) * kN, My: ((3.01 * 32) / 1.1) * 11 * kNcm },
   },
   r24: {
     name: 'RHP 60×30×2,4 S460',
@@ -524,3 +542,11 @@ export const JACK = (() => {
   const fyd = 235e6 / 1.1;
   return { A, I, Wpl, NRd: A * fyd, MRd: Wpl * fyd };
 })();
+
+/**
+ * Checks of the spindles as in PERI ForceControl (whose results this analysis follows):
+ * base jack UJB 38: linear interaction N / N_R + M / M_R (DIN 4420-1, Tab. 7) with N_R = 135 kN,
+ * M_R = 149.5 kNcm (fitted to the utilisations of a ForceControl report: ±0.01);
+ * spindle of the spindle head SRU: compression N / N_c,Rd (EN 1993-1-1, 6.9) with N_c,Rd = 75 kN.
+ */
+export const JACK_CHECK = { foot: { NR: 135 * kN, MR: 149.5 * kNcm }, head: { NcRd: 75 * kN } };

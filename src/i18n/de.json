@@ -738,11 +738,32 @@
       "summary": "{n} Teile · {types} Artikel · {girders} Gitterträger"
     },
     "loads": {
-      "title": "Belaglast (EN 12811-1)",
+      "title": "Benutzerdefinierte Lasten",
       "class": "Lastklasse",
       "classOption": "Klasse {n} – {p}",
       "g": "Eigengewicht Belag",
-      "hint": "Jeder Belag gibt die Hälfte seiner Last an jedes seiner beiden Auflager (Träger oder Riegel) ab. Eigengewicht der Gitterträger wird berücksichtigt; Kombinationen 1,5·G + 1,5·Q und 1,0·G + 1,5·Q."
+      "hint": "Jeder Belag gibt die Hälfte seiner Last an jedes seiner beiden Auflager (Träger oder Riegel) ab. Eigengewicht der Gitterträger wird berücksichtigt; Kombinationen 1,5·G + 1,5·Q und 1,0·G + 1,5·Q.",
+      "intro": "Lasten, die nicht in der Zeichnung stehen: Aufbau (separat berechnet, seine Auflagerkräfte), Ladebühne, Ballast. Teile in der 3D-Ansicht wählen (Strg/Umschalt + Klick: mehrere), Last eingeben und hinzufügen. Senkrecht nach unten. G – ständig (in allen Kombinationen), Q – veränderlich (nur Arbeitsbetrieb).",
+      "name": "Bezeichnung",
+      "namePlaceholder": "z. B. Auflager Ladebühne",
+      "case": "Art",
+      "caseG": "G – ständig",
+      "caseQ": "Q – veränderlich",
+      "kind": "Typ",
+      "point": "Einzellast je Teil",
+      "line": "Streckenlast über die Länge",
+      "value": "Wert",
+      "at": "Lage, % der Länge",
+      "add": "Zu den gewählten hinzufügen ({n})",
+      "selectHint": "Teile in der 3D-Ansicht wählen (Strg/Umschalt + Klick: mehrere). Die Lage zählt vom Ende mit kleinerem x (dann y, z).",
+      "parts": "Teile",
+      "missing": "{n} Teile fehlen in der aktuellen Zeichnung",
+      "remove": "Last löschen",
+      "total": "Summe: G = {g}, Q = {q} (charakteristisch)",
+      "dhb": "Dynamische Horizontalbelastung DHB",
+      "dhbShare": "Anteil DHB, %",
+      "gFav": "Ruhebetrieb: ständige Lasten mit γ = 0,9 (wie PERI ForceControl)",
+      "dhbHint": "DHB wird bei benutzerdefinierten Lasten selbst berechnet: der angegebene % aller vertikalen Lasten (Eigengewicht, Q, benutzerdefinierte) zu gleichen Teilen oben auf den Stielen, die bis zur Oberkante reichen, im Arbeitsbetrieb in Windrichtung (γ = 1,5) – wie PERI ForceControl."
     },
     "heal": {
       "title": "Teile einrasten",
@@ -771,7 +792,7 @@
     },
     "view": {
       "title": "3D-Modell",
-      "hint": "Ziehen: drehen · rechte Maustaste: verschieben · Mausrad: zoomen · Klick: Teil oder Träger auswählen",
+      "hint": "Ziehen: drehen · rechte Maustaste: verschieben · Mausrad: zoomen · Klick: Teil oder Träger auswählen · Strg/Umschalt + Klick: mehrere",
       "toggle": "Ein- / ausblenden",
       "girderColors": "Träger nach η:",
       "byEta": "Teile nach Ausnutzung η färben"
@@ -876,7 +897,7 @@
     },
     "calc": {
       "title": "Gerüstberechnung (räumliches Stabwerk)",
-      "intro": "Das Gerüst wird als räumliches Stabwerk berechnet: durchlaufende Stiele, Riegel mit nachgiebigen Rosettenknoten, Diagonalen mit Lose, Verankerungen, Fußpunkte ohne Zug. Lasten und Kombinationen nach DIN EN 12811-1 (γF = 1,5), Steifigkeiten und Knotennachweise nach Zulassung Z-8.22-863.",
+      "intro": "Das Gerüst wird wie in PERI ForceControl als räumliches Stabwerk berechnet: durchlaufende Stiele, Riegel mit nachgiebigen Rosettenknoten, Diagonalen (ohne Lose), Gitterträger mit Anschluss beider Gurte, Verankerungen, Fußpunkte ohne Zug. Lasten und Kombinationen nach DIN EN 12811-1 (γF = 1,5), Steifigkeiten und Knotennachweise nach Zulassung Z-8.22-863.",
       "run": "Berechnen",
       "rerun": "Neu berechnen",
       "running": "Berechnung… {done} / {total}",
@@ -945,7 +966,9 @@
       },
       "basis": "Grundlage: Zulassung Z-8.22-863 (Moment-Drehwinkel-Beziehungen, Beanspruchbarkeiten der Knoten, Diagonalen, Stöße), DIN EN 12811-1, Tabellenbuch PERI UP. Beläge wirken nicht aussteifend. Ersetzt nicht den Nachweis durch den Statiker; Abgleich mit RSTAB folgt.",
       "mechanismParts": "{n} Teile sind nicht gehalten (Mechanismus) – in der Berechnung durch weiche Federn gehalten. Bitte in der Zeichnung prüfen. Anzeigen.",
-      "stabilityLost": "Stabilitätsverlust nach Theorie II. Ordnung – Ergebnisse nach I. Ordnung; Bereich zeigen ({n} Teile)"
+      "stabilityLost": "Stabilitätsverlust nach Theorie II. Ordnung – Ergebnisse nach I. Ordnung; Bereich zeigen ({n} Teile)",
+      "summaryUser": "benutzerdefiniert G = {g}, Q = {q} · DHB = {h}",
+      "lifted": "{n} Fußpunkte heben ab (Auflagerkraft 0) – zulässig, das System bleibt stabil. Zeigen."
     },
     "wind": {
       "title": "Maximaler Wind",
@@ -1008,7 +1031,12 @@
       "unitKg": "Gewicht je Stk., kg",
       "total": "Summe",
       "noWeight": "Ohne Gewicht in der Teiledatenbank: {n} Stk. – nicht in der Summe.",
-      "failed": "Nachweise mit η > 100 %: {n} – alle im Programm sichtbar (Filter je Nachweis, Einfärbung in 3D)."
+      "failed": "Nachweise mit η > 100 %: {n} – alle im Programm sichtbar (Filter je Nachweis, Einfärbung in 3D).",
+      "dhb": "DHB: {p} % der vertikalen Lasten, gesamt {h}",
+      "noDhb": "DHB nicht angesetzt",
+      "method": "Verfahren",
+      "methodText": "Wie PERI ForceControl: Theorie II. Ordnung, Schiefstellung 1/200, Diagonalen ohne Lose, γ = 1,5 (Ruhebetrieb: ständige γ = 0,9), Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig).",
+      "methodTextG15": "Theorie II. Ordnung, Schiefstellung 1/200, Diagonalen ohne Lose, γ = 1,5 in allen Kombinationen, Spindeln nach DIN 4420-1 Tab. 7, Fußpunkte ohne Zug (Abheben zulässig)."
     },
     "export": {
       "hint": "Teile des älteren PERI-CAD-Typs (z. B. Spindeln) kommen nicht in die DXF: Skript in AutoCAD laden (APPLOAD), PERIEXPORT ausführen und hier die Datei …_peri.txt zusammen mit der DXF öffnen.",

@@ -190,3 +190,40 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await page.evaluate("window.dispatchEvent(new Event('afterprint'))");
   await expect(report).toHaveCount(0);
 });
+
+test('scaffold mode: user loads on selected parts, DHB in the analysis and the report', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('mode-scaffold').click();
+  await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
+  await expect(page.getByTestId('scaffold-loads')).toBeVisible();
+  // nothing selected: nothing to add to
+  await expect(page.getByTestId('scaffold-load-add')).toBeDisabled();
+  // a girder row selects its parts; 12 kN on each, permanent
+  await page.getByTestId('scaffold-girder-T1').click();
+  await page.getByTestId('scaffold-load-name').fill('Платформа');
+  await page.getByTestId('scaffold-load-case').selectOption('G');
+  await page.getByTestId('scaffold-load-value').fill('12');
+  await expect(page.getByTestId('scaffold-load-add')).toBeEnabled();
+  await page.getByTestId('scaffold-load-add').click();
+  await expect(page.getByTestId('scaffold-loads-table')).toContainText('Платформа');
+  await expect(page.getByTestId('scaffold-loads-total')).toContainText('G =');
+  // DHB on by default
+  await expect(page.getByTestId('scaffold-dhb')).toBeChecked();
+  await page.getByTestId('scaffold-calc-run').click();
+  await expect(page.getByTestId('scaffold-calc-result')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('scaffold-calc-user')).toContainText('DHB');
+  // kept after a reload of the page (same drawing)
+  await page.reload();
+  await page.getByTestId('mode-scaffold').click();
+  await expect(page.getByTestId('scaffold-loads-table')).toContainText('Платформа');
+  // report
+  await page.emulateMedia({ media: 'print' });
+  await page.evaluate("window.dispatchEvent(new Event('beforeprint'))");
+  await expect(page.getByTestId('scaffold-report-loads')).toContainText('Платформа');
+  await expect(page.getByTestId('scaffold-report-loads')).toContainText('DHB');
+  await page.evaluate("window.dispatchEvent(new Event('afterprint'))");
+  // removed
+  await page.emulateMedia({ media: 'screen' });
+  await page.locator('[data-testid^="scaffold-load-remove-"]').first().click();
+  await expect(page.getByTestId('scaffold-loads-table')).toHaveCount(0);
+});

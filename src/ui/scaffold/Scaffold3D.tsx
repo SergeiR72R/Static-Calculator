@@ -16,7 +16,8 @@ export interface Scaffold3DProps {
   /** parts moved by the snapping (marked) */
   moved: string[];
   resetKey: number;
-  onPick: (partId: string | null) => void;
+  /** `add`: Ctrl / Shift held (add to / remove from the selection) */
+  onPick: (partId: string | null, add?: boolean) => void;
   /** hover text of a part */
   describe: (partId: string) => string;
 }
@@ -306,7 +307,7 @@ export default function Scaffold3D({ st, girderColor, partColor, selected, moved
         const d = down.current;
         down.current = null;
         if (!d || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) return;
-        onPick(hit(e)?.id ?? null);
+        onPick(hit(e)?.id ?? null, e.ctrlKey || e.metaKey || e.shiftKey);
       }}
       onPointerLeave={() => setTip(null)}
     >

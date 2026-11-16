@@ -17,8 +17,17 @@ import { findPeriProduct, periSI } from '../sections/peri';
 import type { ScaffoldStructure, WorldPart } from './structure';
 import { partKg } from './weights';
 import { E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
+import { orderedAxis, type UserLoad } from './userLoads';
 
 export type MKind = 'standard' | 'ledger' | 'bracket' | 'beam' | 'girder' | 'ubk' | 'ubs' | 'ubh' | 'ubl' | 'tube' | 'anchor' | 'jack';
+
+/** a user load applied to the model: nodal forces (point loads) and member loads (line loads), N and N/m downwards */
+export interface UserLoadApplied {
+  load: string;
+  case: 'G' | 'Q';
+  nodal: { node: number; F: number }[];
+  members: { m: number; q: number }[];
+}
 
 export interface ModelMember {
   kind: MKind;
@@ -38,6 +47,8 @@ export interface ModelMember {
   carrier?: number;
   /** spindle pair from a standard to the standard above it through a platform (compression only) */
   link?: boolean;
+  /** spindle: base jack (under a standard) or head jack (on a standard, under a beam) */
+  jack?: 'foot' | 'head';
   /** part of a group without any support (not connected to the scaffold): left out */
   floating?: boolean;
 }
@@ -95,6 +106,10 @@ export interface ScaffoldModel {
   /** weight that could not be placed, kg */
   lostKg: number;
   notes: ModelNote[];
+  /** loads entered by the user */
+  user: UserLoadApplied[];
+  /** tops of the standards that reach the top of the scaffold: dynamic horizontal load (DHB) */
+  dhbNodes: number[];
 }
 
 const tubeSection = (t: keyof typeof TUBES): Section3 => ({ EA: E_STEEL * TUBES[t].A, EIy: E_STEEL * TUBES[t].I, EIz: E_STEEL * TUBES[t].I, GJ: G_STEEL * 2 * TUBES[t].I });
@@ -118,12 +133,15 @@ function ledgerType(w: WorldPart): { head: LedgerHead; sec: keyof typeof LEDGERS
   if (/\+|plus|UHV/i.test(t)) {
     // UH Plus 100 / 125 and UHV: wall 3 mm (from the weights of the parts list), else 2 mm
     const n = Number(/(\d{2,3})/.exec(w.part.name)?.[1]);
-    return { head: 'PLUS', sec: /UHV/i.test(t) || n === 100 || n === 125 ? 'r30' : 'r20' };
+    return { head: 'PLUS', sec: /UHV/i.test(t) ? 'uhv' : n === 100 || n === 125 ? 'r30' : 'r20' };
   }
   return { head: 'UH', sec: 'r20' };
 }
 
 const HINGE = [Infinity, Infinity, Infinity, Infinity, 0, 0];
+/** end panel of a lattice girder (end element ULS 50 Flex), m, and area of its posts / diagonals, m² */
+const GIRDER_PANEL = 0.5;
+const GIRDER_WEB_A = 2.0e-4;
 /** horizontal offset of a spindle from the standard above / below it, m */
 const JACK_XY = 0.045;
 /** largest extension of a spindle (approval: 60 cm), m; weight of an added base jack UJB 38-50/30, kg */
@@ -194,7 +212,7 @@ interface Carrier {
 /** eccentricity of a ledger diagonal UBL beside the axis of its ledger (annex A, page 22), m */
 const UBL_EY = 0.014;
 
-export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
+export function buildScaffoldModel(st: ScaffoldStructure, userLoads: UserLoad[] = []): ScaffoldModel {
   const nodes: V3[] = [];
   const nodeCol: number[] = [];
   const notes: ModelNote[] = [];
@@ -394,7 +412,18 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     });
   }
 
+  /** node on the axis of a carrier at t (point q): an attached node there is shared, else a new one */
+  const interAt = (c: Carrier, q: V3, t: number): number => {
+    const L = len3(c.a, c.b);
+    const hit = c.inter.find((a) => Math.abs(a.offset[0]) + Math.abs(a.offset[1]) + Math.abs(a.offset[2]) < 1e-9 && a.k === undefined && Math.abs(a.t - t) * L < 0.02);
+    if (hit) return hit.node;
+    const n = addNode(q);
+    c.inter.push({ node: n, offset: [0, 0, 0], t: Math.min(Math.max(t, 0), 1) });
+    return n;
+  };
   // lattice girders as equivalent beams along their top chord
+  const trussSec = (ea: number): Section3 => ({ EA: ea, EIy: 1, EIz: 1, GJ: 1 });
+  const girderPanels: { part: string; m: { i: number; j: number; sec: Section3; truss: boolean }[] }[] = [];
   for (const g of st.girders) {
     const eq = latticeEquivalent(g.product);
     const E = g.product.startsWith('ULA') ? 70e9 : E_STEEL;
@@ -419,6 +448,26 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       const zr = rosetteNear(k, g.zTop - 0.03, 0.12) ?? Math.min(g.zTop, cols[k].z1);
       const n = colNode(k, zr, 0.006);
       const at: Attach = { node: n, offset: [p[0] - cols[k].x, p[1] - cols[k].y, g.zTop - zr], t: s / g.L, k: HINGE };
+      // the end of a lattice girder hangs on the standard with both chords (end element 0.5 m):
+      // bottom chord, post and diagonal of the end panel as truss members, so that the couple of the
+      // chord forces holds the girder (and ties the standards it connects)
+      const end = s < 1e-6 || s > g.L - 1e-6;
+      const hh = g.zTop - g.zBottom;
+      if (end && hh > 0.1 && g.L > 1.2) {
+        const zb = rosetteNear(k, g.zBottom + 0.03, 0.12) ?? g.zBottom;
+        if (zb >= cols[k].z0 - 0.01 && zr - zb > 0.1) {
+          const nb = colNode(k, zb, 0.006);
+          const d = s < 1e-6 ? GIRDER_PANEL : g.L - GIRDER_PANEL;
+          const pt: V3 = [g.origin[0] + g.u[0] * d, g.origin[1] + g.u[1] * d, g.zTop];
+          const ti = interAt(car, pt, d / g.L);
+          const bi = addNode([pt[0], pt[1], g.zBottom]);
+          // bottom chord: clamped in the wedge head at the standard (holds the panel sideways too)
+          const Ic = Math.max(eq.I - (eq.A / 2) * 2 * ((eq.h - 0.0483) / 2) ** 2, 1e-8) / 2;
+          const chord: Section3 = { EA: (E * eq.A) / 2, EIy: E * Ic, EIz: E * Ic, GJ: G_STEEL * Ic };
+          const web = trussSec(E * GIRDER_WEB_A);
+          girderPanels.push({ part: g.parts[0], m: [{ i: nb, j: bi, sec: chord, truss: false }, { i: bi, j: ti, sec: web, truss: true }, { i: n, j: bi, sec: web, truss: true }] });
+        }
+      }
       if (s < 1e-6) car.end[0] = at;
       else if (s > g.L - 1e-6) car.end[1] = at;
       else car.inter.push(at);
@@ -459,8 +508,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       }
       const u = carrierUnder(P, c, -0.06, 0.4, ['ledger', 'beam', 'girder', 'bracket']);
       if (u) {
-        const n = addNode(u.pr.q);
-        u.c.inter.push({ node: n, offset: [0, 0, 0], t: Math.min(Math.max(u.pr.t, 0), 1) });
+        const n = interAt(u.c, u.pr.q, u.pr.t);
         c.end[e] = { node: n, offset: [P[0] - u.pr.q[0], P[1] - u.pr.q[1], P[2] - u.pr.q[2]], t: e, conn: null, k: HINGE };
       }
     }
@@ -577,14 +625,28 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
       else if (foot > ground + 0.4 && padTop({ ...c, z0: foot + 0.01 }) === null) note('baseOnStructure', c.parts[0].w.part.id);
     }
   });
-  // tops of standards under a beam carry it
+  // tops of standards under a beam carry it; a head jack in the standard (e.g. spindle head SRU) carries
+  // the beam on its head: the spindle is clamped in the standard, the beam hinged on the head
+  const heads: { col: number; head: number; part: string }[] = [];
   for (const car of carriers) {
     if (car.kind !== 'beam') continue;
-    cols.forEach((c) => {
+    cols.forEach((c, k) => {
       const top: V3 = [c.x, c.y, c.z1];
       const pr = project(car, top);
       if (pr.t < -0.02 || pr.t > 1.02 || pr.dh > 0.15 || pr.dz > 0.05 || pr.dz < -0.5) return;
-      car.inter.push({ node: c.ns[c.ns.length - 1], offset: [pr.q[0] - c.x, pr.q[1] - c.y, pr.q[2] - c.z1], t: Math.min(Math.max(pr.t, 0), 1), k: HINGE });
+      const jack = jackOver(c).sort((a, b) => b.max[2] - a.max[2])[0];
+      let node = c.ns[c.ns.length - 1];
+      let z = c.z1;
+      if (jack && jack.max[2] > c.z1 + 0.02 && jack.max[2] <= pr.q[2] + 0.05) {
+        let h = heads.find((x) => x.col === k);
+        if (!h) {
+          h = { col: k, head: addNode([c.x, c.y, jack.max[2]], k), part: jack.part.id };
+          heads.push(h);
+        }
+        node = h.head;
+        z = jack.max[2];
+      }
+      car.inter.push({ node, offset: [pr.q[0] - c.x, pr.q[1] - c.y, pr.q[2] - z], t: Math.min(Math.max(pr.t, 0), 1), k: HINGE });
     });
   }
 
@@ -623,6 +685,30 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
   const fm: Member3[] = [];
   const mm: ModelMember[] = [];
   /** length of a member between its connection points (the rigid arms excluded) */
+  // ---- point loads of the user: a node on the beam / ledger / standard at the place of the load
+  const user: UserLoadApplied[] = userLoads.map((l) => ({ load: l.id, case: l.case, nodal: [], members: [] }));
+  userLoads.forEach((l, li) => {
+    if (l.kind !== 'point') return;
+    for (const id of l.parts) {
+      const at = Math.min(Math.max(l.at, 0), 1);
+      const car = carriers.find((c) => c.part === id);
+      if (car) {
+        const [A, B] = orderedAxis(car.a, car.b);
+        const P: V3 = [A[0] + at * (B[0] - A[0]), A[1] + at * (B[1] - A[1]), A[2] + at * (B[2] - A[2])];
+        const t = Math.min(Math.max(project(car, P).t, 0), 1);
+        user[li].nodal.push({ node: interAt(car, P, t), F: l.value });
+        continue;
+      }
+      const k = cols.findIndex((c) => c.parts.some((p) => p.w.part.id === id));
+      if (k >= 0) {
+        const p = cols[k].parts.find((q) => q.w.part.id === id)!;
+        user[li].nodal.push({ node: colNode(k, p.zb + at * (p.zt - p.zb), 0.01), F: l.value });
+        continue;
+      }
+      note('userLoadIgnored', id, { name: l.name });
+    }
+  });
+
   const memberLength = (m: Member3): number => {
     const oi = m.ends?.[0]?.offset ?? [0, 0, 0];
     const oj = m.ends?.[1]?.offset ?? [0, 0, 0];
@@ -709,8 +795,14 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     return best;
   };
 
+  // ---- end panels of the lattice girders
+  for (const gp of girderPanels)
+    for (const x of gp.m) {
+      fm.push({ i: x.i, j: x.j, sec: x.sec, ...(x.truss ? { truss: true } : {}) });
+      mm.push({ kind: 'girder', part: gp.part, g: 0 });
+    }
+
   // ---- diagonals
-  const trussSec = (ea: number): Section3 => ({ EA: ea, EIy: 1, EIz: 1, GJ: 1 });
   // ledger diagonals UBL not found on two ledgers: table by the ledgers of the drawing
   const ledgerParts = st.parts.filter((w) => w.cls.kind === 'ledger');
   const plusLedgers = ledgerParts.filter((w) => ledgerType(w).head === 'PLUS').length >= ledgerParts.length / 2;
@@ -776,6 +868,17 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     anchors.push({ member: fm.length, part: a.id, node: n });
     fm.push({ i: n, j: far, sec: trussSec(E_STEEL * TUBES.t32.A), truss: true });
     mm.push({ kind: 'anchor', part: a.id, tube: 't32', g: TUBES.t32.g });
+    // the tube coupled to further standards on the way: it braces them
+    let prev = n;
+    for (const p of a.via ?? []) {
+      const kv = colAt(p, 0.3, 0.15);
+      if (kv < 0) continue;
+      const nv = colNode(kv, p[2], 0.03);
+      if (nv === prev) continue;
+      fm.push({ i: prev, j: nv, sec: trussSec(E_STEEL * TUBES.t32.A), truss: true });
+      mm.push({ kind: 'tube', part: a.id, tube: 't32', g: 0 });
+      prev = nv;
+    }
   }
   for (const w of st.parts) {
     if ((w.cls.kind !== 'tube' && w.cls.kind !== 'anchor') || anchorTubes.has(w.part.id)) continue;
@@ -823,7 +926,15 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     const L = Math.max(c.z0 - nodes[f.foot][2], 0.05);
     fm.push({ i: c.ns[0], j: f.foot, sec: JACK_SEC, ends: [undefined, { offset: [0, 0, 0], k: [Infinity, Infinity, Infinity, Infinity, 0, 0] }] });
     // an added spindle: weight of the base jack UJB 38-50/30
-    mm.push({ kind: 'jack', part: f.part, g: (f.virtual ? JACK_KG : jackKg(f.part)) / L });
+    mm.push({ kind: 'jack', jack: 'foot', part: f.part, g: (f.virtual ? JACK_KG : jackKg(f.part)) / L });
+  }
+  // head jacks under beams: clamped in the standard (top of the standard to the head)
+  for (const h of heads) {
+    const c = cols[h.col];
+    const a = c.ns[c.ns.length - 1];
+    const L = Math.max(nodes[h.head][2] - nodes[a][2], 0.05);
+    fm.push({ i: a, j: h.head, sec: JACK_SEC });
+    mm.push({ kind: 'jack', jack: 'head', part: h.part, g: jackKg(h.part) / L });
   }
   // standard on the standard below through a platform (base jack on head jack)
   // The base jack is clamped in the upper standard down to its plate; the plate bears on what lies on
@@ -841,20 +952,20 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
         const f = addNode([up.x, up.y, l.foot], l.upper);
         const Ls = Math.max(up.z0 - l.foot, 0.05);
         fm.push({ i: b, j: f, sec: JACK_SEC });
-        mm.push({ kind: 'jack', part: l.part, g: kg / Ls });
+        mm.push({ kind: 'jack', jack: 'foot', part: l.part, g: kg / Ls });
         fm.push({ i: a, j: f, sec: JACK_SEC, ends: [undefined, PIN()] });
-        mm.push({ kind: 'jack', part: l.part, g: 0, link: true });
+        mm.push({ kind: 'jack', jack: 'head', part: l.part, g: 0, link: true });
       } else {
         // the plate of the spindle right on the lower standard
         const L = Math.max(len3(nodes[a], nodes[b]), 0.05);
         fm.push({ i: b, j: a, sec: JACK_SEC, ends: [undefined, PIN()] });
-        mm.push({ kind: 'jack', part: l.part, g: kg / L, link: true });
+        mm.push({ kind: 'jack', jack: 'foot', part: l.part, g: kg / L, link: true });
       }
       continue;
     }
     const L = Math.max(len3(nodes[a], nodes[b]), 0.05);
     fm.push({ i: a, j: b, sec: JACK_SEC, ends: [undefined, PIN()] });
-    mm.push({ kind: 'jack', part: l.part, g: kg / L, link: true });
+    mm.push({ kind: 'jack', jack: 'foot', part: l.part, g: kg / L, link: true });
   }
 
 
@@ -944,6 +1055,22 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     lostKg += partKg(byId.get(id)!.part) ?? 0;
   }
 
+  // ---- line loads of the user on the members of the parts (not on truss members)
+  userLoads.forEach((l, li) => {
+    if (l.kind !== 'line') return;
+    const ids = new Set(l.parts);
+    const found = new Set<string>();
+    fm.forEach((m, k) => {
+      if (!ids.has(mm[k].part) || m.truss || mm[k].link || mm[k].floating) return;
+      user[li].members.push({ m: k, q: l.value });
+      found.add(mm[k].part);
+    });
+    for (const id of l.parts) if (!found.has(id)) note('userLoadIgnored', id, { name: l.name });
+  });
+  // ---- tops of the standards reaching the top of the scaffold
+  const topZ = Math.max(...cols.map((c) => c.z1));
+  const dhbNodes = cols.filter((c) => c.z1 >= topZ - 0.5).map((c) => c.ns[c.ns.length - 1]);
+
   return {
     frame: { nodes, members: fm, supports },
     members: mm,
@@ -958,5 +1085,7 @@ export function buildScaffoldModel(st: ScaffoldStructure): ScaffoldModel {
     masses,
     lostKg,
     notes,
+    user,
+    dhbNodes,
   };
 }

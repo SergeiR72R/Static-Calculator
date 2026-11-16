@@ -310,3 +310,37 @@ Kupplungen EN 74-1 Klasse B: Normalkupplung RA zul. 9,1 kN (Rutschen), Drehkuppl
 - Imperfektionen: Knickwinkel ψ an den Ständerstößen (tan ψ ≥ 0,01; bei n nebeneinander stehenden
   Ständern reduziert: tan ψ_n = tan ψ · √(0,5 + 1/n)).
 - Rohre: Cosinus-Interaktion M/M_pl ≤ cos(π/2 · N/N_pl) für V ≤ 1/3 V_pl.
+
+## Abgleich mit PERI ForceControl (Bericht „Eli Lilly“, 18_011, RFEM 5)
+
+Die Berechnung folgt den Ergebnissen von PERI ForceControl (Vorgabe: Ergebnisse möglichst
+deckungsgleich). Abweichend von den Abschnitten oben:
+
+- Diagonalen ohne Lose (FC rechnet die Diagonalen ohne die Lose nach 3.2.3.2; mit 0,3 cm war die
+  Verschiebung 68 mm statt 24 mm). Die Lose bleibt als Option (`diagSlack`).
+- Globale Schiefstellung 1/200 (FC: „Globale Schiefstellung φ = 1/200“) statt ψ nach 10.2.2.2.
+- Ruhebetrieb: ständige Lasten mit γ = 0,9 (günstig, FC LCC5–8), Verkehrslasten des Benutzers nicht.
+- Fußpunkte einseitig: Abheben ist zulässig (Auflagerkraft 0, wie FC); nur ein Fußpunkt, der Zug
+  halten muss (sonst kinematisch), ist ein Mangel.
+- Fußspindel UJB 38: N/135 kN + M/149,5 kNcm (DIN 4420-1 Tab. 7, an die η des FC-Berichts angepasst:
+  0,63 / 0,59 / 0,45 / 0,39 / 0,16 / 0,16 gegen 0,63 / 0,58 / 0,46 / 0,40 / 0,16 / 0,16).
+  Spindel des Spindelkopfs SRU (109952): N/N_c,Rd mit N_c,Rd = 75 kN (EN 1993-1-1, 6.9; FC „TR“).
+- Horizontalriegel UHV Plus als Fachwerk: Obergurt RHP 60×30×3, Untergurt RHP 40×20×3, Gurtachsen
+  11 cm (Querschnitte 7 und 9 des FC-Modells): Biegesteifigkeit beider Gurte, im Feld das Kräftepaar
+  der Gurte, am Anschluss der Obergurt.
+- Gitterträger ULS Flex: Endfeld 0,5 m mit Untergurt (im Keilkopf eingespannt), Pfosten und
+  Diagonale; der Träger hält damit die Stiele beider Türme (FC: Träger mit beiden Gurten am Stiel).
+- Anker: Rohr mit Kupplungen an den Stielen entlang des Rohrs, freies Ende nach außen (FC: Lager „Py“).
+- Kopfspindeln unter SRU: im Stiel eingespannt, SRU gelenkig auf dem Kopf.
+
+Benutzerdefinierte Lasten (Aufbau, Ladebühne, Ballast): Einzellast je Teil an einer Stelle der Länge
+oder Streckenlast, G (in allen Kombinationen) oder Q (nur Arbeitsbetrieb). Dynamische
+Horizontalbelastung DHB: 2,5 % aller vertikalen Lasten (Eigengewicht, Q, Benutzerlasten), zu
+gleichen Teilen oben auf den Stielen, die bis zur Oberkante reichen, im Arbeitsbetrieb in
+Windrichtung (γ = 1,5) – nur wenn Benutzerlasten vorhanden sind.
+
+Ergebnis 18_011 mit den Lasten des Berichts (G 128,0 / Q 234,6 kN, DHB 10,26 kN; FC 129,0 / 234,6 /
+10,08): ΣV 615 kN (FC 619), Verschiebung A ±x 22,6 / 23,0 mm (FC 23,7 / 24,4), A ±y 22,0 / 21,5 mm
+(19,5 / 19,7), R ±y 17,0 / 15,5 mm (13,4 / 14,1), R ±x 32 mm (FC 16); Fußpunktkräfte je Achse ±5 %
+(Achse G −35 %), max 55,4 kN (FC 56,9); η max 0,56 Fußspindel (FC 0,63), Kopfspindel 0,45 (0,44),
+Stoß 0,51 (0,52), Stiel 0,52 (0,52).

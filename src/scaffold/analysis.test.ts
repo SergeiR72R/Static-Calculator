@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { aecPartCount, parsePeriCadDxf } from './pericad';
 import { analyzeScaffold } from './structure';
 import { buildScaffoldModel } from './model';
-import { DEFAULT_ANALYSIS, GAMMA_F, analyzeScaffoldModel, buildLoadCases, mergeResults, prepareAnalysis, weakDofs } from './analysis';
+import { DEFAULT_ANALYSIS, GAMMA_F, analyzeScaffoldModel, buildCombos, buildLoadCases, mergeResults, prepareAnalysis, weakDofs } from './analysis';
+import type { UserLoad } from './userLoads';
 import { connCz, connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData, ublData } from './upflex';
 import { periDxf, towerParts, type TestPart } from './testDxf';
 
@@ -90,7 +91,9 @@ describe('structural model of the scaffold', () => {
     expect(m.notes).toEqual([]);
     const kinds = m.members.reduce<Record<string, number>>((a, x) => ((a[x.kind] = (a[x.kind] ?? 0) + 1), a), {});
     expect(kinds.ledger).toBe(16);
-    expect(kinds.girder).toBe(2);
+    // two girders: the top chord in three pieces (end panels 0.5 m) and per end bottom chord, post
+    // and diagonal of the end panel
+    expect(kinds.girder).toBe(2 * (3 + 2 * 3));
     expect(kinds.ubk).toBe(4);
     // rosettes 6 mm: ledgers at the base standard UVB 24 (Ø48.3×3.6): variant 2b, above (Ø48.3×3.2): 2a
     const conns = m.members.filter((x) => x.kind === 'ledger').map((x) => x.conn!.join());
@@ -148,6 +151,41 @@ describe('scaffold analysis', () => {
     expect(out.combos).toHaveLength(8);
     expect(out.combos.filter((c) => c.name.startsWith('R'))).toHaveLength(4);
     expect(Math.max(...out.combos.map((c) => c.dh))).toBeGreaterThan(Math.max(...indoor.combos.map((c) => c.dh)));
+  });
+
+  it('user loads: point and line loads on parts, DHB from all vertical loads, γ of the combinations', () => {
+    const st = tower(braced);
+    // two ledgers at +2.22 m along x and one along y
+    const lx = st.parts.filter((w) => w.cls.kind === 'ledger' && Math.abs(w.min[2] - 2.22) < 0.1 && w.max[0] - w.min[0] > 1).slice(0, 2);
+    const ly = st.parts.find((w) => w.cls.kind === 'ledger' && Math.abs(w.min[2] - 2.22) < 0.1 && w.max[1] - w.min[1] > 1)!;
+    const loads: UserLoad[] = [
+      { id: 'a', name: 'platform', case: 'G', kind: 'point', value: 10e3, at: 0.5, parts: lx.map((w) => w.part.id) },
+      { id: 'b', name: 'traffic', case: 'Q', kind: 'point', value: 6e3, at: 0.5, parts: lx.map((w) => w.part.id) },
+      { id: 'c', name: 'ballast', case: 'G', kind: 'line', value: 2e3, at: 0, parts: [ly.part.id] },
+    ];
+    const m = buildScaffoldModel(st, loads);
+    // G and Q at the same place share one node in the middle of each ledger
+    expect(m.user[0].nodal.map((n) => n.node)).toEqual(m.user[1].nodal.map((n) => n.node));
+    for (const n of m.user[0].nodal) expect(m.frame.nodes[n.node][2]).toBeCloseTo(2.22, 1);
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 600 };
+    const cb = buildCombos(m, opt);
+    const L = m.user[2].members.reduce((a, x) => a + m.lengths[x.m], 0);
+    expect(L).toBeCloseTo(2, 1);
+    expect(cb.userG).toBeCloseTo(2 * 10e3 + 2e3 * L, 3);
+    expect(cb.userQ).toBeCloseTo(2 * 6e3, 3);
+    // DHB: 2.5 % of all vertical loads
+    expect(cb.dhb).toBeCloseTo(0.025 * (cb.totalG + cb.totalQ + cb.userG + cb.userQ), 3);
+    const res = analyzeScaffoldModel(m, opt);
+    const share = 0.25; // load class 3
+    for (const c of res.combos) {
+      expect(c.ok).toBe(true);
+      // working: everything × 1.5; out of service: permanent × 0.9 (favourable), no user Q
+      const V = c.name.startsWith('A') ? GAMMA_F * (res.totalG + res.totalQ + cb.userG + cb.userQ) : 0.9 * (res.totalG + cb.userG) + GAMMA_F * share * res.totalQ;
+      expect(c.sumV).toBeCloseTo(V, -2);
+    }
+    expect(res.dhb).toBeCloseTo(cb.dhb, 3);
+    // no user loads: no DHB
+    expect(buildCombos(buildScaffoldModel(st), opt).dhb).toBe(0);
   });
 
   it('second order increases the sway of the unbraced tower', () => {

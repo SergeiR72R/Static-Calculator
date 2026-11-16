@@ -45,7 +45,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
   const outdoor = sc.exposure === 'outdoor';
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
   const wind = siteWind(sc, Math.max(st.max[2] - st.min[2], 1));
-  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder]);
+  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.gFavR]);
   const stale = !!run && run.sig !== sig;
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
   const levels = useMemo(() => {
@@ -69,7 +69,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
     await new Promise((r) => setTimeout(r, 30));
     try {
       const t0 = performance.now();
-      const model = buildScaffoldModel(st);
+      const model = buildScaffoldModel(st, sc.loads);
       setCalc({ phase: 'scaffold.progress.prepare', frac: null });
       const result = await analyzeScaffoldParallel(
         model,
@@ -84,6 +84,8 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
           snow: outdoor && sc.snow ? sc.snowLoad : 0,
           ice: outdoor && sc.ice ? sc.iceThickness : 0,
           secondOrder: sc.secondOrder,
+          dhb: sc.dhb,
+          gFavR: sc.gFavR,
         },
         (pr) => {
           setBusy({ done: pr.done, total: pr.total });
@@ -111,7 +113,9 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
     o.max = Math.max(o.max, c.eta);
     counts.set(c.check, o);
   }
-  const uplift = res?.bases.filter((b) => b.Vmin < 0).length ?? 0;
+  // bases in tension (held two-sided) and bases that lift off (reaction 0, allowed)
+  const uplift = res?.bases.filter((b) => b.Vmin < -1).length ?? 0;
+  const lifted = res?.bases.filter((b) => b.lifted && b.Vmin >= -1) ?? [];
   // beams SRU / RCS with the loads of the analysis, as models of the beam calculator
   const beams = useMemo(() => (res ? res.beams.map((b, k) => scaffoldBeam(b, `B${k + 1}`, byId.get(b.part)?.part.name ?? 'SRU', sc.doc?.fileName)) : []), [res, byId, sc.doc]);
   const beamSums = useMemo(() => beams.map((b) => beamSummary(b.model)), [beams]);
@@ -181,6 +185,12 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
                 n: res.unknowns,
                 s: fmt.num(run.ms / 1000, 1),
               })}
+              {(res.userG ?? 0) + (res.userQ ?? 0) > 0 && (
+                <span data-testid="scaffold-calc-user">
+                  {' · '}
+                  {fmt.t('scaffold.calc.summaryUser', { g: fmt.q(res.userG ?? 0, 'force', 1), q: fmt.q(res.userQ ?? 0, 'force', 1), h: fmt.q(res.dhb ?? 0, 'force', 2) })}
+                </span>
+              )}
             </span>
           </div>
           {failed.length > 0 && (
@@ -312,9 +322,14 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
                 <button
                   type="button"
                   className="mt-1 flex items-start gap-1 text-start text-xs font-medium text-red-600 underline dark:text-red-400"
-                  onClick={() => sc.select(res.bases.filter((b) => b.Vmin < 0).map((b) => b.part))}
+                  onClick={() => sc.select(res.bases.filter((b) => b.Vmin < -1).map((b) => b.part))}
                 >
                   <IconAlert className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t('scaffold.calc.uplift', { n: uplift })}
+                </button>
+              )}
+              {lifted.length > 0 && (
+                <button type="button" className="mt-1 flex items-start gap-1 text-start text-xs text-slate-600 underline dark:text-slate-300" onClick={() => sc.select(lifted.map((b) => b.part))} data-testid="scaffold-calc-lifted">
+                  <IconInfo className="mt-0.5 shrink-0" width={12} height={12} /> {fmt.t('scaffold.calc.lifted', { n: lifted.length })}
                 </button>
               )}
             </div>

@@ -213,10 +213,22 @@ function readInsertedParts(ents: Rec[], blocks: Map<string, RawBlock>): { part: 
     if (!b || depth > 3) return;
     b.inserts.forEach((ins, k) => visit(ins.name, mul34(M, insertMatrix(ins.p, ins.s, ins.rot, [0, 0, 1])), layer, `${id}.${k}`, depth + 1));
   };
+  // blocks holding parts (also nested: the dynamic blocks of converted parts, e.g. a spindle "100411"
+  // with the spindle "100412" and its nut inside an anonymous block "*U29")
+  const holds = new Map<string, boolean>();
+  const holdsParts = (name: string, depth: number): boolean => {
+    if (DISPLAY_BLOCK.test(name)) return true;
+    const known = holds.get(name);
+    if (known !== undefined) return known;
+    const b = blocks.get(name);
+    const r = !!b && depth < 3 && b.inserts.some((i) => holdsParts(i.name, depth + 1));
+    holds.set(name, r);
+    return r;
+  };
   for (const r of ents) {
     if (r.type !== 'INSERT') continue;
     const name = first(r, 2) ?? '';
-    if (!DISPLAY_BLOCK.test(name) && !blocks.get(name)?.inserts.some((i) => DISPLAY_BLOCK.test(i.name))) continue;
+    if (!holdsParts(name, 0)) continue;
     const p: V3 = [num(first(r, 10)), num(first(r, 20)), num(first(r, 30))];
     const sc: V3 = [num(first(r, 41), 1), num(first(r, 42), 1), num(first(r, 43), 1)];
     const ex: V3 = [num(first(r, 210)), num(first(r, 220)), num(first(r, 230), 1)];

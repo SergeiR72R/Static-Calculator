@@ -99,6 +99,8 @@ export interface ComboResult {
   /** with `keep`: displacements (6 per node) and support reactions (by support) */
   u?: Float64Array;
   reactions?: Float64Array;
+  /** with `keep`: forces of the members */
+  members?: (MemberResult | null)[];
   /** stability lost with the second order (results of the first order): parts where the system gives way */
   stability?: string[];
   /** node of a mechanism / instability */
@@ -888,7 +890,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       stabilityParts = list.map(([id]) => id);
       for (const [part, f] of list) put({ part, check: 'stability', eta: f.eta, combo: cb.name, detail: f.detail, N: f.N });
     }
-    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, stability: stabilityParts, dh, dv, dhNode, dvNode, sumV, ...(opt.keep ? { u: Float64Array.from(r.u), reactions: Float64Array.from(r.reactions) } : {}) });
+    out.push({ name: cb.name, ok: true, iterations: sol.iterations, converged: sol.converged, noLift: sol.noLift, stability: stabilityParts, dh, dv, dhNode, dvNode, sumV, ...(opt.keep ? { u: Float64Array.from(r.u), reactions: Float64Array.from(r.reactions), members: r.members } : {}) });
 
     // utilisation of the standard tube at both ends of a member
     const tubeEta = (k: number, x: number) => {

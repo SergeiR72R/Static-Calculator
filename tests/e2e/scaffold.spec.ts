@@ -232,3 +232,36 @@ test('scaffold mode: user loads on selected parts, DHB in the analysis and the r
   await page.locator('[data-testid^="scaffold-load-remove-"]').first().click();
   await expect(page.getByTestId('scaffold-loads-table')).toHaveCount(0);
 });
+
+test('scaffold mode: fixings to the building set by hand, shown in 3D, forces in the analysis and the report', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('mode-scaffold').click();
+  await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
+  await expect(page.getByTestId('scaffold-fixings')).toBeVisible();
+  await expect(page.getByTestId('scaffold-fix-add')).toBeDisabled();
+  // the girder T1 held in y at its end (to a wall)
+  await page.getByTestId('scaffold-girder-T1').click();
+  await page.getByTestId('scaffold-fix-name').fill('Стена');
+  await page.getByTestId('scaffold-fix-x').uncheck();
+  await expect(page.getByTestId('scaffold-fix-y')).toBeChecked();
+  await page.getByTestId('scaffold-fix-limit').fill('5');
+  await page.getByTestId('scaffold-fix-add').click();
+  await expect(page.getByTestId('scaffold-fix-table')).toContainText('Стена');
+  await expect(page.getByTestId('scaffold-fix-table')).toContainText('Y');
+  await page.getByTestId('scaffold-calc-run').click();
+  await expect(page.getByTestId('scaffold-calc-result')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('scaffold-calc-fixings')).toContainText('Стена');
+  await expect(page.getByTestId('scaffold-calc-defects')).toHaveCount(0);
+  // report
+  await page.emulateMedia({ media: 'print' });
+  await page.evaluate("window.dispatchEvent(new Event('beforeprint'))");
+  await expect(page.getByTestId('scaffold-report-fixings')).toContainText('Стена');
+  await page.evaluate("window.dispatchEvent(new Event('afterprint'))");
+  await page.emulateMedia({ media: 'screen' });
+  // kept after a reload, removed
+  await page.reload();
+  await page.getByTestId('mode-scaffold').click();
+  await expect(page.getByTestId('scaffold-fix-table')).toContainText('Стена');
+  await page.locator('[data-testid^="scaffold-fix-remove-"]').first().click();
+  await expect(page.getByTestId('scaffold-fix-table')).toHaveCount(0);
+});

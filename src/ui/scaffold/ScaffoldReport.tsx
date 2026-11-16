@@ -304,6 +304,50 @@ export function ScaffoldReport({ st, run }: { st: ScaffoldStructure; run: Scaffo
             </>
           )}
 
+          {(res.fixings ?? []).length > 0 && (
+            <div data-testid="scaffold-report-fixings">
+              <h3 className="mt-2 font-semibold">{fmt.t('scaffold.fix.results', { n: res.fixings.length })}</h3>
+              <table className="my-1 border-collapse">
+                <thead>
+                  <tr>
+                    <th className={th}>{fmt.t('scaffold.fix.name')}</th>
+                    <th className={th}>{fmt.t('scaffold.fix.axes')}</th>
+                    <th className={th}>Fx</th>
+                    <th className={th}>Fy</th>
+                    <th className={th}>Fz</th>
+                    <th className={th}>|F|</th>
+                    <th className={th}>η</th>
+                    <th className={th}>{fmt.t('scaffold.calc.combo')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...res.fixings]
+                    .sort((a, b) => b.F - a.F)
+                    .map((f) => {
+                      const def = sc.fixings.find((x) => x.id === f.id);
+                      return (
+                        <tr key={`${f.id}|${f.part}`}>
+                          <td className={td}>
+                            {def?.name ?? f.id} · {name(f.part)}
+                          </td>
+                          <td className={td}>{def?.dirs.map((d) => d.toUpperCase()).join(' + ')}</td>
+                          {f.R.map((v, i) => (
+                            <td key={i} className={tn}>
+                              {fmt.q(v, 'force', 2)}
+                            </td>
+                          ))}
+                          <td className={tn}>{fmt.q(f.F, 'force', 2)}</td>
+                          <td className={tn}>{f.eta !== undefined ? pct(f.eta) : '–'}</td>
+                          <td className={td}>{f.combo}</td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+              <p className="text-[11px] text-slate-500">{fmt.t('scaffold.fix.reportNote')}</p>
+            </div>
+          )}
+
           {res.beams.length > 0 && (
             <>
               <h3 className="mt-2 font-semibold">{fmt.t('scaffold.beams.title', { n: res.beams.length })}</h3>

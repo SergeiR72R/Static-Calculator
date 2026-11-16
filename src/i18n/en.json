@@ -737,6 +737,22 @@
       "title": "Drawing",
       "summary": "{n} parts · {types} articles · {girders} lattice girders"
     },
+    "fix": {
+      "title": "Fixings to the building",
+      "intro": "Points where the scaffold is held by the building (or another structure) that the drawing does not contain: choose parts in the 3D model, the axes held and the place along the part. Axes of the drawing; held in both directions.",
+      "name": "Name",
+      "namePlaceholder": "e.g. wall ties axis A",
+      "default": "Fixing",
+      "axes": "Axes",
+      "at": "Place along the part, %",
+      "limit": "Resistance (design)",
+      "add": "Add a fixing at {n} parts",
+      "selectHint": "Choose parts in the 3D model (Ctrl/Shift: several); 100 % = top end of a standard.",
+      "points": "Points",
+      "remove": "Remove",
+      "results": "Fixings to the building: {n} points (forces of the scaffold on the building, design values, largest)",
+      "reportNote": "Forces of the scaffold on the building, design values; η only with a resistance given."
+    },
     "loads": {
       "title": "User loads",
       "class": "Service class",
@@ -997,6 +1013,8 @@
         "deckOneSupport": "Decks with one support only ({n}) – all their load on this support.",
         "deckNoSupport": "Decks without a support ({n}) – load at the nearest node.",
         "spliceFree": "Beam splices UK 70 without two beams ending in them ({n}) – weight only.",
+        "fixingIgnored": "Fixings on parts without a node in the model ({n}: {name}) – not taken; choose a standard, ledger, beam or head jack.",
+        "userLoadIgnored": "Loads on parts without a node in the model ({n}: {name}) – not taken.",
         "ledgerNoRosette": "Ledger ends without a rosette of the drawing at that height ({n}) – wedge head taken in a rosette (semi-rigid).",
         "ledgerFixedAssumed": "Ledgers with decks connected at one end only ({n}) – a connection (rosette, wedge head) assumed at the other end.",
         "ledgerGuardrail": "Ledgers held at one end only ({n}) – guardrails: cantilever in the wedge head, own weight only, no deck loads.",

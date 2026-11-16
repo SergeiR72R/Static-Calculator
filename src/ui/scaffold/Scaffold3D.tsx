@@ -20,6 +20,8 @@ export interface Scaffold3DProps {
   onPick: (partId: string | null, add?: boolean) => void;
   /** hover text of a part */
   describe: (partId: string) => string;
+  /** fixings to the building: point and the axes held ("xy" …) */
+  fixings?: { p: [number, number, number]; dirs: string }[];
 }
 
 interface Scene {
@@ -40,7 +42,7 @@ const MOVED = '#0ea5e9';
 const toThree = (p: number[], c: number[]) => new THREE.Vector3(p[0] - c[0], p[2] - c[2], -(p[1] - c[1]));
 
 /** Interactive 3D view of the scaffold: system lines as tubes, decks as plates, rosettes. */
-export default function Scaffold3D({ st, girderColor, partColor, selected, moved, resetKey, onPick, describe }: Scaffold3DProps) {
+export default function Scaffold3D({ st, girderColor, partColor, selected, moved, resetKey, onPick, describe, fixings = [] }: Scaffold3DProps) {
   const fmt = useFmt();
   const theme = useStore((s) => s.theme);
   const host = useRef<HTMLDivElement>(null);
@@ -224,6 +226,33 @@ export default function Scaffold3D({ st, girderColor, partColor, selected, moved
         s.content.add(mesh);
       }
     }
+    // fixings to the building: a red ball at the point, double arrows along the axes held
+    if (fixings.length) {
+      const FIX = 0xdc2626;
+      const ballGeo = new THREE.SphereGeometry(0.06, 12, 8);
+      const ballMat = new THREE.MeshLambertMaterial({ color: FIX, depthTest: false });
+      const axisDir: Record<string, THREE.Vector3> = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 0, -1), z: new THREE.Vector3(0, 1, 0) };
+      for (const f of fixings) {
+        const p = toThree(f.p, center);
+        const ball = new THREE.Mesh(ballGeo.clone(), ballMat.clone());
+        ball.position.copy(p);
+        ball.renderOrder = 11;
+        s.content.add(ball);
+        for (const d of f.dirs) {
+          const v = axisDir[d];
+          if (!v) continue;
+          for (const sgn of [1, -1]) {
+            const arrow = new THREE.ArrowHelper(v.clone().multiplyScalar(sgn), p, 0.32, FIX, 0.1, 0.06);
+            arrow.renderOrder = 11;
+            arrow.traverse((o) => {
+              const mat = (o as THREE.Mesh).material as THREE.Material | undefined;
+              if (mat) mat.depthTest = false;
+            });
+            s.content.add(arrow);
+          }
+        }
+      }
+    }
     // girder labels (T1, T2, …) above the middle of the top chord
     for (const g of st.girders) {
       const cv = document.createElement('canvas');
@@ -255,7 +284,7 @@ export default function Scaffold3D({ st, girderColor, partColor, selected, moved
     s.content.add(grid);
     s.render();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [st, girderColor, partColor, selected, moved, theme]);
+  }, [st, girderColor, partColor, selected, moved, theme, fixings]);
 
   // camera
   useEffect(() => {

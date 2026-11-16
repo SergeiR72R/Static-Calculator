@@ -14,6 +14,8 @@ import { downloadExportScript, openScaffoldFiles } from './openDxf';
 import { SiteCard } from './SiteCard';
 import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './AnalysisCard';
 import { LoadsCard } from './LoadsCard';
+import { FixingsCard } from './FixingsCard';
+import { orderedAxis } from '../../scaffold/userLoads';
 import { ScaffoldReport } from './ScaffoldReport';
 import { useProgress, useScaffoldRun } from './progress';
 import { ProgressBar } from './ProgressBar';
@@ -205,6 +207,34 @@ export default function ScaffoldApp() {
   const sums = useMemo(() => models.map(({ m }) => beamSummary(m)), [models]);
   const girderColor = useMemo(() => Object.fromEntries(models.map(({ g }, k) => [g.key, etaColor(sums[k])])), [models, sums]);
   const shown = useMemo(() => (st ? { ...st, parts: st.parts.filter((w) => !hidden.has(w.cls.kind)) } : null), [st, hidden]);
+  // fixings to the building: their points on the parts (as the model places them) and the axes held
+  const fixMarks = useMemo(() => {
+    if (!st) return [];
+    const byId = new Map(st.parts.map((w) => [w.part.id, w]));
+    const out: { p: [number, number, number]; dirs: string }[] = [];
+    const seen = new Set<string>();
+    const push = (p: [number, number, number], dirs: string) => {
+      const key = `${p.map((v) => v.toFixed(2)).join(',')}|${dirs}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push({ p, dirs });
+    };
+    for (const f of sc.fixings)
+      for (const id of f.parts) {
+        // a part of a lattice girder: the point on the girder axis (as the model holds it)
+        const g = st.girders.find((q) => q.parts.includes(id));
+        if (g) {
+          push([g.origin[0] + g.u[0] * g.L * f.at, g.origin[1] + g.u[1] * g.L * f.at, g.zTop], f.dirs.join(''));
+          continue;
+        }
+        const w = byId.get(id);
+        if (!w?.lines.length) continue;
+        const l = w.lines.reduce((a, b) => (Math.hypot(b[1][0] - b[0][0], b[1][1] - b[0][1], b[1][2] - b[0][2]) > Math.hypot(a[1][0] - a[0][0], a[1][1] - a[0][1], a[1][2] - a[0][2]) ? b : a));
+        const [A, B] = orderedAxis(l[0], l[1]);
+        push([A[0] + f.at * (B[0] - A[0]), A[1] + f.at * (B[1] - A[1]), A[2] + f.at * (B[2] - A[2])], f.dirs.join(''));
+      }
+    return out;
+  }, [st, sc.fixings]);
   // opening a drawing ends when its structure has been worked out
   useEffect(() => {
     const p = useProgress.getState();
@@ -398,7 +428,7 @@ export default function ScaffoldApp() {
             </label>
           )}
           <Suspense fallback={<div className="h-[460px]" />}>
-            <Scaffold3D st={shown} girderColor={girderColor} partColor={partColor} selected={sc.selected} moved={moved} resetKey={resetKey} onPick={pick} describe={describe} />
+            <Scaffold3D st={shown} girderColor={girderColor} partColor={partColor} selected={sc.selected} moved={moved} resetKey={resetKey} onPick={pick} describe={describe} fixings={fixMarks} />
           </Suspense>
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
             <span>{fmt.t('scaffold.view.hint')}</span>
@@ -411,6 +441,8 @@ export default function ScaffoldApp() {
         </Card>
 
         <LoadsCard st={st} />
+
+        <FixingsCard st={st} />
 
         <AnalysisCard st={st} run={run} setRun={setRun} />
 

@@ -857,13 +857,16 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
 
   // ---- fixings to the building set by the user: supports at a node of the part (as the point loads)
   const fixings: ScaffoldModel['fixings'] = [];
+  const fixSup = new Map<string, number>();
   for (const f of opts.fixings ?? []) {
     const dirs = [...new Set(f.dirs)].filter((d) => d === 'x' || d === 'y' || d === 'z');
     if (!dirs.length) continue;
     for (const id of f.parts) {
       const at = Math.min(Math.max(f.at, 0), 1);
       let node = -1;
-      const car = carriers.find((c) => c.part === id);
+      // a part of a lattice girder: the girder (its carrier carries the first part)
+      const gFirst = st.girders.find((g) => g.parts.includes(id))?.parts[0];
+      const car = carriers.find((c) => c.part === id) ?? (gFirst ? carriers.find((c) => c.kind === 'girder' && c.part === gFirst) : undefined);
       if (car) {
         const [A, B] = orderedAxis(car.a, car.b);
         const P: V3 = [A[0] + at * (B[0] - A[0]), A[1] + at * (B[1] - A[1]), A[2] + at * (B[2] - A[2])];
@@ -882,9 +885,16 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         note('fixingIgnored', id, { name: f.name });
         continue;
       }
+      // one support per node and axis (two fixings at the same point share it)
       const sups = dirs.map((d) => {
-        supports.push({ node, dof: 'xyz'.indexOf(d), k: Infinity });
-        return { dir: d, sup: supports.length - 1 };
+        const key = `${node}:${d}`;
+        let sup = fixSup.get(key);
+        if (sup === undefined) {
+          supports.push({ node, dof: 'xyz'.indexOf(d), k: Infinity });
+          sup = supports.length - 1;
+          fixSup.set(key, sup);
+        }
+        return { dir: d, sup };
       });
       fixings.push({ id: f.id, part: id, node, sups, ...(f.limit && f.limit > 0 ? { limit: f.limit } : {}) });
     }

@@ -737,6 +737,22 @@
       "title": "Zeichnung",
       "summary": "{n} Teile · {types} Artikel · {girders} Gitterträger"
     },
+    "fix": {
+      "title": "Befestigung am Bauwerk",
+      "intro": "Punkte, an denen das Gerüst am Gebäude (oder einer anderen Konstruktion) gehalten ist und die in der Zeichnung nicht enthalten sind: Teile im 3D-Modell wählen, gehaltene Achsen und Lage am Teil angeben. Die Achsen sind die der Zeichnung; gehalten in beide Richtungen.",
+      "name": "Bezeichnung",
+      "namePlaceholder": "z. B. Wandanker Achse A",
+      "default": "Befestigung",
+      "axes": "Achsen",
+      "at": "Lage am Teil, %",
+      "limit": "Widerstand (Bemessung)",
+      "add": "Befestigung an {n} Teilen hinzufügen",
+      "selectHint": "Teile im 3D-Modell wählen (Strg/Umschalt: mehrere); 100 % = oberes Ende eines Stiels.",
+      "points": "Punkte",
+      "remove": "Entfernen",
+      "results": "Befestigungen am Bauwerk: {n} Punkte (Kräfte des Gerüsts auf das Bauwerk, Bemessungswerte, Größtwert)",
+      "reportNote": "Kräfte des Gerüsts auf das Bauwerk, Bemessungswerte; η nur mit angegebenem Widerstand."
+    },
     "loads": {
       "title": "Benutzerdefinierte Lasten",
       "class": "Lastklasse",
@@ -997,6 +1013,8 @@
         "deckOneSupport": "Beläge mit nur einem Auflager ({n}) – ihre ganze Last auf dieses Auflager.",
         "deckNoSupport": "Beläge ohne gefundenes Auflager ({n}) – Last am nächsten Knoten.",
         "spliceFree": "Trägerstöße UK 70 ohne zwei Träger an ihren Enden ({n}) – nur als Gewicht angesetzt.",
+        "fixingIgnored": "Befestigungen an Teilen ohne Knoten im Modell ({n}: {name}) – nicht angesetzt; einen Stiel, Riegel, Träger oder eine Kopfspindel wählen.",
+        "userLoadIgnored": "Lasten auf Teilen ohne Knoten im Modell ({n}: {name}) – nicht angesetzt.",
         "ledgerNoRosette": "Riegelenden ohne Rosette in der Zeichnung an dieser Höhe ({n}) – Keilkopf in einer Rosette angenommen (halbstarr).",
         "ledgerFixedAssumed": "Riegel mit Belägen, nur an einem Ende angeschlossen ({n}) – am anderen Ende ein Anschluss (Rosette, Keilkopf) angenommen.",
         "ledgerGuardrail": "Riegel nur an einem Ende gehalten ({n}) – Geländer: Kragarm im Keilkopf, nur Eigengewicht, keine Belaglasten.",

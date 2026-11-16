@@ -47,7 +47,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
   const outdoor = sc.exposure === 'outdoor';
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
   const wind = siteWind(sc, Math.max(st.max[2] - st.min[2], 1));
-  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack, sc.planLoads, sc.spliceNoTension, sc.capByArticle]);
+  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack, sc.planLoads, sc.spliceNoTension, sc.capByArticle, sc.fixings]);
   const stale = !!run && run.sig !== sig;
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
   const levels = useMemo(() => {
@@ -71,7 +71,7 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
     await new Promise((r) => setTimeout(r, 30));
     try {
       const t0 = performance.now();
-      const model = buildScaffoldModel(st, sc.loads, sc.dhbParts, { ubk: sc.ubkModel, planLoads: sc.planLoads, capByArticle: sc.capByArticle });
+      const model = buildScaffoldModel(st, sc.loads, sc.dhbParts, { ubk: sc.ubkModel, planLoads: sc.planLoads, capByArticle: sc.capByArticle, fixings: sc.fixings });
       setCalc({ phase: 'scaffold.progress.prepare', frac: null });
       const result = await analyzeScaffoldParallel(
         model,
@@ -379,6 +379,43 @@ export function AnalysisCard({ st, run, setRun }: { st: ScaffoldStructure; run: 
                 </button>
               )}
             </div>
+            {(res.fixings ?? []).length > 0 && (
+              <div data-testid="scaffold-calc-fixings">
+                <p className="mb-1 text-xs font-semibold">{fmt.t('scaffold.fix.results', { n: res.fixings.length })}</p>
+                <div className="max-h-40 overflow-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 text-[11px] text-slate-500 dark:border-slate-700">
+                        <th className="px-1.5 py-0.5 text-start font-medium">{fmt.t('scaffold.fix.name')}</th>
+                        <th className="px-1.5 py-0.5 text-end font-medium">Fx</th>
+                        <th className="px-1.5 py-0.5 text-end font-medium">Fy</th>
+                        <th className="px-1.5 py-0.5 text-end font-medium">Fz</th>
+                        <th className="px-1.5 py-0.5 text-end font-medium">|F|</th>
+                        <th className="px-1.5 py-0.5 text-end font-medium">η</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...res.fixings]
+                        .sort((a, b) => b.F - a.F)
+                        .map((f) => (
+                          <tr key={`${f.id}|${f.part}`} className="cursor-pointer border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/60" onClick={() => sc.select([f.part])} title={f.combo}>
+                            <td className="px-1.5 py-0.5">{sc.fixings.find((x) => x.id === f.id)?.name ?? f.id}</td>
+                            {f.R.map((v, i) => (
+                              <td key={i} className="num px-1.5 py-0.5 text-end">
+                                {fmt.q(v, 'force', 2)}
+                              </td>
+                            ))}
+                            <td className="num px-1.5 py-0.5 text-end font-semibold">{fmt.q(f.F, 'force', 2)}</td>
+                            <td className="num px-1.5 py-0.5 text-end font-semibold" style={f.eta !== undefined ? { color: etaColor(f.eta) } : undefined}>
+                              {f.eta !== undefined ? `${fmt.num(f.eta * 100, 0)} %` : '–'}
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             {res.anchors.length > 0 && (
               <div data-testid="scaffold-calc-anchors">
                 <p className="mb-1 text-xs font-semibold">{fmt.t('scaffold.calc.anchors', { n: res.anchors.length })}</p>

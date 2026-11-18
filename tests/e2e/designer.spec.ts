@@ -155,6 +155,9 @@ test('designer: the example section works and every setting explains itself', as
   await page.getByTestId('mode-designer').click();
   await page.getByTestId('designer-example').click();
   await expect(page.locator('[data-testid^="designer-part-"]')).toHaveCount(13);
+  // grid: thin lines every 25 cm, thick ones every metre
+  await expect(page.locator('[data-grid="q"]').first()).toBeAttached();
+  await expect(page.locator('[data-grid="m"]').first()).toBeAttached();
   // the wheel zooms the drawing; the page does not scroll
   await page.evaluate('window.scrollTo(0, 120)');
   const y0 = await page.evaluate('window.scrollY');
@@ -211,6 +214,9 @@ test('designer: the example section works and every setting explains itself', as
   // three metres to the right: the scale from the drawn standard UVR 200 (2.16 m with its spigot)
   const px = s3.height / 2.16;
   await page.mouse.move(s1.x + 3 * px, s1.y + s1.height);
+  // the distance of the copy from the original is shown while moving it
+  await expect(page.getByTestId('designer-paste-offset')).toContainText('Δx =');
+  await expect(page.getByTestId('designer-hint')).toContainText('Δz =');
   await page.mouse.click(s1.x + 3 * px, s1.y + s1.height);
   await expect(page.locator('[data-testid^="designer-part-"]')).toHaveCount(26);
   await expect(page.getByTestId('designer-anchor-A4')).toBeVisible();

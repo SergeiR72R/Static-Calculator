@@ -150,7 +150,7 @@ export function DesignCanvas({
     if (tool.kind !== 'paste' || !clip || !ptr) return null;
     const x0 = Math.min(...clip.parts.flatMap((p) => [ends(p)[0], ends(p)[2]]));
     const z0 = Math.min(...clip.parts.flatMap((p) => [ends(p)[1], ends(p)[3]]));
-    return { dx: Math.round((ptr.x - x0) / 0.25) * 0.25, dz: Math.round((ptr.z - z0) / 0.5) * 0.5 };
+    return { dx: Math.round((ptr.x - x0) / 0.25) * 0.25, dz: Math.round((ptr.z - z0) / 0.5) * 0.5, x0, z0 };
   }, [tool.kind, clip, ptr]);
   const pasteGhost = useMemo(() => {
     if (!pasteAt || !clip) return [];
@@ -264,11 +264,16 @@ export function DesignCanvas({
   {
     const w0 = toWorld(0, size.h);
     const w1 = toWorld(size.w, 0);
-    const step = v.s > 120 ? 0.25 : v.s > 50 ? 0.5 : 1;
-    for (let x = Math.ceil(w0.x / step) * step; x <= w1.x; x += step)
-      grid.push(<line key={`gx${x}`} x1={X(x)} y1={0} x2={X(x)} y2={size.h} stroke="currentColor" strokeOpacity={Math.abs(x - Math.round(x)) < 1e-6 ? 0.16 : 0.07} />);
-    for (let z = Math.ceil(w0.z / step) * step; z <= w1.z; z += step)
-      grid.push(<line key={`gz${z}`} x1={0} y1={Y(z)} x2={size.w} y2={Y(z)} stroke="currentColor" strokeOpacity={Math.abs(z - Math.round(z)) < 1e-6 ? 0.16 : 0.07} />);
+    // thin lines every 25 cm (hidden when they would run together), thick ones every metre
+    const step = 0.25 * v.s >= 6 ? 0.25 : 1;
+    const metre = (t: number) => Math.abs(t - Math.round(t)) < 1e-6;
+    const line = (t: number, key: string, vertical: boolean) => {
+      const m = metre(t);
+      const a = { stroke: 'currentColor', strokeOpacity: m ? 0.28 : 0.09, strokeWidth: m ? 1.3 : 0.6, 'data-grid': m ? 'm' : 'q' };
+      return vertical ? <line key={key} x1={X(t)} y1={0} x2={X(t)} y2={size.h} {...a} /> : <line key={key} x1={0} y1={Y(t)} x2={size.w} y2={Y(t)} {...a} />;
+    };
+    for (let k = Math.ceil(w0.x / step); k * step <= w1.x; k++) grid.push(line(Math.round(k * step * 1000) / 1000, `gx${k}`, true));
+    for (let k = Math.ceil(w0.z / step); k * step <= w1.z; k++) grid.push(line(Math.round(k * step * 1000) / 1000, `gz${k}`, false));
   }
   const partColor = (p: Placed) => {
     const e = eta?.get(p.id);
@@ -445,6 +450,17 @@ export function DesignCanvas({
         {tool.kind === 'anchor' && anchorStart && ptr && <AnchorMark id="" x={X(anchorStart.x)} y={Y(anchorStart.z)} angle={angleTo(anchorStart, ptr.x)} ghost />}
         {/* the copied parts at the place of the pointer */}
         {pasteGhost.map((l, i) => seg(l, 1000 + i, '#16a34a', 3, { strokeOpacity: 0.7, strokeDasharray: '6 3' }))}
+        {/* distance of the copy from the original: from corner to corner */}
+        {pasteAt && (pasteAt.dx !== 0 || pasteAt.dz !== 0) && (
+          <g data-testid="designer-paste-offset">
+            <line x1={X(pasteAt.x0)} y1={Y(pasteAt.z0)} x2={X(pasteAt.x0 + pasteAt.dx)} y2={Y(pasteAt.z0 + pasteAt.dz)} stroke="#16a34a" strokeWidth={1.5} strokeDasharray="3 3" />
+            <circle cx={X(pasteAt.x0)} cy={Y(pasteAt.z0)} r={3.5} fill="#16a34a" />
+            <circle cx={X(pasteAt.x0 + pasteAt.dx)} cy={Y(pasteAt.z0 + pasteAt.dz)} r={3.5} fill="#16a34a" />
+            <text x={X(pasteAt.x0 + pasteAt.dx / 2) + 6} y={Y(pasteAt.z0 + pasteAt.dz / 2) - 6} className="text-[11px] font-semibold" fill="#15803d" stroke="#fff" strokeWidth={3} paintOrder="stroke">
+              Δx = {fmt.num(pasteAt.dx, 2)} m · Δz = {fmt.num(pasteAt.dz, 2)} m
+            </text>
+          </g>
+        )}
         {band && (
           <rect x={Math.min(band.x0, band.x1)} y={Math.min(band.y0, band.y1)} width={Math.abs(band.x1 - band.x0)} height={Math.abs(band.y1 - band.y0)} fill="#d946ef" fillOpacity={0.08} stroke="#d946ef" strokeDasharray="4 3" data-testid="designer-band" />
         )}
@@ -456,7 +472,7 @@ export function DesignCanvas({
       <div className="pointer-events-none absolute bottom-2 start-2 rounded bg-white/85 px-2 py-1 text-[11px] text-slate-600 dark:bg-slate-900/85 dark:text-slate-300" data-testid="designer-hint">
         {ptr && (
           <span className="num me-2">
-            x = {fmt.num(ptr.x, 2)} · z = {fmt.num(ptr.z, 2)} m
+            {pasteAt ? `Δx = ${fmt.num(pasteAt.dx, 2)} · Δz = ${fmt.num(pasteAt.dz, 2)} m` : `x = ${fmt.num(ptr.x, 2)} · z = ${fmt.num(ptr.z, 2)} m`}
           </span>
         )}
         {fmt.t(

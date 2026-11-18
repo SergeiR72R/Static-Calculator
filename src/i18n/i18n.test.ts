@@ -55,7 +55,7 @@ describe('localization', () => {
       for (const f of readdirSync(dir)) {
         const p = join(dir, f);
         if (statSync(p).isDirectory()) walk(p);
-        else if (/\.tsx$/.test(f)) for (const m of readFileSync(p, 'utf8').matchAll(/\b(?:help|id)="(scaffold\.\w+)"/g)) used.add(m[1]);
+        else if (/\.tsx$/.test(f)) for (const m of readFileSync(p, 'utf8').matchAll(/\b(?:help|id)="((?:scaffold|designer)\.\w+)"/g)) used.add(m[1]);
       }
     };
     walk(join(__dirname, '..'));
@@ -63,7 +63,7 @@ describe('localization', () => {
     const missing: string[] = [];
     for (const id of used) for (const p of ['what', 'why', 'effect']) for (const l of ['de', 'en', 'ru', 'he'] as const) if (!hasKey(l, `help.${id}.${p}`)) missing.push(`${l} help.${id}.${p}`);
     expect(missing).toEqual([]);
-    const defined = [...new Set(de.filter((k) => k.startsWith('help.scaffold.')).map((k) => k.split('.').slice(1, 3).join('.')))];
+    const defined = [...new Set(de.filter((k) => /^help\.(scaffold|designer)\./.test(k)).map((k) => k.split('.').slice(1, 3).join('.')))];
     expect(defined.filter((id) => !used.has(id))).toEqual([]);
   });
 

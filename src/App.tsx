@@ -19,6 +19,7 @@ import { cx } from './ui/common';
 import { isRtl } from './units/format';
 
 const ScaffoldApp = lazy(() => import('./ui/scaffold/ScaffoldApp'));
+const DesignerApp = lazy(() => import('./ui/designer/DesignerApp'));
 
 const INPUT_TABS: InputTab[] = ['beam', 'supports', 'loads', 'cases', 'settings'];
 
@@ -79,6 +80,8 @@ export function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
+      // the designer has its own history
+      if (useStore.getState().appMode === 'designer') return;
       const k = e.key.toLowerCase();
       if (k === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -113,6 +116,10 @@ export function App() {
             {appMode === 'scaffold' ? (
               <Suspense fallback={<div className="flex-1" />}>
                 <ScaffoldApp />
+              </Suspense>
+            ) : appMode === 'designer' ? (
+              <Suspense fallback={<div className="flex-1" />}>
+                <DesignerApp />
               </Suspense>
             ) : (
               <>

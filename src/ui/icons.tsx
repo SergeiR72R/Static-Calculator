@@ -148,3 +148,9 @@ export const IconScaffold = (p: P) => (
     <path d="M5 14l14-7" />
   </Icon>
 );
+export const IconDesigner = (p: P) => (
+  <Icon {...p}>
+    <path d="M7 21V5M15 21V9M7 9h8M7 15h8M7 15l8-6M15 13h5" />
+    <path d="M3 21h18" />
+  </Icon>
+);

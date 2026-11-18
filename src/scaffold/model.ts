@@ -286,6 +286,11 @@ export interface ModelOptions {
   capByArticle?: boolean;
   /** fixings to the building set by the user */
   fixings?: UserFixing[];
+  /**
+   * a plane frame in x–z (a section drawn in the designer): every node held out of the plane (y and
+   * the rotations about x and z), as by the longitudinal bracing of the scaffold
+   */
+  plane?: boolean;
 }
 
 export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
@@ -1514,6 +1519,11 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   if (!dhbNodes.length) {
     const topZ = Math.max(...cols.map((c) => c.z1));
     dhbNodes = cols.map((c, k) => (c.z1 >= topZ - 0.5 ? topOf(k) : -1)).filter((n) => n >= 0);
+  }
+
+  if (opts.plane) {
+    const held = new Set(supports.map((s) => `${s.node}:${s.dof}`));
+    for (let n = 0; n < nodes.length; n++) for (const dof of [1, 3, 5]) if (!held.has(`${n}:${dof}`)) supports.push({ node: n, dof, k: Infinity });
   }
 
   return {

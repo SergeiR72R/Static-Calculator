@@ -705,7 +705,10 @@
     "scaffold": "Scaffold · PERI CAD",
     "beamHint": "Calculate a single beam or a beam list",
     "scaffoldHint": "Import a scaffold from PERI CAD (DXF): parts, lattice girders, supports and loads",
-    "scaffoldSubtitle": "Scaffold from PERI CAD: DXF import and lattice girders"
+    "scaffoldSubtitle": "Scaffold from PERI CAD: DXF import and lattice girders",
+    "designer": "Designer",
+    "designerHint": "Section of a PERI UP scaffold from catalogue parts: build in 2D and calculate",
+    "designerSubtitle": "Designer: PERI UP section from the catalogue and analysis"
   },
   "scaffold": {
     "title": "Scaffold from PERI CAD",
@@ -1041,7 +1044,8 @@
         "uplift": "Uplift at the base",
         "jack": "Spindle (N + M)",
         "unstable": "Not held (mechanism)",
-        "stability": "Loss of stability (second order)"
+        "stability": "Loss of stability (second order)",
+        "fixing": "Fixing to the building"
       },
       "bases": "Bases: {n}",
       "basesMax": "Largest vertical force {v}, horizontal force {h} (design values).",
@@ -1422,6 +1426,128 @@
         "why": "So that the program checks the fixing.",
         "effect": "If entered – the resultant reaction is compared with it (check “fixing”, η). 0 – no check, reactions only."
       }
+    },
+    "designer": {
+      "deck": {
+        "what": "Whether a deck lies on the ledger or bracket.",
+        "why": "The deck passes its weight and the working load to the ledger or bracket.",
+        "effect": "On – load from the field width on the part: self weight of the deck and, if ticked, the working load of the load class. Off – no load from a deck."
+      },
+      "width": {
+        "what": "Field width of the deck across the section – length of the decks between this section and the neighbouring ones.",
+        "why": "In a row of equal fields the section carries half a field on each side, one field in all.",
+        "effect": "Load on the ledger or bracket = load per m² × field width, kN/m along the part. Wider field – larger load."
+      },
+      "work": {
+        "what": "The working load of the load class acts on this deck.",
+        "why": "By EN 12811-1 the working load stands on the deck where people work; the others carry their self weight.",
+        "effect": "On – q of the class × field width (fully in service, out of service with the share of the class). Indoors the notional horizontal load of 2.5 % is added."
+      },
+      "ext": {
+        "what": "Distance from the base plate of the jack to the bottom of the standard on it.",
+        "why": "The jack levels the height; the larger the extension, the weaker the jack.",
+        "effect": "Changes the height of the standards on the jack and the check of the jack (N + M). Largest value by the article."
+      },
+      "field": {
+        "what": "Field width a new deck on a ledger or bracket gets.",
+        "why": "Usually all fields of a scaffold are equal – so it need not be entered each time.",
+        "effect": "Only for new decks; for existing ones the width is changed in the properties of the part."
+      },
+      "qMax": {
+        "what": "Peak velocity pressure of the maximum wind for scaffolds outdoors.",
+        "why": "Sets the out-of-service combinations R and S (maximum wind, uplift and overturning).",
+        "effect": "0 – working wind 0.2 kN/m² only. Larger – larger horizontal load in R and S."
+      },
+      "about": {
+        "what": "The section built from PERI UP parts is calculated with the same analysis as scaffolds from PERI CAD: space frame with semi-rigid rosette nodes, second order, checks by the approval Z-8.22-863.",
+        "why": "So that a section can be checked without a PERI CAD drawing.",
+        "effect": "The section is a plane frame; out of its plane it is held by the longitudinal bracing. Loads: deck and working load from the field width, wind on the parts of the section, anchors hold in X, supports are the base plates of the jacks."
+      },
+      "families": {
+        "what": "Series of PERI UP parts shown in the catalogue of the designer.",
+        "why": "Parts of one generation are used: the first (UVR, UVH, UH Plus, UBK) or the second (UVR-2, UVH-2, UH-2, UBK-2 with the 8 mm rosette).",
+        "effect": "Hidden series do not appear in the catalogue; parts already placed stay and are calculated by their article. Default – first generation."
+      }
     }
+  },
+  "designer": {
+    "title": "Scaffold section (side view)",
+    "intro": "Choose a part in the catalogue and move over the drawing: it snaps to the nearest connection point (green – can be placed). Standards on jacks, base standards and each other, ledgers and diagonals between rosettes of equal height, brackets on a rosette. Wheel – zoom, drag – pan, Del – delete, Ctrl+Z – undo.",
+    "catalog": "PERI UP parts catalogue",
+    "search": "Search: name or article",
+    "tools": "Tools",
+    "tool": {
+      "select": "Select",
+      "anchor": "Anchor",
+      "tube": "Tube on couplers"
+    },
+    "undo": "Undo",
+    "redo": "Redo",
+    "example": "Example",
+    "exampleConfirm": "Replace the current section by the example (facade scaffold 0.75 m)?",
+    "clear": "Clear",
+    "clearConfirm": "Delete all parts of the section?",
+    "fit": "Show all",
+    "etaLegend": "Colour of the parts by utilisation η:",
+    "checks": "All checks ({n})",
+    "col": {
+      "part": "Part",
+      "check": "Check",
+      "combo": "Combination"
+    },
+    "props": {
+      "title": "Properties",
+      "none": "Select a part in the drawing (Ctrl/Shift + click – several).",
+      "many": "Parts selected: {n}",
+      "remove": "Delete",
+      "deck": "Deck on the part",
+      "width": "Field width of the deck",
+      "work": "Working load on this deck",
+      "ext": "Jack extension",
+      "anchors": "Anchors on this standard (height of the rosette, m):"
+    },
+    "settings": "Loads and conditions",
+    "name": "Name of the section",
+    "field": "Field width of new decks",
+    "qMax": "q_p of the maximum wind",
+    "assumptions": "The section is calculated as a plane frame: out of its plane the scaffold is held by the longitudinal bracing. Loads on ledgers and brackets from the field width; wind on the parts of the section.",
+    "bom": "Parts list of the section",
+    "total": "Total",
+    "aboutShort": "How the section is calculated",
+    "kind": {
+      "standard": "Standards",
+      "base": "Base standards",
+      "jack": "Base jacks (supports)",
+      "ledger": "Ledgers",
+      "bracket": "Brackets",
+      "diagonal": "Diagonals",
+      "tube": "Tubes and couplers",
+      "spigot": "Spigots on a ledger"
+    },
+    "hint": {
+      "part": "Click – place the part where shown. Esc – leave the tool.",
+      "noSnap": "This part cannot go here: move it to a rosette or a support point.",
+      "tube1": "Tube: click the first point on a standard.",
+      "tube2": "Tube: click the second point on another standard (couplers are added).",
+      "anchor": "Anchor: click a point on a standard – there the scaffold is tied to the building (in X).",
+      "select": "Click – select a part, drag – pan the drawing."
+    },
+    "issue": {
+      "noStandards": "Place at least one standard.",
+      "floating": "Standards stand on nothing – put a jack or another standard under them.",
+      "noDecks": "No deck: tick “Deck on the part” at ledgers or brackets.",
+      "noWork": "No working load anywhere: tick it at a deck.",
+      "noBracing": "Neither diagonals nor anchors: the section is not braced horizontally."
+    },
+    "calc": {
+      "model": "Model…",
+      "progress": "Analysis {done} / {total}",
+      "run": "Calculate",
+      "rerun": "Recalculate"
+    },
+    "families": "Parts in the catalogue",
+    "familiesHint": "Which series of parts the catalogue shows.",
+    "familiesReset": "First generation only",
+    "gen": "gen. {n}"
   }
 }

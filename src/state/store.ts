@@ -15,7 +15,7 @@ export type MainTab = 'results' | 'report';
 
 export interface Prefs {
   /** working mode: single beam / beam list, or scaffold from PERI CAD */
-  appMode: 'beam' | 'scaffold';
+  appMode: 'beam' | 'scaffold' | 'designer';
   lang: Lang;
   units: UnitSystem;
   decimals: number;

@@ -705,7 +705,10 @@
     "scaffold": "Gerüst · PERI CAD",
     "beamHint": "Einzelträger oder Trägerliste berechnen",
     "scaffoldHint": "Gerüst aus PERI CAD (DXF) importieren: Teile, Gitterträger, Auflager und Lasten",
-    "scaffoldSubtitle": "Gerüst aus PERI CAD: DXF-Import und Gitterträger"
+    "scaffoldSubtitle": "Gerüst aus PERI CAD: DXF-Import und Gitterträger",
+    "designer": "Konstruktor",
+    "designerHint": "Gerüstschnitt PERI UP aus Katalogteilen: Aufbau in 2D und Berechnung",
+    "designerSubtitle": "Konstruktor: Schnitt PERI UP aus dem Katalog und Berechnung"
   },
   "scaffold": {
     "title": "Gerüst aus PERI CAD",
@@ -1041,7 +1044,8 @@
         "uplift": "Abheben Fußpunkt",
         "jack": "Spindel (N + M)",
         "unstable": "Nicht gehalten (Mechanismus)",
-        "stability": "Stabilitätsverlust (Theorie II. Ordnung)"
+        "stability": "Stabilitätsverlust (Theorie II. Ordnung)",
+        "fixing": "Befestigung am Bauwerk"
       },
       "bases": "Fußpunkte: {n}",
       "basesMax": "Größte Vertikalkraft {v}, Horizontalkraft {h} (Bemessungswerte).",
@@ -1422,6 +1426,128 @@
         "why": "Damit das Programm die Befestigung nachweist.",
         "effect": "Wenn eingegeben – die resultierende Reaktion wird damit verglichen (Nachweis „Befestigung“, η). 0 – ohne Nachweis, nur Reaktionen."
       }
+    },
+    "designer": {
+      "deck": {
+        "what": "Ob auf dem Riegel oder der Konsole ein Belag liegt.",
+        "why": "Der Belag gibt sein Gewicht und die Nutzlast an Riegel oder Konsole ab.",
+        "effect": "An – Last aus der Feldbreite auf das Teil: Eigengewicht des Belags und, wenn gewählt, Nutzlast der Lastklasse. Aus – keine Last aus Belag."
+      },
+      "width": {
+        "what": "Feldbreite des Belags quer zum Schnitt – Länge der Beläge zwischen diesem und den Nachbarschnitten.",
+        "why": "In einer Reihe gleicher Felder trägt der Schnitt je ein halbes Feld beidseits, zusammen ein Feld.",
+        "effect": "Last auf Riegel oder Konsole = Flächenlast × Feldbreite, kN/m entlang des Teils. Breiteres Feld – größere Last."
+      },
+      "work": {
+        "what": "Auf diesem Belag wirkt die Nutzlast der Lastklasse.",
+        "why": "Nach EN 12811-1 steht die Nutzlast auf der Arbeitslage; die übrigen tragen ihr Eigengewicht.",
+        "effect": "An – q der Klasse × Feldbreite (in Betrieb voll, außer Betrieb mit dem Anteil der Klasse). In einem Gebäude kommt die Ersatzhorizontallast 2,5 % hinzu."
+      },
+      "ext": {
+        "what": "Abstand von der Fußplatte der Spindel bis zur Unterkante des Stiels darauf.",
+        "why": "Die Spindel gleicht die Höhe aus; je größer der Auszug, desto schwächer die Spindel.",
+        "effect": "Ändert die Höhe der Stiele auf der Spindel und den Nachweis der Spindel (N + M). Größtwert nach Artikel."
+      },
+      "field": {
+        "what": "Feldbreite, die ein neuer Belag auf Riegel oder Konsole erhält.",
+        "why": "Meist sind alle Felder gleich – so muss sie nicht jedes Mal eingegeben werden.",
+        "effect": "Nur für neue Beläge; bei vorhandenen wird die Breite in den Eigenschaften des Teils geändert."
+      },
+      "qMax": {
+        "what": "Böengeschwindigkeitsdruck des maximalen Windes für Gerüste im Freien.",
+        "why": "Bestimmt die Kombinationen außer Betrieb R und S (maximaler Wind, Abheben und Kippen).",
+        "effect": "0 – nur Arbeitswind 0,2 kN/m². Größer – größere Horizontallast in R und S."
+      },
+      "about": {
+        "what": "Der aus PERI-UP-Teilen gebaute Schnitt wird mit derselben Berechnung wie Gerüste aus PERI CAD gerechnet: räumliches Modell mit halbsteifen Rosettenknoten, Theorie II. Ordnung, Nachweise nach Zulassung Z-8.22-863.",
+        "why": "Damit ein Schnitt ohne PERI-CAD-Zeichnung nachgewiesen werden kann.",
+        "effect": "Der Schnitt ist ein ebener Rahmen; aus der Ebene halten ihn Längsverbände. Lasten: Belag und Nutzlast aus der Feldbreite, Wind auf die Teile des Schnitts, Anker halten in X, Auflager sind die Spindelplatten."
+      },
+      "families": {
+        "what": "Reihen der PERI-UP-Teile, die der Katalog des Konstruktors zeigt.",
+        "why": "Verwendet werden Teile einer Generation: die erste (UVR, UVH, UH Plus, UBK) oder die zweite (UVR-2, UVH-2, UH-2, UBK-2 mit 8-mm-Rosette).",
+        "effect": "Ausgeblendete Reihen erscheinen nicht im Katalog; gesetzte Teile bleiben und werden nach ihrem Artikel gerechnet. Vorgabe – 1. Generation."
+      }
     }
+  },
+  "designer": {
+    "title": "Gerüstschnitt (Seitenansicht)",
+    "intro": "Teil im Katalog wählen und über die Zeichnung fahren: es springt an den nächsten Anschlusspunkt (grün – setzbar). Stiele auf Spindeln, Basisstiele und aufeinander, Riegel und Diagonalen zwischen Rosetten gleicher Höhe, Konsolen an eine Rosette. Rad – Zoom, Ziehen – verschieben, Entf – löschen, Strg+Z – rückgängig.",
+    "catalog": "Teilekatalog PERI UP",
+    "search": "Suche: Name oder Artikel",
+    "tools": "Werkzeuge",
+    "tool": {
+      "select": "Auswahl",
+      "anchor": "Anker",
+      "tube": "Rohr mit Kupplungen"
+    },
+    "undo": "Rückgängig",
+    "redo": "Wiederholen",
+    "example": "Beispiel",
+    "exampleConfirm": "Aktuellen Schnitt durch das Beispiel ersetzen (Fassadengerüst 0,75 m)?",
+    "clear": "Leeren",
+    "clearConfirm": "Alle Teile des Schnitts löschen?",
+    "fit": "Alles zeigen",
+    "etaLegend": "Farbe der Teile nach Ausnutzung η:",
+    "checks": "Alle Nachweise ({n})",
+    "col": {
+      "part": "Teil",
+      "check": "Nachweis",
+      "combo": "Kombination"
+    },
+    "props": {
+      "title": "Eigenschaften",
+      "none": "Teil in der Zeichnung wählen (Strg/Umschalt + Klick – mehrere).",
+      "many": "Gewählte Teile: {n}",
+      "remove": "Löschen",
+      "deck": "Belag auf dem Teil",
+      "width": "Feldbreite des Belags",
+      "work": "Nutzlast auf diesem Belag",
+      "ext": "Spindelauszug",
+      "anchors": "Anker an diesem Stiel (Höhe der Rosette, m):"
+    },
+    "settings": "Lasten und Bedingungen",
+    "name": "Name des Schnitts",
+    "field": "Feldbreite neuer Beläge",
+    "qMax": "q_p des maximalen Windes",
+    "assumptions": "Berechnung des Schnitts als ebener Rahmen: aus der Ebene halten die Längsverbände das Gerüst. Lasten auf Riegel und Konsolen aus der Feldbreite; Wind auf die Teile des Schnitts.",
+    "bom": "Stückliste des Schnitts",
+    "total": "Summe",
+    "aboutShort": "Wie der Schnitt berechnet wird",
+    "kind": {
+      "standard": "Stiele",
+      "base": "Basisstiele",
+      "jack": "Spindeln (Auflager)",
+      "ledger": "Riegel",
+      "bracket": "Konsolen",
+      "diagonal": "Diagonalen",
+      "tube": "Rohre und Kupplungen",
+      "spigot": "Zapfen auf Riegel"
+    },
+    "hint": {
+      "part": "Klick – Teil an der gezeigten Stelle setzen. Esc – Werkzeug verlassen.",
+      "noSnap": "Hier kann dieses Teil nicht hin: an eine Rosette oder einen Auflagerpunkt führen.",
+      "tube1": "Rohr: ersten Punkt an einem Stiel anklicken.",
+      "tube2": "Rohr: zweiten Punkt an einem anderen Stiel anklicken (Kupplungen kommen selbst).",
+      "anchor": "Anker: Punkt an einem Stiel anklicken – dort ist das Gerüst am Bauwerk befestigt (in X).",
+      "select": "Klick – Teil wählen, Ziehen – Zeichnung verschieben."
+    },
+    "issue": {
+      "noStandards": "Mindestens einen Stiel setzen.",
+      "floating": "Stiele stehen auf nichts – Spindel oder anderen Stiel darunter setzen.",
+      "noDecks": "Kein Belag: bei Riegeln oder Konsolen „Belag auf dem Teil“ wählen.",
+      "noWork": "Nirgends Nutzlast: beim Belag wählen.",
+      "noBracing": "Weder Diagonalen noch Anker: der Schnitt ist horizontal nicht ausgesteift."
+    },
+    "calc": {
+      "model": "Modell…",
+      "progress": "Berechnung {done} / {total}",
+      "run": "Berechnen",
+      "rerun": "Neu berechnen"
+    },
+    "families": "Teile im Katalog",
+    "familiesHint": "Welche Teilereihen der Katalog zeigt.",
+    "familiesReset": "Nur 1. Generation",
+    "gen": "{n}. Gen."
   }
 }

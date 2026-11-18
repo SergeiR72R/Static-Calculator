@@ -55,6 +55,8 @@ export interface AnalysisOptions {
   spliceNoTension?: boolean;
   /** with spliceNoTension: play of a joint in tension (it carries tension once opened by this), m */
   spliceSlack?: number;
+  /** horizontal directions of the combinations (default both; a section of the designer: 'x') */
+  dirs?: ('x' | 'y')[];
   /** bow imperfections of the standards (second order): local L_el/250 between the ledgers, global
    * L_tot/500 over the height, as equivalent loads in the direction of the combination (as PERI
    * ForceControl, load case "AI"); default on */
@@ -408,7 +410,8 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
   const psi = opt.secondOrder ? (opt.sway ?? SWAY) : 0;
   const share = opt.loadClass <= 1 ? 0 : opt.loadClass <= 3 ? 0.25 : 0.5;
   const combos: Combo[] = [];
-  for (const [dn, d] of DIRS) {
+  const dirs = DIRS.filter(([, d]) => (opt.dirs ?? ['x', 'y']).includes(d[0] !== 0 ? 'x' : 'y'));
+  for (const [dn, d] of dirs) {
     // working: G + Q + working wind (outdoors) or notional horizontal load
     const v = emptyLoads3(model.frame);
     addScaled(v, lc.g, GAMMA_F);
@@ -432,7 +435,7 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
   }
   if (opt.outdoor && opt.qMax > 0) {
     // out of service: permanent loads γ = 1.5 + share of the service load + maximum wind
-    for (const [dn, d] of DIRS) {
+    for (const [dn, d] of dirs) {
       const v = emptyLoads3(model.frame);
       addScaled(v, lc.g, GAMMA_F);
       addScaled(v, lc.ug, GAMMA_F);
@@ -453,7 +456,7 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
     }
     // stability (lifting off, overturning): permanent loads favourable γ = 0.9, maximum wind
     if (opt.gFavR)
-      for (const [dn, d] of DIRS) {
+      for (const [dn, d] of dirs) {
         const v = emptyLoads3(model.frame);
         addScaled(v, lc.g, GAMMA_G_FAV);
         addScaled(v, lc.ug, GAMMA_G_FAV);

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { byArticle } from '../../designer/catalog';
-import { anchorAngle, cat, designDoc, ends, hit, rosettes, seats, sideLines, snap, standards, tubePoint, type Candidate, type Design, type Placed } from '../../designer/design';
+import { anchorAngle, cat, deckClass, designDoc, ends, hit, rosettes, seats, sideLines, snap, standards, tubePoint, type Candidate, type Design, type Placed } from '../../designer/design';
 import { useDesigner } from '../../designer/store';
 import { useFmt } from '../hooks';
 import { DESIGN_COLOR } from './PartIcon';
@@ -45,6 +45,25 @@ function AnchorMark({ id, x, y, angle, on, ghost, force }: { id: string; x: numb
     </g>
   );
 }
+
+/** bottom chord, posts and diagonals of a reinforced ledger UHV (side view; chord axes 11 cm apart) */
+const uhvLines = (x: number, z: number, L: number): [number, number, number, number][] => {
+  const zt = z + 0.03;
+  const zb = zt - 0.11;
+  const a = x + 0.2;
+  const b = x + L - 0.2;
+  const m = x + L / 2;
+  return [
+    [a, zb, b, zb],
+    [a, zb, a - 0.08, zt],
+    [b, zb, b + 0.08, zt],
+    [m, zb, m, zt],
+    [a, zb, (a + m) / 2, zt],
+    [(a + m) / 2, zt, m, zb],
+    [m, zb, (b + m) / 2, zt],
+    [(b + m) / 2, zt, b, zb],
+  ];
+};
 
 const etaColor = (eta: number) => (eta > 1 ? '#dc2626' : eta > 0.7 ? '#f59e0b' : '#16a34a');
 
@@ -93,6 +112,8 @@ export function DesignCanvas({
   points = [],
   reactions = [],
   anchorForces,
+  shear = [],
+  unstable = [],
 }: {
   tool: Tool;
   setTool: (t: Tool) => void;
@@ -105,6 +126,10 @@ export function DesignCanvas({
   reactions?: { part: string; Vmax: number; Vmin: number; H: number; lifted?: boolean }[];
   /** largest force of each anchor, N */
   anchorForces?: Map<string, number>;
+  /** shear force of the members at their ends, N (side view: x, z of the ends) */
+  shear?: { member: number; part: string; kind: string; a: number[]; b: number[]; V0: number; V1: number; combo: string }[];
+  /** parts of the mode in which the section loses its stability */
+  unstable?: string[];
 }) {
   const fmt = useFmt();
   const dz = useDesigner();
@@ -364,7 +389,12 @@ export function DesignCanvas({
                     );
                   })}
                 {v.s > 60 && (
-                  <text x={X((a + b) / 2)} y={Y(top) - 3 - (p.deck!.work ? 0.36 * v.s : 0)} textAnchor="middle" className="fill-slate-600 text-[10px] dark:fill-slate-300">
+                  <text x={X((a + b) / 2)} y={Y(top) - 3 - (p.deck!.work ? 0.36 * v.s : 0)} textAnchor="middle" className="fill-slate-600 text-[10px] dark:fill-slate-300" data-testid={`designer-deck-label-${p.id}`}>
+                    {p.deck!.work && (
+                      <tspan className="font-semibold" fill="#2563eb">
+                        {fmt.t('designer.classShort', { n: deckClass(d, p) })} ·{' '}
+                      </tspan>
+                    )}
                     b = {fmt.num(p.deck!.width, 2)} m
                   </text>
                 )}
@@ -380,6 +410,18 @@ export function DesignCanvas({
           return (
             <g key={p.id} data-testid={`designer-part-${p.id}`} data-article={p.article} data-x={p.x} data-z={p.z} data-side={p.side ?? 1}>
               {on && ls.map((l, i) => seg(l, i, '#d946ef', w + 6, { strokeOpacity: 0.35 }))}
+              {unstable.includes(p.id) && ls.map((l, i) => seg(l, 500 + i, '#dc2626', w + 5, { strokeOpacity: 0.3, strokeDasharray: '2 5' }))}
+              {/* reinforced ledger UHV: its bottom chord and posts, and its name */}
+              {k === 'ledger' && /UHV/.test(cat(p).name) && (
+                <g data-testid={`designer-uhv-${p.id}`}>
+                  {uhvLines(p.x, p.z, cat(p).L).map((l, i) => seg(l, 600 + i, partColor(p), i === 0 ? 2.4 : 1.6))}
+                  {v.s > 60 && (
+                    <text x={X(p.x + cat(p).L / 2)} y={Y(p.z - 0.11) + 13} textAnchor="middle" className="text-[10px] font-semibold" fill={partColor(p)}>
+                      UHV
+                    </text>
+                  )}
+                </g>
+              )}
               {ls.map((l, i) => seg(l, i, partColor(p), k === 'jack' && i < 4 ? 5 : w, (p.side ?? 1) < 0 ? { strokeDasharray: '7 4' } : {}))}
             </g>
           );
@@ -401,6 +443,45 @@ export function DesignCanvas({
               </text>
             );
           })}
+        {/* shear force of the ledgers, brackets and standards: diagram across the member, end values */}
+        {(() => {
+          const max = Math.max(0, ...shear.map((q) => Math.max(Math.abs(q.V0), Math.abs(q.V1))));
+          if (max < 50) return null;
+          const k = 34 / max;
+          return shear
+            .filter((q) => Math.max(Math.abs(q.V0), Math.abs(q.V1)) >= Math.max(300, 0.09 * max))
+            .map((q) => {
+              const ax = X(q.a[0]);
+              const ay = Y(q.a[2]);
+              const bx = X(q.b[0]);
+              const by = Y(q.b[2]);
+              const L = Math.hypot(bx - ax, by - ay) || 1;
+              // across the member: upwards for a ledger, to the left for a standard
+              const nx = (by - ay) / L;
+              const ny = -(bx - ax) / L;
+              const p0 = [ax + nx * q.V0 * k, ay + ny * q.V0 * k];
+              const p1 = [bx + nx * q.V1 * k, by + ny * q.V1 * k];
+              const lab = (pt: number[], V: number, key: string) =>
+                Math.abs(V) >= Math.max(300, 0.15 * max) ? (
+                  <text key={key} x={pt[0] + nx * 9 * Math.sign(V)} y={pt[1] + ny * 9 * Math.sign(V) + 3} textAnchor="middle" className="text-[9px]" fill="#7c3aed" stroke="#fff" strokeWidth={2.5} paintOrder="stroke">
+                    {fmt.num(Math.abs(V) / 1e3, 1)}
+                  </text>
+                ) : null;
+              return (
+                <g key={`sh${q.member}`} data-testid={`designer-shear-${q.part}`}>
+                  <path d={`M ${ax} ${ay} L ${p0[0]} ${p0[1]} L ${p1[0]} ${p1[1]} L ${bx} ${by} Z`} fill="#7c3aed" fillOpacity={0.12} stroke="#7c3aed" strokeWidth={1} />
+                  {lab(p0, q.V0, 'a')}
+                  {lab(p1, q.V1, 'b')}
+                </g>
+              );
+            });
+        })()}
+        {/* loss of stability: said on the drawing (the parts of the mode are marked) */}
+        {unstable.length > 0 && (
+          <text x={size.w / 2} y={22} textAnchor="middle" className="text-[12px] font-semibold" fill="#dc2626" stroke="#fff" strokeWidth={3} paintOrder="stroke" data-testid="designer-unstable">
+            ⚠ {fmt.t('designer.unstable')}
+          </text>
+        )}
         {/* nodes of the rosettes and joints of the standards, by their utilisation */}
         {points.map((q, k) => (
             <g key={`pt${k}`} data-testid={`designer-point-${q.check}-${q.node}`} data-part={q.part}>

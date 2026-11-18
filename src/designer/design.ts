@@ -31,7 +31,7 @@ export interface Placed {
   /** jack: base plate to the bottom of the standard on it, m */
   ext?: number;
   /** ledger / bracket: decks on it */
-  deck?: { width: number; work: boolean };
+  deck?: { width: number; work: boolean; /** load class EN 12811-1 of this deck (kept with it; without: the class of the settings) */ cls?: number };
 }
 
 export interface DesignAnchor {
@@ -60,7 +60,7 @@ export function anchorAngle(d: Design, a: DesignAnchor): number {
 }
 
 export interface DesignSettings {
-  /** load class EN 12811-1 (service load on the working decks) */
+  /** load class EN 12811-1 given to new decks (each deck keeps its own) */
   loadClass: number;
   /** self weight of the decks, N/m² */
   g: number;
@@ -234,14 +234,14 @@ export function snap(d: Design, c: CatalogPart, px: number, pz: number, reach = 
         const other = ros.find((q) => near(q.x, r.x + c.L) && near(q.z, r.z));
         if (!other) continue;
         if (d.parts.some((p) => cat(p)?.kind === 'ledger' && near(p.x, r.x) && near(p.z, r.z) && near(cat(p).L, c.L))) continue;
-        cands.push({ part: { article: c.article, x: r.x, z: r.z, deck: { width: d.settings.field, work: false } }, d: segDist(px, pz, [r.x, r.z, r.x + c.L, r.z]), ok: true });
+        cands.push({ part: { article: c.article, x: r.x, z: r.z, deck: { width: d.settings.field, work: false, cls: d.settings.loadClass } }, d: segDist(px, pz, [r.x, r.z, r.x + c.L, r.z]), ok: true });
       }
       break;
     }
     case 'bracket': {
       for (const r of rosettes(d)) {
         const dir: 1 | -1 = px >= r.x ? 1 : -1;
-        cands.push({ part: { article: c.article, x: r.x, z: r.z, dir, deck: { width: d.settings.field, work: false } }, d: segDist(px, pz, [r.x, r.z, r.x + dir * c.L, r.z]), ok: true });
+        cands.push({ part: { article: c.article, x: r.x, z: r.z, dir, deck: { width: d.settings.field, work: false, cls: d.settings.loadClass } }, d: segDist(px, pz, [r.x, r.z, r.x + dir * c.L, r.z]), ok: true });
       }
       break;
     }
@@ -367,6 +367,62 @@ export function designIssues(d: Design): DesignIssue[] {
   return out;
 }
 
+// ---------------------------------------------------------------- loads of the decks
+
+/** working load of the deck of a part, N/m² (its own load class, else that of the settings) */
+export const deckClass = (d: Design, p: Placed) => p.deck?.cls ?? d.settings.loadClass;
+export const deckLoad = (d: Design, p: Placed) => (LOAD_CLASSES[deckClass(d, p)] ?? 2) * 1e3;
+
+/** velocity pressure of the working wind (EN 12811-1, 6.2.7.4.2), N/m², and the force coefficient */
+export const WORK_WIND = 200;
+const WIND_CF = 1.2;
+
+export interface LevelLoads {
+  z: number;
+  /** the decked part the horizontal loads of the level act along */
+  on: Placed;
+  /** wind on the level in service, N: band of 0.4 m at a working level (equipment and material, EN
+   * 12811-1 6.2.7.4.2), else 0.2 m (toeboard, ledger), over the field width */
+  windWork: number;
+  /** notional horizontal load 2.5 % of the working load, at least 0.3 kN (EN 12811-1, 6.2.5): indoors in
+   * full, outdoors what it exceeds the working wind by */
+  notional: number;
+  /** maximum wind on the level out of service, N: band of 0.2 m over the field width */
+  windMax: number;
+}
+
+/**
+ * Horizontal loads of the decked levels. The section stands for one field of the scaffold: the wind
+ * hits the decks, toeboards and ledgers along the field width, not only the tubes of the section.
+ */
+export function horizontalLoads(d: Design): LevelLoads[] {
+  const levels: Placed[][] = [];
+  for (const p of d.parts) {
+    if (!p.deck || p.deck.width <= 0) continue;
+    const l = levels.find((x) => Math.abs(x[0].z - p.z) < 0.3);
+    if (l) l.push(p);
+    else levels.push([p]);
+  }
+  const len = (p: Placed) => Math.abs(ends(p)[2] - ends(p)[0]);
+  return levels.map((ps) => {
+    const b = Math.max(...ps.map((p) => p.deck!.width));
+    const working = ps.filter((p) => p.deck!.work);
+    const Q = working.reduce((s, p) => s + deckLoad(d, p) * p.deck!.width * len(p), 0);
+    const notional = working.length ? Math.max(0.025 * Q, 300) : 0;
+    const windWork = d.settings.outdoor ? WIND_CF * WORK_WIND * (working.length ? 0.4 : 0.2) * b : 0;
+    return {
+      z: ps[0].z,
+      on: ps.reduce((a, c) => (len(c) > len(a) ? c : a)),
+      windWork,
+      notional: Math.max(notional - windWork, 0),
+      windMax: d.settings.outdoor ? WIND_CF * d.settings.qMax * 0.2 * b : 0,
+    };
+  });
+}
+
+/** largest load class of the working decks (share of the working load out of service) */
+export const maxLoadClass = (d: Design) => Math.max(0, ...d.parts.filter((p) => p.deck?.work).map((p) => deckClass(d, p))) || d.settings.loadClass;
+
 // ---------------------------------------------------------------- the drawing for the analysis
 
 const ROT_X = [1, 0, 0, 0, 1, 0, 0, 0, 1];
@@ -442,18 +498,24 @@ export function designDoc(d: Design): DesignDoc {
     }
   }
   geom[COUPLER.article] ??= { lines: [], rosettes: [] };
-  // decks: self weight on all, working load where it works (line loads along the ledger / bracket)
+  // decks: self weight on all, working load of their class where it works (line loads along the
+  // ledger / bracket)
   const loads: UserLoad[] = [];
-  const q = (LOAD_CLASSES[d.settings.loadClass] ?? 2) * 1e3;
   for (const p of d.parts) {
     if (!p.deck || p.deck.width <= 0) continue;
     loads.push({ id: `${p.id}.g`, name: `G ${p.id}`, case: 'G', kind: 'line', value: d.settings.g * p.deck.width, at: 0.5, parts: [p.id] });
-    if (p.deck.work) {
-      loads.push({ id: `${p.id}.q`, name: `Q ${p.id}`, case: 'Q', kind: 'line', value: q * p.deck.width, at: 0.5, parts: [p.id] });
-      // indoors: notional horizontal load 2.5 % of the working load (EN 12811-1, 6.2.5.2), in the
-      // direction of each working combination
-      if (!d.settings.outdoor) loads.push({ id: `${p.id}.h`, name: `H ${p.id}`, case: 'Q', kind: 'line', value: 0.025 * q * p.deck.width, at: 0.5, parts: [p.id], dir: 'x', when: 'work' });
-    }
+    if (p.deck.work) loads.push({ id: `${p.id}.q`, name: `Q ${p.id}`, case: 'Q', kind: 'line', value: deckLoad(d, p) * p.deck.width, at: 0.5, parts: [p.id] });
+  }
+  // horizontal loads of each decked level, in the direction of each combination, along its longest
+  // decked part
+  for (const lv of horizontalLoads(d)) {
+    const L = Math.max(Math.abs(ends(lv.on)[2] - ends(lv.on)[0]), 0.1);
+    const put = (key: string, cs: 'G' | 'Q', when: 'work' | 'rest', F: number) => {
+      if (F > 0) loads.push({ id: `${lv.on.id}.${key}`, name: `${key} ${lv.on.id}`, case: cs, kind: 'line', value: F / L, at: 0.5, parts: [lv.on.id], dir: 'x', when });
+    };
+    put('wind', 'G', 'work', lv.windWork);
+    put('H', 'Q', 'work', lv.notional);
+    put('windMax', 'G', 'rest', lv.windMax);
   }
   const stdById = new Map(standards(d).map((s) => [s.part.id, s]));
   const fixings: UserFixing[] = [];

@@ -88,6 +88,13 @@ test('designer: a frame built from catalogue parts snaps together, is loaded, an
   await page.getByTestId('designer-width').fill('3');
   await page.getByTestId('designer-work').check();
   await expect(page.getByTestId('designer-deck-D7')).toContainText('b = 3,00 m');
+  // its own load class, written at the arrows of the load
+  await expect(page.getByTestId('designer-deck-label-D7')).toContainText('кл. 3');
+  await page.getByTestId('designer-deck-class').selectOption('4');
+  await expect(page.getByTestId('designer-deck-label-D7')).toContainText('кл. 4');
+  // the class of new decks in the settings does not change it
+  await page.getByTestId('designer-class').selectOption('2');
+  await expect(page.getByTestId('designer-deck-label-D7')).toContainText('кл. 4');
   // an anchor on the standard at a rosette
   await page.getByTestId('designer-tool-anchor').click();
   b = await bbox(page, 'D3');
@@ -134,6 +141,8 @@ test('designer: a frame built from catalogue parts snaps together, is loaded, an
   await page.getByTestId('designer-run').click();
   await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', /^(ok|check|fail)$/, { timeout: 30_000 });
   await expect(page.getByTestId('designer-eta-D7')).toBeVisible();
+  // shear force diagram of the ledger (can be switched off in the settings of the display)
+  await expect(page.getByTestId('designer-shear-D7')).toBeVisible();
   await page.getByTestId('designer-checks').locator('summary').click();
   await expect(page.getByTestId('designer-checks')).toContainText('Сечение ригеля');
   // parts list
@@ -170,8 +179,18 @@ test('designer: the example section works and every setting explains itself', as
   await page.getByTestId('designer-fit').click();
   await page.getByTestId('designer-run').click();
   await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', 'ok', { timeout: 30_000 });
-  // load class 6: the nodes of the rosettes are shown at their place
-  await page.getByTestId('designer-class').selectOption('6');
+  // load class 6 on all decks: the nodes of the rosettes are shown at their place
+  await page.getByTestId('designer-tool-select').click();
+  await page.getByTestId('designer-canvas').scrollIntoViewIfNeeded();
+  {
+    const c = (await page.getByTestId('designer-canvas').boundingBox())!;
+    await page.mouse.move(c.x + 5, c.y + 5);
+    await page.mouse.down();
+    await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2, { steps: 4 });
+    await page.mouse.move(c.x + c.width - 5, c.y + c.height - 40, { steps: 4 });
+    await page.mouse.up();
+  }
+  await page.getByTestId('designer-deck-class').selectOption('6');
   await page.getByTestId('designer-run').click();
   await expect(page.getByTestId('scaffold-verdict')).not.toContainText('устарели', { timeout: 30_000 });
   await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', /^(ok|check|fail)$/);
@@ -190,6 +209,10 @@ test('designer: the example section works and every setting explains itself', as
   await expect(page.locator('[data-testid^="designer-point-"]')).toHaveCount(0);
   await page.getByTestId('designer-view-reactions').uncheck();
   await expect(page.getByTestId('designer-reaction-D1')).toHaveCount(0);
+  await expect(page.locator('[data-testid^="designer-shear-"]').first()).toBeVisible();
+  await page.getByTestId('designer-view-shear').uncheck();
+  await expect(page.locator('[data-testid^="designer-shear-"]')).toHaveCount(0);
+  await page.getByTestId('designer-view-shear').check();
   await page.getByTestId('designer-view-points').selectOption('all');
   await page.getByTestId('designer-view-reactions').check();
   await page.getByTestId('help-designer-field').click();
@@ -223,4 +246,36 @@ test('designer: the example section works and every setting explains itself', as
   await page.keyboard.press('Escape');
   await page.getByTestId('designer-undo').click();
   await expect(page.locator('[data-testid^="designer-part-"]')).toHaveCount(13);
+});
+
+test('designer: a frame without bracing is said to lose its stability; a reinforced ledger is drawn as such', async ({ page }) => {
+  // two standards 2 m apart, UH 200 at the bottom, UHV 200 with a deck of class 6 at the top, indoors, no anchors
+  const design = {
+    name: '',
+    parts: [
+      { id: 'D1', article: '100411', x: 0, z: 0, ext: 0.2 },
+      { id: 'D2', article: '100014', x: 0, z: 0.2 },
+      { id: 'D3', article: '100009', x: 0, z: 0.44 },
+      { id: 'D4', article: '100411', x: 2, z: 0, ext: 0.2 },
+      { id: 'D5', article: '100014', x: 2, z: 0.2 },
+      { id: 'D6', article: '100009', x: 2, z: 0.44 },
+      { id: 'D7', article: '114645', x: 0, z: 0.32, deck: { width: 1, work: false } },
+      { id: 'D8', article: '114687', x: 0, z: 2.32, deck: { width: 3, work: true, cls: 6 } },
+    ],
+    anchors: [],
+    settings: { loadClass: 3, g: 300, field: 2.5, outdoor: false, qMax: 0 },
+  };
+  await page.addInitScript((d) => localStorage.setItem('balken.designer', d), JSON.stringify(design));
+  await page.goto('/');
+  await page.getByTestId('mode-designer').click();
+  await expect(page.getByTestId('designer-uhv-D8')).toContainText('UHV');
+  await expect(page.getByTestId('designer-deck-label-D8')).toContainText('кл. 6');
+  await page.getByTestId('designer-run').click();
+  await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', 'fail', { timeout: 30_000 });
+  // not "101 %" on the standards: the loss of stability is said as such
+  await expect(page.getByTestId('designer-unstable')).toContainText('теряет устойчивость');
+  await expect(page.getByTestId('designer-eta-D3')).not.toContainText('101');
+  // the ledger by the permissible load of the PERI Tabellenbuch
+  await page.getByTestId('designer-checks').locator('summary').click();
+  await expect(page.getByTestId('designer-checks')).toContainText('Сечение ригеля');
 });

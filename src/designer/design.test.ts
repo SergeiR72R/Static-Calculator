@@ -3,7 +3,7 @@ import { analyzeScaffold } from '../scaffold/structure';
 import { buildScaffoldModel } from '../scaffold/model';
 import { analyzeScaffoldModel, DEFAULT_ANALYSIS } from '../scaffold/analysis';
 import { CATALOG } from './catalog';
-import { anchorAngle, designBom, designDoc, designIssues, emptyDesign, hangingStandards, rosettes, snap, tubePoint, type Design, type Placed } from './design';
+import { anchorAngle, designBom, designDoc, designIssues, emptyDesign, hangingStandards, horizontalLoads, maxLoadClass, rosettes, snap, tubePoint, type Design, type Placed } from './design';
 
 const art = (name: string) => CATALOG.find((c) => c.name === name)!;
 let n = 0;
@@ -251,6 +251,100 @@ describe('designer: section of a PERI UP scaffold', () => {
     place(d, 'UH 125 Plus', -0.6, 2.32);
     // a lower ledger of the same bay would make it a bay, but the post hangs: no UBL there
     expect(snap(d, art('UBL 150/100'), -0.6, 1.8)).toBeNull();
+  });
+
+  /** a frame of two standards with a ledger at the bottom and one at the top (decks as given) */
+  const portal = (ledger: string, o: { cls?: number; b?: number; outdoor?: boolean; qMax?: number; anchor?: boolean } = {}) => {
+    const d = emptyDesign();
+    d.settings.outdoor = o.outdoor ?? false;
+    d.settings.qMax = o.qMax ?? 0;
+    const L = art(ledger).L;
+    for (const x of [0, L]) {
+      place(d, 'UJB 38-50/30', x, 0);
+      place(d, 'UVB 24', x, 0.3);
+      place(d, 'UVR 200', x, 1.4);
+    }
+    const lv = [...new Set(rosettes(d).map((r) => r.z))].sort((a, b) => a - b);
+    const lo = place(d, ledger, L / 2, lv[0]);
+    const up = place(d, ledger, L / 2, lv[lv.length - 1]);
+    lo.deck = undefined;
+    up.deck = { width: o.b ?? 2.5, work: true, cls: o.cls ?? 3 };
+    if (o.anchor ?? true) d.anchors.push({ id: 'A1', part: d.parts.find((p) => p.x === 0 && p.article === '100009')!.id, z: lv[lv.length - 1], angle: 180 });
+    return { d, up };
+  };
+  const solve = (d: Design) => {
+    const { doc, loads, fixings, hanging } = designDoc(d);
+    const m = buildScaffoldModel(analyzeScaffold(doc), loads, [], { fixings, plane: true, hanging });
+    const s = d.settings;
+    return analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, p: 0, loadClass: maxLoadClass(d), outdoor: s.outdoor, qWork: s.outdoor ? 200 : 0, qMax: s.outdoor ? s.qMax : 0, dhb: 0, dirs: ['x'], diagrams: true });
+  };
+
+  it('ledgers at the permissible line load of the PERI Tabellenbuch are used to 100 %', () => {
+    // UH Plus / UHV Plus: zul. q in kN/m (p. 25, 26); g = 0.3 kN/m² and the working load make it up
+    const rows: [string, number][] = [
+      ['UH 75 Plus', 24.1],
+      ['UH 100 Plus', 18.3],
+      ['UH 150 Plus', 6.5],
+      ['UH 200 Plus', 3.49],
+      ['UH 300 Plus', 1.29],
+      ['UHV 200 Plus', 13.6],
+      ['UHV 300 Plus', 6.29],
+    ];
+    for (const [name, zul] of rows) {
+      // class 3 (2.0 kN/m²) + 0.3: field width for q = zul
+      const { d, up } = portal(name, { b: (zul * 1e3) / 2300 });
+      const r = solve(d);
+      const eta = Math.max(...r.checks.filter((c) => c.part === up.id && c.check === 'ledger').map((c) => c.eta));
+      expect(eta, name).toBeGreaterThan(0.96);
+      expect(eta, name).toBeLessThan(1.08);
+    }
+    // the table governs for the long ledgers
+    const { d, up } = portal('UH 300 Plus', { b: 1.29e3 / 2300 });
+    expect(solve(d).checks.find((c) => c.part === up.id && c.check === 'ledger')?.detail).toContain('Tabellenbuch');
+  });
+
+  it('each deck keeps its load class; the working load follows it', () => {
+    const { d, up } = portal('UH 150 Plus', { cls: 2, b: 2 });
+    d.settings.loadClass = 6;
+    const q = (dd: Design) => designDoc(dd).loads.find((l) => l.id === `${up.id}.q`)!.value;
+    expect(q(d)).toBeCloseTo(1500 * 2, 6);
+    up.deck!.cls = 4;
+    expect(q(d)).toBeCloseTo(3000 * 2, 6);
+    expect(maxLoadClass(d)).toBe(4);
+    // a new deck takes the class of the settings
+    expect(snap(d, art('UCM 50 mit Zapfen'), 1.8, up.z)?.part.deck).toMatchObject({ cls: 6 });
+  });
+
+  it('horizontal loads: outdoors never less than indoors; the maximum wind acts on the field width', () => {
+    const H = (o: Parameters<typeof portal>[1]) => horizontalLoads(portal('UH 200 Plus', { cls: 6, b: 3, ...o }).d)[0];
+    const indoor = H({ outdoor: false });
+    // 2.5 % of 6 kN/m² · 3 m · 2 m
+    expect(indoor).toMatchObject({ windWork: 0, windMax: 0 });
+    expect(indoor.notional).toBeCloseTo(900, 6);
+    const outdoor = H({ outdoor: true });
+    // working wind 0.2 kN/m² · 1.2 on the band 0.4 m · 3 m, the notional load above it
+    expect(outdoor.windWork).toBeCloseTo(288, 6);
+    expect(outdoor.windWork + outdoor.notional).toBeCloseTo(900, 6);
+    expect(H({ outdoor: true, qMax: 1000 }).windMax).toBeCloseTo(720, 6);
+    // the sway of the frame without bracing: outdoors at least as indoors, more with the maximum wind
+    const dh = (o: Parameters<typeof portal>[1], combo = 'A') =>
+      Math.max(0, ...solve(portal('UH 200 Plus', { cls: 3, b: 1.5, anchor: false, ...o }).d).combos.filter((c) => c.name.startsWith(combo)).map((c) => c.dh));
+    expect(dh({ outdoor: true })).toBeGreaterThanOrEqual(dh({ outdoor: false }) * 0.999);
+    // out of service: the sway grows with the maximum wind
+    expect(dh({ outdoor: true, qMax: 500 }, 'R')).toBeGreaterThan(0.001);
+    expect(dh({ outdoor: true, qMax: 1000 }, 'R')).toBeGreaterThan(dh({ outdoor: true, qMax: 500 }, 'R') * 1.3);
+  });
+
+  it('shear force of the ledger for the diagram: q · L / 2 at its ends', () => {
+    const { d, up } = portal('UH 200 Plus', { cls: 3, b: 1.5 });
+    const r = solve(d);
+    const s = r.shear!.find((x) => x.part === up.id)!;
+    // design load (2.0 + 0.3) · 1.5 · 1.5 kN/m plus the self weight, over about 1.95 m
+    const V = (2300 * 1.5 * 1.5 * 1.95) / 2;
+    expect(Math.abs(s.V0)).toBeGreaterThan(V * 0.95);
+    expect(Math.abs(s.V0)).toBeLessThan(V * 1.1);
+    expect(Math.sign(s.V0)).toBe(-Math.sign(s.V1));
+    expect(r.shear!.some((x) => x.kind === 'standard')).toBe(true);
   });
 
   it('parts list of the section', () => {

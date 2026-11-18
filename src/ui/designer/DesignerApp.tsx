@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { CATALOG, DEFAULT_FAMILIES, DESIGN_KINDS, FAMILIES, byArticle, type DesignKind } from '../../designer/catalog';
-import { ANCHOR_ANGLES, anchorAngle, cat, designBom, designDoc, designIssues, exampleDesign, standards } from '../../designer/design';
+import { ANCHOR_ANGLES, WORK_WIND, anchorAngle, cat, deckClass, designBom, designDoc, designIssues, exampleDesign, maxLoadClass, standards } from '../../designer/design';
 import { useDesigner } from '../../designer/store';
 import { LOAD_CLASSES } from '../../scaffold/catalog';
 import { analyzeScaffold } from '../../scaffold/structure';
@@ -133,10 +133,10 @@ function Properties({ selected, setSelected }: { selected: string[]; setSelected
   const c = cat(p);
   const decked = parts.filter((x) => cat(x).kind === 'ledger' || cat(x).kind === 'bracket');
   const all = (f: (x: (typeof parts)[number]) => boolean) => decked.length > 0 && decked.every(f);
-  const setDeck = (patch: Partial<{ width: number; work: boolean }> | null) =>
+  const setDeck = (patch: Partial<{ width: number; work: boolean; cls: number }> | null) =>
     dz.edit((dd) => ({
       ...dd,
-      parts: dd.parts.map((x) => (selected.includes(x.id) && (cat(x).kind === 'ledger' || cat(x).kind === 'bracket') ? { ...x, deck: patch === null ? undefined : { width: x.deck?.width ?? dd.settings.field, work: x.deck?.work ?? false, ...patch } } : x)),
+      parts: dd.parts.map((x) => (selected.includes(x.id) && (cat(x).kind === 'ledger' || cat(x).kind === 'bracket') ? { ...x, deck: patch === null ? undefined : { width: x.deck?.width ?? dd.settings.field, work: x.deck?.work ?? false, cls: x.deck?.cls ?? dd.settings.loadClass, ...patch } } : x)),
     }));
   const std = standards(d).find((s) => s.part.id === p.id);
   return (
@@ -176,6 +176,14 @@ function Properties({ selected, setSelected }: { selected: string[]; setSelected
             <>
               <NumberField label={fmt.t('designer.props.width')} q="length" value={p.deck?.width ?? d.settings.field} onChange={(v) => setDeck({ width: Math.max(0, v) })} help="designer.width" testId="designer-width" />
               <CheckField checked={all((x) => !!x.deck?.work)} onChange={(v) => setDeck({ work: v })} label={fmt.t('designer.props.work')} help="designer.work" testId="designer-work" />
+              <SelectField
+                label={fmt.t('designer.props.deckClass')}
+                help="designer.deckClass"
+                value={String(deckClass(d, p))}
+                testId="designer-deck-class"
+                options={Object.entries(LOAD_CLASSES).map(([k, v]) => ({ value: k, label: fmt.t('scaffold.loads.classOption', { n: k, p: fmt.q(v * 1e3, 'areaLoad') }) }))}
+                onChange={(v) => setDeck({ cls: Number(v) })}
+              />
             </>
           )}
         </div>
@@ -249,6 +257,7 @@ function ViewCard() {
           <NumberField label={fmt.t('designer.view.from')} value={view.threshold * 100} onChange={(v) => setView({ threshold: Math.min(Math.max(v, 0), 500) / 100 })} testId="designer-view-threshold" />
         )}
         <CheckField className="text-xs" checked={view.reactions} onChange={(v) => setView({ reactions: v })} label={fmt.t('designer.view.reactions')} help="designer.viewReactions" testId="designer-view-reactions" />
+        <CheckField className="text-xs" checked={view.shear} onChange={(v) => setView({ shear: v })} label={fmt.t('designer.view.shear')} help="designer.viewShear" testId="designer-view-shear" />
       </div>
     </FoldCard>
   );
@@ -313,7 +322,8 @@ export default function DesignerApp() {
       const s = d.settings;
       const result = await analyzeScaffoldParallel(
         model,
-        { ...DEFAULT_ANALYSIS, p: (LOAD_CLASSES[s.loadClass] ?? 2) * 1e3, loadClass: s.loadClass, outdoor: s.outdoor, qWork: s.outdoor ? 200 : 0, qMax: s.outdoor ? s.qMax : 0, dhb: 0, dhbLoad: 0, dirs: ['x'] },
+        // (the loads of the decks and the wind on the field width come with the section: designDoc)
+        { ...DEFAULT_ANALYSIS, p: 0, loadClass: maxLoadClass(d), outdoor: s.outdoor, qWork: s.outdoor ? WORK_WIND : 0, qMax: s.outdoor ? s.qMax : 0, dhb: 0, dhbLoad: 0, dirs: ['x'], diagrams: true },
         (pr) => setBusy(fmt.t('designer.calc.progress', { done: pr.done, total: pr.total })),
       );
       dz.setRun({ result, notes: model.notes, design: d });
@@ -329,12 +339,15 @@ export default function DesignerApp() {
     // the parts by their own checks; nodes and joints of the standards are shown at their place
     const m = new Map<string, number>();
     for (const c of fresh.result.checks) {
-      if (c.check === 'node' || c.check === 'joint') continue;
+      // (a loss of stability is no utilisation of the part: marked on its own)
+      if (c.check === 'node' || c.check === 'joint' || c.check === 'stability' || c.check === 'unstable') continue;
       const id = c.part.replace(/\.c\d$/, '');
       m.set(id, Math.max(m.get(id) ?? 0, c.eta));
     }
     return m;
   }, [fresh]);
+  // parts of the mode the section loses its stability in (no bracing, no anchors)
+  const unstable = useMemo(() => (fresh ? [...new Set(fresh.result.checks.filter((c) => c.check === 'stability' || c.check === 'unstable').map((c) => c.part))] : []), [fresh]);
   const view = dz.view;
   // nodes and joints as chosen in the settings: all, from a utilisation on, none
   const points = useMemo(
@@ -345,6 +358,7 @@ export default function DesignerApp() {
     [fresh, view.points, view.threshold],
   );
   const reactions = fresh && view.reactions ? fresh.result.bases : [];
+  const shear = fresh && view.shear ? (fresh.result.shear ?? []) : [];
   const anchorForces = useMemo(() => (fresh && view.reactions ? new Map(fresh.result.fixings.map((f) => [f.id, f.F])) : undefined), [fresh, view.reactions]);
   const assessment = useMemo(() => {
     const zs = d.parts.flatMap((p) => [p.z, p.z2 ?? p.z]);
@@ -439,7 +453,7 @@ export default function DesignerApp() {
           }
         >
           <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('designer.intro')}</p>
-          <DesignCanvas tool={tool} setTool={setTool} selected={selected} setSelected={setSelected} eta={eta} points={points} reactions={reactions} anchorForces={anchorForces} />
+          <DesignCanvas tool={tool} setTool={setTool} selected={selected} setSelected={setSelected} eta={eta} points={points} reactions={reactions} anchorForces={anchorForces} shear={shear} unstable={unstable} />
           {eta && (
             <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
               {fmt.t('designer.etaLegend')}
@@ -509,8 +523,8 @@ export default function DesignerApp() {
           <div className="grid grid-cols-1 gap-2">
             <TextField label={fmt.t('designer.name')} value={d.name} onChange={dz.setName} testId="designer-name" />
             <SelectField
-              label={fmt.t('scaffold.loads.class')}
-              help="scaffold.loadClass"
+              label={fmt.t('designer.classNew')}
+              help="designer.classNew"
               value={String(s.loadClass)}
               testId="designer-class"
               options={Object.entries(LOAD_CLASSES).map(([k, v]) => ({ value: k, label: fmt.t('scaffold.loads.classOption', { n: k, p: fmt.q(v * 1e3, 'areaLoad') }) }))}

@@ -21,8 +21,10 @@ export interface DesignView {
   threshold: number;
   /** reactions of the supports and forces of the anchors */
   reactions: boolean;
+  /** shear force diagrams of the ledgers, brackets and standards */
+  shear: boolean;
 }
-export const DEFAULT_VIEW: DesignView = { points: 'all', threshold: 0.5, reactions: true };
+export const DEFAULT_VIEW: DesignView = { points: 'all', threshold: 0.5, reactions: true, shear: true };
 const UNDO = 100;
 
 export interface DesignRun {
@@ -64,10 +66,22 @@ interface DesignerState {
   setRun: (r: DesignRun | null) => void;
 }
 
+/** a section as saved or given: every deck with its own load class (older ones: that of the settings) */
+function normalise(d: Design): Design {
+  const settings = { ...DEFAULT_SETTINGS, ...d.settings };
+  return {
+    ...emptyDesign(),
+    ...d,
+    anchors: d.anchors ?? [],
+    settings,
+    parts: d.parts.map((p) => (p.deck && p.deck.cls === undefined ? { ...p, deck: { ...p.deck, cls: settings.loadClass } } : p)),
+  };
+}
+
 function loadDesign(): Design {
   try {
     const d = JSON.parse(storage.get(KEY) ?? 'null') as Design | null;
-    if (d && Array.isArray(d.parts)) return { ...emptyDesign(), ...d, anchors: d.anchors ?? [], settings: { ...DEFAULT_SETTINGS, ...d.settings } };
+    if (d && Array.isArray(d.parts)) return normalise(d);
   } catch {
     /* ignore */
   }
@@ -210,6 +224,6 @@ export const useDesigner = create<DesignerState>()((set, get) => ({
     set({ design: d, past: [...past, design], future: future.slice(1) });
   },
   clear: () => get().edit(() => emptyDesign()),
-  load: (d) => get().edit(() => ({ ...emptyDesign(), ...d, settings: { ...DEFAULT_SETTINGS, ...d.settings } })),
+  load: (d) => get().edit(() => normalise(d)),
   setRun: (run) => set({ run }),
 }));

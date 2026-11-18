@@ -46,7 +46,11 @@ export interface LedgerSection {
   g: number;
   /** resistances of the ledger cross-section 50 mm from the standard axis (table 13) */
   w: { N: number; My: number; Vz: number; Mx: number; Mz: number; Vy: number };
-  /** in the span (reinforced ledgers UHV: couple of the chords), else as `w` */
+  /**
+   * in the span: the full cross-section (PERI Tabellenbuch 05/2021, p. 11 and 25: N_Rd, M_y,Rd of the
+   * profile; the permissible loads of the ledgers follow from it); reinforced ledgers UHV: couple of
+   * the chords. Else as `w`.
+   */
   span?: { N: number; My: number };
 }
 
@@ -60,6 +64,7 @@ export const LEDGERS: Record<'r20' | 'r30' | 'r24' | 'uhv', LedgerSection> = {
     J: 12.3 * cm4,
     g: 2.7,
     w: { N: 80.4 * kN, My: 123 * kNcm, Vz: 41.0 * kN, Mx: 89.8 * kNcm, Mz: 109 * kNcm, Vy: 46.4 * kN },
+    span: { N: 107.4 * kN, My: 202.4 * kNcm },
   },
   r30: {
     name: 'RHP 60×30×3,0 S355',
@@ -69,6 +74,7 @@ export const LEDGERS: Record<'r20' | 'r30' | 'r24' | 'uhv', LedgerSection> = {
     J: 17.1 * cm4,
     g: 4.05,
     w: { N: 117 * kN, My: 175 * kNcm, Vz: 60.0 * kN, Mx: 129 * kNcm, Mz: 154 * kNcm, Vy: 67.6 * kN },
+    span: { N: 155.2 * kN, My: 284.6 * kNcm },
   },
   /**
    * reinforced ledger UHV Plus: top chord RHP 60×30×3 (as UH Plus 100 / 125), bottom chord RHP
@@ -94,6 +100,7 @@ export const LEDGERS: Record<'r20' | 'r30' | 'r24' | 'uhv', LedgerSection> = {
     J: 14.3 * cm4,
     g: 3.19,
     w: { N: 95.2 * kN, My: 144 * kNcm, Vz: 48.6 * kN, Mx: 106 * kNcm, Mz: 128 * kNcm, Vy: 55.0 * kN },
+    span: { N: 164.8 * kN, My: 302.2 * kNcm },
   },
 };
 
@@ -263,6 +270,28 @@ export function tubeUtilisation(n0: number, m0: number): number {
 
 /** standard joint ("Übergreifstoß", 3.2.8.2) */
 export const JOINT = { k: 12900 * kNcm, MRd: 113 * kNcm, NRd: 100 * kN };
+
+/**
+ * Permissible uniform line load of the ledgers as single-span beams, kN/m by the system length in cm
+ * (PERI Tabellenbuch 05/2021, p. 24 – 26; characteristic loads, γ_F = 1.5 included). UH: 60×30×2 S235;
+ * UH Plus / UH-2; UHV / UHV Plus / UHV-2 (top chord held sideways by the decks).
+ */
+export const LEDGER_ZUL_Q: Record<'UH' | 'PLUS' | 'UHV', Record<number, number>> = {
+  UH: { 25: 34.8, 50: 34.8, 75: 16.2, 100: 9.5, 125: 6.2, 150: 4.45, 200: 2.63, 250: 1.74, 300: 1.24 },
+  PLUS: { 25: 52, 33: 52, 50: 52, 67: 29.8, 75: 24.1, 100: 18.3, 125: 11.7, 150: 6.5, 175: 4.88, 200: 3.49, 225: 2.6, 250: 2.0, 300: 1.29 },
+  UHV: { 150: 19.8, 200: 13.6, 250: 8.53, 300: 6.29 },
+};
+
+/** permissible line load of a ledger of the system length L (m), N/m; undefined: not in the table */
+export function ledgerZulQ(head: LedgerHead, uhv: boolean, L: number): number | undefined {
+  const t = LEDGER_ZUL_Q[uhv ? 'UHV' : head === 'PLUS' ? 'PLUS' : 'UH'];
+  const cm = L * 100;
+  // the length of the table nearest to the ledger (within 4 cm)
+  const key = Object.keys(t)
+    .map(Number)
+    .find((k) => Math.abs(k - cm) <= 4);
+  return key === undefined ? undefined : t[key] * kN;
+}
 
 /** couplers EN 74-1 class B: design slip resistance (permissible 9.1 kN × 1.5) */
 export const COUPLER_RD = 9.1 * 1.5 * kN;

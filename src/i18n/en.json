@@ -1458,7 +1458,7 @@
       "qMax": {
         "what": "Peak velocity pressure of the maximum wind for scaffolds outdoors.",
         "why": "Sets the out-of-service combinations R and S (maximum wind, uplift and overturning).",
-        "effect": "0 – working wind 0.2 kN/m² only. Larger – larger horizontal load in R and S."
+        "effect": "The wind of R and S acts on a band of 0.2 m at each deck over the field width and on the parts of the section. 0 – working wind 0.2 kN/m² only. Nets and sheeting are not considered."
       },
       "about": {
         "what": "The section built from PERI UP parts is calculated with the same analysis as scaffolds from PERI CAD: space frame with semi-rigid rosette nodes, second order, checks by the approval Z-8.22-863.",
@@ -1484,6 +1484,21 @@
         "what": "Reactions of the supports (under the base plates of the jacks) and forces of the anchors on the drawing after the analysis.",
         "why": "To see the load on the ground and on the fixings to the building.",
         "effect": "V – largest vertical reaction (and V_min when lifting off), H – largest horizontal, over all combinations; at an anchor its largest force. No effect on the analysis."
+      },
+      "viewShear": {
+        "what": "Shear force diagram V of the ledgers, brackets and standards: from the combination with the largest value.",
+        "why": "To see which force goes from the ledger into the node and how the standards carry the horizontal load.",
+        "effect": "Values at the ends of the member in kN (design values, with γ = 1.5). No effect on the analysis."
+      },
+      "deckClass": {
+        "what": "Load class EN 12811-1 of this deck: working load from 0.75 to 6.0 kN/m².",
+        "why": "The load may differ between levels and brackets; the class is kept with each ledger or bracket.",
+        "effect": "Working load of this deck = load of the class × field width; it acts if “Working load” is ticked. On the drawing the class is written at the arrows."
+      },
+      "classNew": {
+        "what": "Load class a new deck gets.",
+        "why": "Usually a scaffold has one class – so it need not be entered each time.",
+        "effect": "Only for new decks: a placed deck keeps its own class, changed in the properties of the part."
       }
     }
   },
@@ -1528,13 +1543,14 @@
       "anchor": "Anchor {id}",
       "anchorsMany": "Anchors selected: {n}",
       "anchorOn": "on the standard {std}, z = {z}",
-      "backSide": "double (other side of the rosette)"
+      "backSide": "double (other side of the rosette)",
+      "deckClass": "Load class of this deck"
     },
     "settings": "Loads and conditions",
     "name": "Name of the section",
     "field": "Field width of new decks",
     "qMax": "q_p of the maximum wind",
-    "assumptions": "The section is calculated as a plane frame: out of its plane the scaffold is held by the longitudinal bracing. Loads on ledgers and brackets from the field width; wind on the parts of the section.",
+    "assumptions": "The section is calculated as a plane frame: out of its plane the scaffold is held by the longitudinal bracing. Loads on ledgers and brackets from the field width. The wind acts on a band at each deck over the field width (0.4 m at the working level, 0.2 m at the others) and on the parts of the section; indoors and with little wind the notional horizontal load of 2.5 % of the working load (at least 0.3 kN).",
     "bom": "Parts list of the section",
     "total": "Total",
     "aboutShort": "How the section is calculated",
@@ -1588,8 +1604,12 @@
       "threshold": "from a utilisation",
       "none": "none",
       "from": "Show from, %",
-      "reactions": "Reactions of the supports and forces of the anchors"
+      "reactions": "Reactions of the supports and forces of the anchors",
+      "shear": "Shear force diagram V, kN"
     },
-    "lifted": "lifted"
+    "lifted": "lifted",
+    "classShort": "LC {n}",
+    "unstable": "The section loses its stability (sway): add diagonals or anchors",
+    "classNew": "Load class of new decks"
   }
 }

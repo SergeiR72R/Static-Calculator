@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
+import { COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
 
 const G = 9.81;
 
@@ -51,6 +51,8 @@ export interface AnalysisOptions {
   diagSlack?: boolean;
   /** keep the displacements and support reactions of each combination (comparisons, tests) */
   keep?: boolean;
+  /** shear force of the beam members (standards, ledgers, brackets) at their ends, for diagrams */
+  diagrams?: boolean;
   /** standard joints without tension (splices not secured, as PERI ForceControl for shoring) */
   spliceNoTension?: boolean;
   /** with spliceNoTension: play of a joint in tension (it carries tension once opened by this), m */
@@ -91,6 +93,20 @@ export interface PartCheck {
   V?: number;
   /** place of a check at a point (node of the rosette, ledger end, joint of the standards), m */
   at?: V3;
+}
+
+/** shear force of a member at its ends in the combination with its largest value (for the diagram) */
+export interface ShearDiagram {
+  member: number;
+  part: string;
+  kind: string;
+  /** ends of the member (its connection points), m */
+  a: V3;
+  b: V3;
+  /** shear force at the start and at the end, N (linear between them) */
+  V0: number;
+  V1: number;
+  combo: string;
 }
 
 /** a check at a point: node of a rosette (standard + ledgers) or joint of two standards */
@@ -187,6 +203,8 @@ export interface ScaffoldResult {
   /** every node of the rosettes and every joint of the standards with its largest utilisation (the
    * checks keep only the governing one of each part) */
   points?: PointCheck[];
+  /** shear forces of the beam members (AnalysisOptions.diagrams) */
+  shear?: ShearDiagram[];
   /** assumed supports of beams: vertical force, N */
   beamSupports: { part: string; node: number; V: number }[];
   /** beams SRU / RCS: what stands on them and their supports (design values, envelope) */
@@ -758,6 +776,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
   const anchorRes = new Map<string, ForceResult>();
   const beamSup = new Map<number, { part: string; node: number; V: number }>();
   const fixRes = new Map<string, FixingResult>();
+  const shearRes = new Map<number, ShearDiagram>();
   const pointRes = new Map<string, PointCheck>();
   const putPoint = (p: PointCheck) => {
     if (!Number.isFinite(p.eta)) p.eta = 99;
@@ -1019,6 +1038,15 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         const mid = sectionForces(mr, mr.L / 2);
         const sp = sec.span ?? sec.w;
         put({ part: m.part, check: 'ledger', eta: Math.abs(mid.My) / sp.My + Math.abs(mid.N) / sp.N, combo: cb.name, N: mid.N, M: mid.My, V: mid.Vz });
+        // a ledger from standard to standard under a line load: permissible load of the PERI
+        // Tabellenbuch (single-span beam; governs for the long ledgers)
+        if (m.conn?.[0] && m.conn?.[1]) {
+          const fk = frame.members[k];
+          const Ls = Math.hypot(frame.nodes[fk.j][0] - frame.nodes[fk.i][0], frame.nodes[fk.j][1] - frame.nodes[fk.i][1]);
+          const zul = ledgerZulQ(m.head!, m.ledger === 'uhv', Ls);
+          const q = Math.abs(mr.q[2]) / GAMMA_F;
+          if (zul && q > 0) put({ part: m.part, check: 'ledger', eta: q / zul, combo: cb.name, N: mid.N, M: mid.My, V: mr.fi[2], detail: `Tabellenbuch: q = ${(q / 1e3).toFixed(2)} kN/m, zul. q = ${(zul / 1e3).toFixed(2)} kN/m` });
+        }
       } else if (m.kind === 'jack') {
         // spindle: cosine interaction (DIN 4425, 7.1) at the clamped end; a spindle pair through a
         // platform carries compression only
@@ -1051,6 +1079,21 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         }
       }
     });
+
+    // shear force of the beam members at their ends (the larger of the two local components)
+    if (opt.diagrams)
+      frame.members.forEach((fk, k) => {
+        const mr = r.members[k];
+        const m = members[k];
+        if (!mr || fk.truss || !(m.kind === 'standard' || m.kind === 'ledger' || m.kind === 'bracket' || m.kind === 'beam')) return;
+        const s0 = sectionForces(mr, 0);
+        const s1 = sectionForces(mr, mr.L);
+        const z = Math.max(Math.abs(s0.Vz), Math.abs(s1.Vz)) >= Math.max(Math.abs(s0.Vy), Math.abs(s1.Vy));
+        const V0 = z ? s0.Vz : s0.Vy;
+        const V1 = z ? s1.Vz : s1.Vy;
+        const o = shearRes.get(k);
+        if (!o || Math.max(Math.abs(V0), Math.abs(V1)) > Math.max(Math.abs(o.V0), Math.abs(o.V1))) shearRes.set(k, { member: k, part: m.part, kind: m.kind, a: frame.nodes[fk.i], b: frame.nodes[fk.j], V0, V1, combo: cb.name });
+      });
 
     // interaction standard tube / ledger connection at the rosette (Gl. 1)
     for (const [n, cs] of connAt) {
@@ -1162,6 +1205,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       anchors: [...anchorRes.values()],
       fixings: [...fixRes.values()],
       points: [...pointRes.values()],
+      ...(opt.diagrams ? { shear: [...shearRes.values()] } : {}),
       beamSupports: [...beamSup.values()],
       beams: beamRes,
       level,
@@ -1213,12 +1257,17 @@ export function mergeResults(parts: ScaffoldResult[], order: string[]): Scaffold
   const anchors = new Map<string, ForceResult>();
   const fixings = new Map<string, FixingResult>();
   const points = new Map<string, PointCheck>();
+  const shear = new Map<number, ShearDiagram>();
   const beamSup = new Map<number, { part: string; node: number; V: number }>();
   const beams: BeamResult[] = first.beams.map((b) => ({ ...b, points: b.points.map((p) => ({ ...p, F: -Infinity })) }));
   const unstable = new Set<string>();
   let factorisations = 0;
   const pcg: [number, number] = [0, 0];
   for (const r of parts) {
+    for (const s of r.shear ?? []) {
+      const o = shear.get(s.member);
+      if (!o || Math.max(Math.abs(s.V0), Math.abs(s.V1)) > Math.max(Math.abs(o.V0), Math.abs(o.V1))) shear.set(s.member, s);
+    }
     for (const p of r.points ?? []) {
       const key = `${p.check}|${p.node}`;
       const o = points.get(key);
@@ -1281,6 +1330,7 @@ export function mergeResults(parts: ScaffoldResult[], order: string[]): Scaffold
     anchors: [...anchors.values()],
     fixings: [...fixings.values()],
     points: [...points.values()],
+    ...(first.shear ? { shear: [...shear.values()] } : {}),
     beamSupports: [...beamSup.values()],
     beams,
     unstable: [...unstable],

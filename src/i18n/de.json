@@ -1458,7 +1458,7 @@
       "qMax": {
         "what": "Böengeschwindigkeitsdruck des maximalen Windes für Gerüste im Freien.",
         "why": "Bestimmt die Kombinationen außer Betrieb R und S (maximaler Wind, Abheben und Kippen).",
-        "effect": "0 – nur Arbeitswind 0,2 kN/m². Größer – größere Horizontallast in R und S."
+        "effect": "Der Wind in R und S wirkt auf einen Streifen von 0,2 m an jedem Belag über die Feldbreite und auf die Teile des Schnitts. 0 – nur Arbeitswind 0,2 kN/m². Netze und Planen sind nicht berücksichtigt."
       },
       "about": {
         "what": "Der aus PERI-UP-Teilen gebaute Schnitt wird mit derselben Berechnung wie Gerüste aus PERI CAD gerechnet: räumliches Modell mit halbsteifen Rosettenknoten, Theorie II. Ordnung, Nachweise nach Zulassung Z-8.22-863.",
@@ -1484,6 +1484,21 @@
         "what": "Auflagerkräfte (unter den Spindelplatten) und Ankerkräfte in der Zeichnung nach der Berechnung.",
         "why": "Um die Last auf den Untergrund und auf die Befestigungen am Bauwerk zu sehen.",
         "effect": "V – größte vertikale Auflagerkraft (und V_min beim Abheben), H – größte horizontale, über alle Kombinationen; beim Anker die größte Kraft. Ohne Einfluss auf die Berechnung."
+      },
+      "viewShear": {
+        "what": "Querkraftlinie V der Riegel, Konsolen und Stiele: aus der Kombination mit dem größten Wert.",
+        "why": "Um zu sehen, welche Kraft vom Riegel in den Knoten geht und wie die Stiele die Horizontallast abtragen.",
+        "effect": "Werte an den Stabenden in kN (Bemessungswerte, mit γ = 1,5). Ohne Einfluss auf die Berechnung."
+      },
+      "deckClass": {
+        "what": "Lastklasse EN 12811-1 dieses Belags: Nutzlast von 0,75 bis 6,0 kN/m².",
+        "why": "Auf verschiedenen Lagen und Konsolen kann die Last verschieden sein; die Klasse gehört zum Riegel oder zur Konsole.",
+        "effect": "Nutzlast dieses Belags = Last der Klasse × Feldbreite; wirkt, wenn „Nutzlast“ gewählt ist. In der Zeichnung steht die Klasse an den Pfeilen."
+      },
+      "classNew": {
+        "what": "Lastklasse, die ein neuer Belag erhält.",
+        "why": "Meist hat ein Gerüst eine Klasse – so muss sie nicht jedes Mal eingegeben werden.",
+        "effect": "Nur für neue Beläge: bei gesetzten gehört die Klasse zum Teil und wird in dessen Eigenschaften geändert."
       }
     }
   },
@@ -1528,13 +1543,14 @@
       "anchor": "Anker {id}",
       "anchorsMany": "Gewählte Anker: {n}",
       "anchorOn": "am Stiel {std}, z = {z}",
-      "backSide": "doppelt (andere Seite der Rosette)"
+      "backSide": "doppelt (andere Seite der Rosette)",
+      "deckClass": "Lastklasse dieses Belags"
     },
     "settings": "Lasten und Bedingungen",
     "name": "Name des Schnitts",
     "field": "Feldbreite neuer Beläge",
     "qMax": "q_p des maximalen Windes",
-    "assumptions": "Berechnung des Schnitts als ebener Rahmen: aus der Ebene halten die Längsverbände das Gerüst. Lasten auf Riegel und Konsolen aus der Feldbreite; Wind auf die Teile des Schnitts.",
+    "assumptions": "Berechnung des Schnitts als ebener Rahmen: aus der Ebene halten die Längsverbände das Gerüst. Lasten auf Riegel und Konsolen aus der Feldbreite. Der Wind wirkt auf einen Streifen an jedem Belag über die Feldbreite (0,4 m auf der Arbeitslage, 0,2 m auf den übrigen) und auf die Teile des Schnitts; in einem Gebäude und bei kleinem Wind die Ersatzhorizontallast 2,5 % der Nutzlast (mindestens 0,3 kN).",
     "bom": "Stückliste des Schnitts",
     "total": "Summe",
     "aboutShort": "Wie der Schnitt berechnet wird",
@@ -1588,8 +1604,12 @@
       "threshold": "ab einer Ausnutzung",
       "none": "nicht zeigen",
       "from": "Zeigen ab, %",
-      "reactions": "Auflagerkräfte und Ankerkräfte"
+      "reactions": "Auflagerkräfte und Ankerkräfte",
+      "shear": "Querkraftlinie V, kN"
     },
-    "lifted": "abgehoben"
+    "lifted": "abgehoben",
+    "classShort": "LK {n}",
+    "unstable": "Der Schnitt verliert seine Stabilität (Schwanken): Diagonalen oder Anker setzen",
+    "classNew": "Lastklasse neuer Beläge"
   }
 }

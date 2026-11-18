@@ -3,7 +3,7 @@ import { analyzeScaffold } from '../scaffold/structure';
 import { buildScaffoldModel } from '../scaffold/model';
 import { analyzeScaffoldModel, DEFAULT_ANALYSIS } from '../scaffold/analysis';
 import { CATALOG } from './catalog';
-import { designBom, designDoc, designIssues, emptyDesign, hangingStandards, rosettes, snap, tubePoint, type Design, type Placed } from './design';
+import { anchorAngle, designBom, designDoc, designIssues, emptyDesign, hangingStandards, rosettes, snap, tubePoint, type Design, type Placed } from './design';
 
 const art = (name: string) => CATALOG.find((c) => c.name === name)!;
 let n = 0;
@@ -141,6 +141,31 @@ describe('designer: section of a PERI UP scaffold', () => {
     expect(eta).toBeLessThan(0.6);
     // node checks carry their place
     expect(r.checks.filter((c) => c.check === 'node').every((c) => c.at)).toBe(true);
+  });
+
+  it('anchors go to the wall on the chosen side, held horizontally both ways', () => {
+    const d = facade();
+    d.anchors[0].angle = 0;
+    d.anchors[1].angle = 180;
+    const { fixings } = designDoc(d);
+    expect(fixings.map((f) => f.dirs)).toEqual([['x'], ['x']]);
+    expect(fixings.every((f) => !f.vec)).toBe(true);
+    // without a choice (older sections): away from the middle of the section
+    delete d.anchors[0].angle;
+    expect(anchorAngle(d, d.anchors[0])).toBe(180);
+  });
+
+  it('a tie of a fixing in any direction carries its force along it (model)', () => {
+    const d = facade();
+    const { doc, loads, fixings } = designDoc(d);
+    fixings[0] = { ...fixings[0], dirs: [], vec: [-1, 0, 1] };
+    const m = buildScaffoldModel(analyzeScaffold(doc), loads, [], { fixings, plane: true });
+    expect(m.fixings.find((f) => f.id === 'A1')?.tie).toBeTruthy();
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, dirs: ['x'], qMax: 500 });
+    expect(r.combos.every((c) => c.ok)).toBe(true);
+    const f = r.fixings.find((x) => x.id === 'A1')!;
+    expect(f.F).toBeGreaterThan(10);
+    expect(Math.abs(Math.abs(f.R[0]) - Math.abs(f.R[2]))).toBeLessThan(1e-6 * f.F + 1e-6);
   });
 
   it('parts list of the section', () => {

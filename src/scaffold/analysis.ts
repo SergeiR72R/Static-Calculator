@@ -260,7 +260,7 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
 
   // G: self weight of members, decks and other parts (+ ice)
   const g = emptyLoads3(frame);
-  const width = (k: number) => (members[k].kind === 'ledger' ? 0.06 : members[k].kind === 'beam' ? 0.12 : members[k].kind === 'girder' ? 0.2 : 0.0483);
+  const width = (k: number) => (members[k].kind === 'ledger' ? 0.06 : members[k].kind === 'beam' ? 0.12 : members[k].kind === 'girder' ? 0.2 : members[k].tie ? 0 : 0.0483);
   frame.members.forEach((_, k) => {
     let w = members[k].g * G;
     if (opt.ice > 0) {
@@ -1099,6 +1099,11 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       // reaction of the support = force of the building on the scaffold; the scaffold on the building: opposite
       const R: [number, number, number] = [0, 0, 0];
       for (const s of f.sups) R['xyz'.indexOf(s.dir)] = -r.reactions[s.sup];
+      // a tie: its force along it (tension pulls the building towards the scaffold)
+      if (f.tie) {
+        const N = r.members[f.tie.member]?.N ?? 0;
+        for (let i = 0; i < 3; i++) R[i] = -N * f.tie.vec[i];
+      }
       const F = Math.hypot(...R);
       const key = `${f.id}|${f.part}`;
       const o = fixRes.get(key);

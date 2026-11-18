@@ -58,6 +58,8 @@ export interface ModelMember {
   carrier?: number;
   /** spindle pair from a standard to the standard above it through a platform (compression only) */
   link?: boolean;
+  /** tie of a fixing to the building (no wind, no check of its own) */
+  tie?: boolean;
   /** spindle: base jack (under a standard) or head jack (on a standard, under a beam) */
   jack?: 'foot' | 'head';
   /** part of a group without any support (not connected to the scaffold): left out */
@@ -132,7 +134,7 @@ export interface ScaffoldModel {
    */
   defects: { key: 'carrierBroken' | 'zeroMember' | 'badNode'; parts: string[] }[];
   /** fixings to the building: node, held axes and their supports (index in frame.supports) */
-  fixings: { id: string; part: string; node: number; sups: { dir: 'x' | 'y' | 'z'; sup: number }[]; limit?: number }[];
+  fixings: { id: string; part: string; node: number; sups: { dir: 'x' | 'y' | 'z'; sup: number }[]; limit?: number; tie?: { member: number; vec: V3 } }[];
 }
 
 /**
@@ -902,7 +904,9 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   const fixSup = new Map<string, number>();
   for (const f of opts.fixings ?? []) {
     const dirs = [...new Set(f.dirs)].filter((d) => d === 'x' || d === 'y' || d === 'z');
-    if (!dirs.length) continue;
+    const vl = f.vec ? Math.hypot(...f.vec) : 0;
+    const vec: V3 | null = f.vec && vl > 1e-9 ? [f.vec[0] / vl, f.vec[1] / vl, f.vec[2] / vl] : null;
+    if (!dirs.length && !vec) continue;
     for (const id of f.parts) {
       const at = Math.min(Math.max(f.at, 0), 1);
       let node = -1;
@@ -925,6 +929,15 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       }
       if (node < 0) {
         note('fixingIgnored', id, { name: f.name });
+        continue;
+      }
+      // a tie in any direction: a stiff pin-ended member to a point of the building held fixed
+      if (vec) {
+        const far = addNode([nodes[node][0] + 0.5 * vec[0], nodes[node][1] + 0.5 * vec[1], nodes[node][2] + 0.5 * vec[2]]);
+        for (let dof = 0; dof < 6; dof++) supports.push({ node: far, dof, k: Infinity });
+        fm.push({ i: node, j: far, sec: trussSec(1e10), truss: true });
+        mm.push({ kind: 'link', part: id, g: 0, tie: true });
+        fixings.push({ id: f.id, part: id, node, sups: [], tie: { member: fm.length - 1, vec }, ...(f.limit && f.limit > 0 ? { limit: f.limit } : {}) });
         continue;
       }
       // one support per node and axis (two fixings at the same point share it)

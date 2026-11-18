@@ -91,14 +91,25 @@ test('designer: a frame built from catalogue parts snaps together, is loaded, an
   // an anchor on the standard at a rosette
   await page.getByTestId('designer-tool-anchor').click();
   b = await bbox(page, 'D3');
+  // the point on the standard, then the side of the wall (left of the standard)
   await at(page, b.x + b.width / 2, b.y + 0.28 * (b.height / 2.16));
-  await expect(page.getByTestId('designer-anchor-A1')).toBeVisible();
+  await page.mouse.move(b.x + b.width / 2 - 60, b.y + 0.28 * (b.height / 2.16) - 4);
+  await expect(page.getByTestId('designer-anchor-ghost')).toHaveAttribute('data-angle', '180');
+  await at(page, b.x + b.width / 2 - 60, b.y + 0.28 * (b.height / 2.16) - 4);
+  await expect(page.getByTestId('designer-anchor-A1')).toHaveAttribute('data-angle', '180');
   await expect(page.getByTestId('designer-issue-noBracing')).toHaveCount(0);
   // undo / redo
   await page.getByTestId('designer-undo').click();
   await expect(page.getByTestId('designer-anchor-A1')).toHaveCount(0);
   await page.getByTestId('designer-redo').click();
   await expect(page.getByTestId('designer-anchor-A1')).toBeVisible();
+  // its direction in the properties of the standard
+  await page.getByTestId('designer-tool-select').click();
+  b = await bbox(page, 'D3');
+  await page.mouse.click(b.x + b.width / 2, b.y + b.height * 0.6);
+  await expect(page.getByTestId('designer-anchor-dir-A1')).toHaveValue('180');
+  await page.getByTestId('designer-anchor-dir-A1').selectOption('0');
+  await expect(page.getByTestId('designer-anchor-A1')).toHaveAttribute('data-angle', '0');
   // calculated with the analysis of the scaffold mode
   await page.getByTestId('designer-run').click();
   await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', /^(ok|check|fail)$/, { timeout: 30_000 });

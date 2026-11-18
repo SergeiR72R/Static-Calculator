@@ -43,6 +43,11 @@ export interface UserFixing {
   at: number;
   /** axes held */
   dirs: ('x' | 'y' | 'z')[];
+  /**
+   * instead of the axes: a tie in this direction (from the scaffold to the building, any angle), held
+   * both ways along it
+   */
+  vec?: [number, number, number];
   /** design resistance of one fixing (resultant of its forces), N; none: no check */
   limit?: number;
 }

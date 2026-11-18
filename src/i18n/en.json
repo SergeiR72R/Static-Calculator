@@ -1469,6 +1469,11 @@
         "what": "Series of PERI UP parts shown in the catalogue of the designer.",
         "why": "Parts of one generation are used: the first (UVR, UVH, UH Plus, UBK) or the second (UVR-2, UVH-2, UH-2, UBK-2 with the 8 mm rosette).",
         "effect": "Hidden series do not appear in the catalogue; parts already placed stay and are calculated by their article. Default – first generation."
+      },
+      "anchorDir": {
+        "what": "On which side of the standard the wall (building) is that the anchor is fixed to.",
+        "why": "In the drawing the anchor goes to the wall; it shows which standards stand at the facade and where they are tied.",
+        "effect": "The anchor holds the standard horizontally (X) both ways – tension and compression; the side of the wall decides how it is drawn and where its force points in the report."
       }
     }
   },
@@ -1506,7 +1511,10 @@
       "width": "Field width of the deck",
       "work": "Working load on this deck",
       "ext": "Jack extension",
-      "anchors": "Anchors on this standard (height of the rosette, m):"
+      "anchors": "Anchors on this standard (height of the rosette, m):",
+      "anchorDir": "Where is the wall",
+      "wallLeft": "← wall on the left",
+      "wallRight": "wall on the right →"
     },
     "settings": "Loads and conditions",
     "name": "Name of the section",
@@ -1531,9 +1539,10 @@
       "noSnap": "This part cannot go here: move it to a rosette or a support point.",
       "tube1": "Tube: click the first point on a standard.",
       "tube2": "Tube: click the second point on another standard (couplers are added).",
-      "anchor": "Anchor: click a point on a standard – there the scaffold is tied to the building (in X).",
+      "anchor": "Anchor: click a point on a standard, then show on which side the wall is.",
       "select": "Click – select a part, band with the left button – several, right button – pan the drawing. Ctrl+C / Ctrl+V – copy and paste.",
-      "paste": "Paste: the group follows the pointer (0.25 m, in height 0.5 m – rosettes on the grid). Click – place, several times; Esc – leave."
+      "paste": "Paste: the group follows the pointer (0.25 m, in height 0.5 m – rosettes on the grid). Click – place, several times; Esc – leave.",
+      "anchor2": "Anchor: move the pointer to the wall – left of the standard (wall on the left) or right (wall on the right); click – place, Esc – cancel."
     },
     "issue": {
       "noStandards": "Place at least one standard.",

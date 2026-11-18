@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { CATALOG, DEFAULT_FAMILIES, DESIGN_KINDS, FAMILIES, byArticle, type DesignKind } from '../../designer/catalog';
-import { cat, designBom, designDoc, designIssues, exampleDesign, standards } from '../../designer/design';
+import { ANCHOR_ANGLES, anchorAngle, cat, designBom, designDoc, designIssues, exampleDesign, standards } from '../../designer/design';
 import { useDesigner } from '../../designer/store';
 import { LOAD_CLASSES } from '../../scaffold/catalog';
 import { analyzeScaffold } from '../../scaffold/structure';
@@ -147,10 +147,24 @@ function Properties({ selected, setSelected }: { selected: string[]; setSelected
           {d.anchors
             .filter((a) => a.part === p.id)
             .map((a) => (
-              <div key={a.id} className="flex items-center justify-between gap-2">
-                <span>
+              <div key={a.id} className="flex items-center justify-between gap-2" data-testid={`designer-anchor-row-${a.id}`}>
+                <span className="shrink-0">
                   {a.id} · z = {fmt.q(a.z, 'length', 2)}
                 </span>
+                <select
+                  className="h-7 min-w-0 rounded border border-slate-300 bg-white px-1 text-xs dark:border-slate-600 dark:bg-slate-900"
+                  value={anchorAngle(d, a)}
+                  onChange={(e) => dz.updateAnchor(a.id, { angle: Number(e.target.value) })}
+                  aria-label={fmt.t('designer.props.anchorDir')}
+                  data-testid={`designer-anchor-dir-${a.id}`}
+                >
+                  {ANCHOR_ANGLES.map((g) => (
+                    <option key={g} value={g}>
+                      {fmt.t(g === 180 ? 'designer.props.wallLeft' : 'designer.props.wallRight')}
+                    </option>
+                  ))}
+                </select>
+                <HelpTip id="designer.anchorDir" title={fmt.t('designer.props.anchorDir')} />
                 <Button size="sm" variant="ghost" onClick={() => dz.removeAnchor(a.id)} aria-label={fmt.t('designer.props.remove')}>
                   ✕
                 </Button>
@@ -158,7 +172,7 @@ function Properties({ selected, setSelected }: { selected: string[]; setSelected
             ))}
           <div className="flex flex-wrap gap-1">
             {std.rosettes.map((z) => (
-              <Button key={z} size="sm" onClick={() => dz.addAnchor({ part: p.id, z })} disabled={d.anchors.some((a) => a.part === p.id && Math.abs(a.z - z) < 0.01)} data-testid={`designer-anchor-add-${z}`}>
+              <Button key={z} size="sm" onClick={() => dz.addAnchor({ part: p.id, z, angle: anchorAngle(d, { id: '', part: p.id, z }) })} disabled={d.anchors.some((a) => a.part === p.id && Math.abs(a.z - z) < 0.01)} data-testid={`designer-anchor-add-${z}`}>
                 + {fmt.num(z, 2)}
               </Button>
             ))}

@@ -1469,6 +1469,11 @@
         "what": "Reihen der PERI-UP-Teile, die der Katalog des Konstruktors zeigt.",
         "why": "Verwendet werden Teile einer Generation: die erste (UVR, UVH, UH Plus, UBK) oder die zweite (UVR-2, UVH-2, UH-2, UBK-2 mit 8-mm-Rosette).",
         "effect": "Ausgeblendete Reihen erscheinen nicht im Katalog; gesetzte Teile bleiben und werden nach ihrem Artikel gerechnet. Vorgabe – 1. Generation."
+      },
+      "anchorDir": {
+        "what": "Auf welcher Seite des Stiels die Wand (das Bauwerk) ist, an der der Anker befestigt wird.",
+        "why": "In der Zeichnung geht der Anker zur Wand; so ist zu sehen, welche Stiele an der Fassade stehen und wo befestigt ist.",
+        "effect": "Der Anker hält den Stiel horizontal (X) in beide Richtungen – Zug und Druck; die Seite der Wand bestimmt, wie er gezeichnet ist und wohin seine Kraft im Bericht zeigt."
       }
     }
   },
@@ -1506,7 +1511,10 @@
       "width": "Feldbreite des Belags",
       "work": "Nutzlast auf diesem Belag",
       "ext": "Spindelauszug",
-      "anchors": "Anker an diesem Stiel (Höhe der Rosette, m):"
+      "anchors": "Anker an diesem Stiel (Höhe der Rosette, m):",
+      "anchorDir": "Wo ist die Wand",
+      "wallLeft": "← Wand links",
+      "wallRight": "Wand rechts →"
     },
     "settings": "Lasten und Bedingungen",
     "name": "Name des Schnitts",
@@ -1531,9 +1539,10 @@
       "noSnap": "Hier kann dieses Teil nicht hin: an eine Rosette oder einen Auflagerpunkt führen.",
       "tube1": "Rohr: ersten Punkt an einem Stiel anklicken.",
       "tube2": "Rohr: zweiten Punkt an einem anderen Stiel anklicken (Kupplungen kommen selbst).",
-      "anchor": "Anker: Punkt an einem Stiel anklicken – dort ist das Gerüst am Bauwerk befestigt (in X).",
+      "anchor": "Anker: Punkt am Stiel anklicken, dann zeigen, auf welcher Seite die Wand ist.",
       "select": "Klick – Teil wählen, Rahmen mit der linken Taste – mehrere, rechte Taste – Zeichnung verschieben. Strg+C / Strg+V – kopieren und einfügen.",
-      "paste": "Einfügen: die Gruppe folgt dem Zeiger (0,25 m, in der Höhe 0,5 m – Rosetten im Raster). Klick – setzen, mehrmals möglich; Esc – beenden."
+      "paste": "Einfügen: die Gruppe folgt dem Zeiger (0,25 m, in der Höhe 0,5 m – Rosetten im Raster). Klick – setzen, mehrmals möglich; Esc – beenden.",
+      "anchor2": "Anker: Zeiger zur Wand führen – links vom Stiel (Wand links) oder rechts (Wand rechts); Klick – setzen, Esc – abbrechen."
     },
     "issue": {
       "noStandards": "Mindestens einen Stiel setzen.",

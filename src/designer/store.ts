@@ -40,6 +40,7 @@ interface DesignerState {
   removeParts: (ids: string[]) => void;
   addAnchor: (a: Omit<DesignAnchor, 'id'>) => void;
   removeAnchor: (id: string) => void;
+  updateAnchor: (id: string, patch: Partial<DesignAnchor>) => void;
   setSettings: (s: Partial<DesignSettings>) => void;
   setName: (name: string) => void;
   undo: () => void;
@@ -160,6 +161,7 @@ export const useDesigner = create<DesignerState>()((set, get) => ({
       ],
     })),
   removeAnchor: (id) => get().edit((d) => ({ ...d, anchors: d.anchors.filter((a) => a.id !== id) })),
+  updateAnchor: (id, patch) => get().edit((d) => ({ ...d, anchors: d.anchors.map((a) => (a.id === id ? { ...a, ...patch } : a)) })),
   setSettings: (s) => get().edit((d) => ({ ...d, settings: { ...d.settings, ...s } })),
   setName: (name) => get().edit((d) => ({ ...d, name })),
   undo: () => {

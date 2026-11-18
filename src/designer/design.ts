@@ -34,8 +34,24 @@ export interface DesignAnchor {
   /** the standard and the height of the anchor */
   part: string;
   z: number;
+  /**
+   * side of the building (wall) in the side view: 180 – on the left (←), 0 – on the right (→);
+   * undefined: away from the middle of the section (older sections)
+   */
+  angle?: number;
   /** design resistance, N (optional) */
   limit?: number;
+}
+
+/** sides of the wall an anchor goes to: left (180°), right (0°) */
+export const ANCHOR_ANGLES = [180, 0];
+
+/** direction of an anchor as drawn: its angle, else horizontal away from the middle of the section */
+export function anchorAngle(d: Design, a: DesignAnchor): number {
+  if (a.angle !== undefined) return ((a.angle % 360) + 360) % 360;
+  const xs = standards(d).map((s) => s.x);
+  const x = standards(d).find((s) => s.part.id === a.part)?.x ?? 0;
+  return x <= (Math.min(...xs) + Math.max(...xs)) / 2 ? 180 : 0;
 }
 
 export interface DesignSettings {
@@ -404,7 +420,19 @@ export function designDoc(d: Design): DesignDoc {
     if (!s) continue;
     const len = s.z1 - s.z0 + (s.spigot && cat(s.part).kind === 'standard' ? SPIGOT : 0);
     const base = cat(s.part).kind === 'base' ? UVB_H : len;
-    fixings.push({ id: a.id, name: a.id, parts: [a.part], at: Math.min(Math.max((a.z - s.z0) / base, 0), 1), dirs: ['x'], ...(a.limit ? { limit: a.limit } : {}) });
+    // horizontal or vertical: held in that axis (both ways); inclined: a tie in its direction
+    const ang = anchorAngle(d, a);
+    const axis = ang % 180 === 0 ? (['x'] as const) : ang % 180 === 90 ? (['z'] as const) : null;
+    const rad = (ang * Math.PI) / 180;
+    fixings.push({
+      id: a.id,
+      name: a.id,
+      parts: [a.part],
+      at: Math.min(Math.max((a.z - s.z0) / base, 0), 1),
+      dirs: axis ? [...axis] : [],
+      ...(axis ? {} : { vec: [Math.cos(rad), 0, Math.sin(rad)] as [number, number, number] }),
+      ...(a.limit ? { limit: a.limit } : {}),
+    });
   }
   return { doc: { fileName: d.name || 'design', parts, geom }, loads, fixings, hanging: hangingStandards(d) };
 }

@@ -1,12 +1,45 @@
 import { useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import { byArticle } from '../../designer/catalog';
-import { cat, designDoc, ends, hit, rosettes, seats, sideLines, snap, standards, tubePoint, type Candidate, type Design, type Placed } from '../../designer/design';
+import { anchorAngle, cat, designDoc, ends, hit, rosettes, seats, sideLines, snap, standards, tubePoint, type Candidate, type Design, type Placed } from '../../designer/design';
 import { useDesigner } from '../../designer/store';
 import { useFmt } from '../hooks';
 import { DESIGN_COLOR } from './PartIcon';
 
 /** the tool of the canvas: select, a catalogue part (article), a tube on couplers, an anchor */
 export type Tool = { kind: 'select' } | { kind: 'part'; article: string } | { kind: 'tube' } | { kind: 'anchor' } | { kind: 'paste' };
+
+/** side of the wall from the point of the anchor to the pointer: left (180°) or right (0°) */
+const angleTo = (p: { x: number; z: number }, x: number) => (x < p.x ? 180 : 0);
+
+/** anchor: a tie from the standard in its direction to the building (hatched) */
+function AnchorMark({ id, x, y, angle, on, ghost }: { id: string; x: number; y: number; angle: number; on?: boolean; ghost?: boolean }) {
+  const r = (angle * Math.PI) / 180;
+  const ux = Math.cos(r);
+  const uy = -Math.sin(r);
+  const L = 28;
+  const ex = x + ux * L;
+  const ey = y + uy * L;
+  // the wall across the tie, hatched on the far side
+  const px = -uy;
+  const py = ux;
+  const color = ghost ? '#16a34a' : '#e11d48';
+  return (
+    <g data-testid={ghost ? 'designer-anchor-ghost' : `designer-anchor-${id}`} data-angle={angle} opacity={ghost ? 0.8 : 1}>
+      {on && <line x1={x} y1={y} x2={ex} y2={ey} stroke="#d946ef" strokeWidth={8} strokeOpacity={0.3} />}
+      <line x1={x} y1={y} x2={ex} y2={ey} stroke={color} strokeWidth={2.5} strokeDasharray={ghost ? '5 3' : undefined} />
+      <circle cx={x} cy={y} r={3} fill={color} />
+      <line x1={ex - px * 10} y1={ey - py * 10} x2={ex + px * 10} y2={ey + py * 10} stroke={color} strokeWidth={2.5} />
+      {[-7, 0, 7].map((o) => (
+        <line key={o} x1={ex + px * o} y1={ey + py * o} x2={ex + px * o + ux * 6 - px * 4} y2={ey + py * o + uy * 6 - py * 4} stroke={color} strokeWidth={1} />
+      ))}
+      {id && (
+        <text x={ex + ux * 12} y={ey + uy * 12 + 3} textAnchor={ux < -0.3 ? 'end' : ux > 0.3 ? 'start' : 'middle'} className="text-[10px] font-semibold" fill={color}>
+          {id}
+        </text>
+      )}
+    </g>
+  );
+}
 
 const etaColor = (eta: number) => (eta > 1 ? '#dc2626' : eta > 0.7 ? '#f59e0b' : '#16a34a');
 
@@ -64,6 +97,8 @@ export function DesignCanvas({
   const [view, setView] = useState<View | null>(null);
   const [ptr, setPtr] = useState<{ x: number; z: number } | null>(null);
   const [tubeStart, setTubeStart] = useState<{ x: number; z: number } | null>(null);
+  /** anchor being set: its point on the standard (the second click gives its direction) */
+  const [anchorStart, setAnchorStart] = useState<{ x: number; z: number; std: string } | null>(null);
   const drag = useRef<{ x: number; y: number; v: View; moved: boolean; pan: boolean } | null>(null);
   /** rubber band of the selection (screen pixels) */
   const [band, setBand] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
@@ -121,6 +156,7 @@ export function DesignCanvas({
       }
       if (e.key === 'Escape') {
         setTubeStart(null);
+        setAnchorStart(null);
         setTool({ kind: 'select' });
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && selected.length) {
         e.preventDefault();
@@ -162,8 +198,13 @@ export function DesignCanvas({
       if (!pasteAt) return;
       setSelected(dz.paste(pasteAt.dx, pasteAt.dz));
     } else if (tool.kind === 'anchor') {
-      const q = tubePoint(d, x, z);
-      if (q) dz.addAnchor({ part: q.std, z: q.z });
+      if (!anchorStart) {
+        const q = tubePoint(d, x, z);
+        if (q) setAnchorStart(q);
+      } else {
+        dz.addAnchor({ part: anchorStart.std, z: anchorStart.z, angle: angleTo(anchorStart, x) });
+        setAnchorStart(null);
+      }
     } else {
       const h = hit(d, x, z, Math.max(0.12, 8 / v.s));
       if (!h) setSelected([]);
@@ -329,26 +370,13 @@ export function DesignCanvas({
         {supports.map((s, k) => (
           <path key={`s${k}`} d={`M ${X(s.x)} ${Y(s.z)} l -7 11 h 14 z`} fill="none" stroke="#475569" strokeWidth={1.5} />
         ))}
-        {/* anchors: to the structure, held in x */}
+        {/* anchors: from the standard towards the building, in their direction */}
         {d.anchors.map((a) => {
           const s = stds.find((q) => q.part.id === a.part);
           if (!s) return null;
-          const out = s.x <= Math.min(...stds.map((q) => q.x)) + 0.01 ? -1 : 1;
-          const x = X(s.x);
-          const y = Y(a.z);
-          return (
-            <g key={a.id} data-testid={`designer-anchor-${a.id}`}>
-              <line x1={x} y1={y} x2={x + out * 26} y2={y} stroke="#e11d48" strokeWidth={2.5} />
-              <line x1={x + out * 26} y1={y - 9} x2={x + out * 26} y2={y + 9} stroke="#e11d48" strokeWidth={2.5} />
-              {[-6, 0, 6].map((o) => (
-                <line key={o} x1={x + out * 26} y1={y + o} x2={x + out * 32} y2={y + o - 5} stroke="#e11d48" strokeWidth={1} />
-              ))}
-              <text x={x + out * 36} y={y + 3} textAnchor={out < 0 ? 'end' : 'start'} className="text-[10px] font-semibold" fill="#e11d48">
-                {a.id}
-              </text>
-            </g>
-          );
+          return <AnchorMark key={a.id} id={a.id} x={X(s.x)} y={Y(a.z)} angle={anchorAngle(d, a)} on={selected.includes(a.part)} />;
         })}
+        {tool.kind === 'anchor' && anchorStart && ptr && <AnchorMark id="" x={X(anchorStart.x)} y={Y(anchorStart.z)} angle={angleTo(anchorStart, ptr.x)} ghost />}
         {/* the copied parts at the place of the pointer */}
         {pasteGhost.map((l, i) => seg(l, 1000 + i, '#16a34a', 3, { strokeOpacity: 0.7, strokeDasharray: '6 3' }))}
         {band && (
@@ -377,7 +405,9 @@ export function DesignCanvas({
                 ? 'designer.hint.tube2'
                 : 'designer.hint.tube1'
               : tool.kind === 'anchor'
-                ? 'designer.hint.anchor'
+                ? anchorStart
+                  ? 'designer.hint.anchor2'
+                  : 'designer.hint.anchor'
                 : 'designer.hint.select',
         )}
       </div>

@@ -323,7 +323,7 @@ export default function DesignerApp() {
       const result = await analyzeScaffoldParallel(
         model,
         // (the loads of the decks and the wind on the field width come with the section: designDoc)
-        { ...DEFAULT_ANALYSIS, p: 0, loadClass: maxLoadClass(d), outdoor: s.outdoor, qWork: s.outdoor ? WORK_WIND : 0, qMax: s.outdoor ? s.qMax : 0, dhb: 0, dhbLoad: 0, dirs: ['x'], diagrams: true },
+        { ...DEFAULT_ANALYSIS, p: 0, loadClass: maxLoadClass(d), outdoor: s.outdoor, qWork: s.outdoor ? WORK_WIND : 0, qMax: s.outdoor ? s.qMax : 0, dhb: 0, dhbLoad: 0, dirs: ['x'], diagrams: true, calm: true },
         (pr) => setBusy(fmt.t('designer.calc.progress', { done: pr.done, total: pr.total })),
       );
       dz.setRun({ result, notes: model.notes, design: d });
@@ -497,7 +497,15 @@ export default function DesignerApp() {
                       const id = c.part.replace(/\.c\d$/, '');
                       const p = d.parts.find((x) => x.id === id);
                       return (
-                        <tr key={k} className={cx('cursor-pointer border-b border-slate-100 dark:border-slate-800', selected.includes(id) && 'bg-fuchsia-50 dark:bg-fuchsia-900/20')} onClick={() => setSelected([id])}>
+                        <tr
+                          key={k}
+                          className={cx('cursor-pointer border-b border-slate-100 dark:border-slate-800', selected.includes(id) && 'bg-fuchsia-50 dark:bg-fuchsia-900/20')}
+                          onClick={() => setSelected([id])}
+                          data-testid="designer-check-row"
+                          data-part={c.part}
+                          data-check={c.check}
+                          data-eta={c.eta.toFixed(4)}
+                        >
                           <td className="px-1.5 py-1">
                             {id} {p ? byArticle.get(p.article)?.name : ''}
                           </td>
@@ -510,6 +518,9 @@ export default function DesignerApp() {
                   </tbody>
                 </table>
               </div>
+              <p className="mt-1 text-[11px] text-slate-500" data-testid="designer-combo-legend">
+                {fmt.t('designer.comboLegend')}
+              </p>
             </details>
           )}
         </Card>

@@ -24,11 +24,13 @@ export interface UserLoad {
   vec?: [number, number];
   /** combinations: 'all' (default): working, and out of service (Q with the share of the service class);
    * 'work': working only (a load in service, e.g. a hoist working); 'rest': out of service only, in
-   * full (e.g. a hoist parked) — as the load cases chosen per combination in PERI ForceControl */
+   * full (e.g. a hoist parked) — as the load cases chosen per combination in PERI ForceControl;
+   * 'wind' / 'calm': working with the working wind only / without wind only (indoors, and outdoors in
+   * the combinations A0 of a day without wind) */
   when?: UserLoadWhen;
 }
 
-export type UserLoadWhen = 'all' | 'work' | 'rest';
+export type UserLoadWhen = 'all' | 'work' | 'rest' | 'wind' | 'calm';
 
 /**
  * Fixing of the scaffold to the building (or another structure) set by the user: the chosen parts are

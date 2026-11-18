@@ -276,7 +276,7 @@ describe('designer: section of a PERI UP scaffold', () => {
     const { doc, loads, fixings, hanging } = designDoc(d);
     const m = buildScaffoldModel(analyzeScaffold(doc), loads, [], { fixings, plane: true, hanging });
     const s = d.settings;
-    return analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, p: 0, loadClass: maxLoadClass(d), outdoor: s.outdoor, qWork: s.outdoor ? 200 : 0, qMax: s.outdoor ? s.qMax : 0, dhb: 0, dirs: ['x'], diagrams: true });
+    return analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, p: 0, loadClass: maxLoadClass(d), outdoor: s.outdoor, qWork: s.outdoor ? 200 : 0, qMax: s.outdoor ? s.qMax : 0, dhb: 0, dirs: ['x'], diagrams: true, calm: true });
   };
 
   it('ledgers at the permissible line load of the PERI Tabellenbuch are used to 100 %', () => {
@@ -322,9 +322,9 @@ describe('designer: section of a PERI UP scaffold', () => {
     expect(indoor).toMatchObject({ windWork: 0, windMax: 0 });
     expect(indoor.notional).toBeCloseTo(900, 6);
     const outdoor = H({ outdoor: true });
-    // working wind 0.2 kN/m² · 1.2 on the band 0.4 m · 3 m, the notional load above it
+    // working wind 0.2 kN/m² · 1.2 on the band 0.4 m · 3 m; the notional load for the day without wind
     expect(outdoor.windWork).toBeCloseTo(288, 6);
-    expect(outdoor.windWork + outdoor.notional).toBeCloseTo(900, 6);
+    expect(outdoor.notional).toBeCloseTo(900, 6);
     expect(H({ outdoor: true, qMax: 1000 }).windMax).toBeCloseTo(720, 6);
     // the sway of the frame without bracing: outdoors at least as indoors, more with the maximum wind
     const dh = (o: Parameters<typeof portal>[1], combo = 'A') =>
@@ -333,6 +333,41 @@ describe('designer: section of a PERI UP scaffold', () => {
     // out of service: the sway grows with the maximum wind
     expect(dh({ outdoor: true, qMax: 500 }, 'R')).toBeGreaterThan(0.001);
     expect(dh({ outdoor: true, qMax: 1000 }, 'R')).toBeGreaterThan(dh({ outdoor: true, qMax: 500 }, 'R') * 1.3);
+  });
+
+  it('outdoors no check, node or joint is used less than indoors (a day without wind is a case of its own)', () => {
+    // the frame of the report: two levels decked 3 m wide, class 3, with and without an anchor
+    const frame = (ledger: string, anchor: boolean, cls: number) => {
+      const { d } = portal(ledger, { cls, b: 3, anchor });
+      d.parts.find((p) => p.article === art(ledger).article && !p.deck)!.deck = { width: 3, work: false, cls };
+      return d;
+    };
+    const best = (r: ReturnType<typeof solve>) => {
+      const m = new Map<string, number>();
+      for (const c of r.checks) m.set(`${c.part} ${c.check}`, Math.max(m.get(`${c.part} ${c.check}`) ?? 0, c.eta));
+      for (const c of r.points ?? []) m.set(`${c.check} @${c.node}`, Math.max(m.get(`${c.check} @${c.node}`) ?? 0, c.eta));
+      return m;
+    };
+    for (const ledger of ['UH 200 Plus', 'UHV 200 Plus'])
+      for (const anchor of [false, true])
+        for (const cls of [3, 6]) {
+          const d = frame(ledger, anchor, cls);
+          const tag = `${ledger}, anchor ${anchor}, class ${cls}`;
+          const indoor = solve({ ...d, settings: { ...d.settings, outdoor: false } });
+          const outdoor = solve({ ...d, settings: { ...d.settings, outdoor: true } });
+          const storm = solve({ ...d, settings: { ...d.settings, outdoor: true, qMax: 1000 } });
+          // indoors: the notional load only; outdoors the same combinations as A0 beside those with wind
+          expect(indoor.combos.map((c) => c.name)).toEqual(['A +x', 'A −x']);
+          expect(outdoor.combos.map((c) => c.name)).toEqual(['A +x', 'A −x', 'A0 +x', 'A0 −x']);
+          const [bi, bo, bs] = [best(indoor), best(outdoor), best(storm)];
+          expect(bi.size, tag).toBeGreaterThan(8);
+          for (const [k, eta] of bi) expect(bo.get(k) ?? 0, `${tag}: ${k}`).toBeGreaterThanOrEqual(eta - 1e-6);
+          for (const [k, eta] of bo) expect(bs.get(k) ?? 0, `${tag}, maximum wind: ${k}`).toBeGreaterThanOrEqual(eta - 1e-6);
+          // and the sway
+          const dh = (r: ReturnType<typeof solve>) => Math.max(...r.combos.map((c) => c.dh));
+          expect(dh(outdoor), tag).toBeGreaterThanOrEqual(dh(indoor) - 1e-9);
+          expect(dh(storm), tag).toBeGreaterThanOrEqual(dh(outdoor) - 1e-9);
+        }
   });
 
   it('brackets UCM at the permissible loads of the PERI Tabellenbuch: line load and a standard on the tip', () => {

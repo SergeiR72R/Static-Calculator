@@ -1550,7 +1550,7 @@
     "name": "Name of the section",
     "field": "Field width of new decks",
     "qMax": "q_p of the maximum wind",
-    "assumptions": "The section is calculated as a plane frame: out of its plane the scaffold is held by the longitudinal bracing. Loads on ledgers and brackets from the field width. The wind acts on a band at each deck over the field width (0.4 m at the working level, 0.2 m at the others) and on the parts of the section; indoors and with little wind the notional horizontal load of 2.5 % of the working load (at least 0.3 kN).",
+    "assumptions": "The section is calculated as a plane frame: out of its plane the scaffold is held by the longitudinal bracing. Loads on ledgers and brackets come from the field width. The wind acts on a band at every deck over the field width (0.4 m at a working level, 0.2 m at the others) and on the parts of the section. Without wind the notional horizontal load of 2.5 % of the working load (at least 0.3 kN) acts at the working levels: indoors always, outdoors as a separate combination A0 (a day without wind), so outdoors no part is loaded less than indoors.",
     "bom": "Parts list of the section",
     "total": "Total",
     "aboutShort": "How the section is calculated",
@@ -1610,6 +1610,7 @@
     "lifted": "lifted",
     "classShort": "LC {n}",
     "unstable": "The section loses its stability (sway): add diagonals or anchors",
-    "classNew": "Load class of new decks"
+    "classNew": "Load class of new decks",
+    "comboLegend": "A — in service: outdoors with the working wind 0.2 kN/m², indoors with the notional horizontal load. A0 — in service outdoors on a day without wind (notional horizontal load instead of the wind). R — out of service with the maximum wind, S — stability (permanent loads γ = 0.9). ±x — direction of the wind and the sway."
   }
 }

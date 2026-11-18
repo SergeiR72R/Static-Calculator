@@ -53,6 +53,9 @@ export interface AnalysisOptions {
   keep?: boolean;
   /** shear force of the beam members (standards, ledgers, brackets) at their ends, for diagrams */
   diagrams?: boolean;
+  /** outdoors the working scaffold is also checked on a day without wind: combinations A0 with the
+   * notional horizontal load instead of the working wind (EN 12811-1, 6.2.3: "in the absence of wind") */
+  calm?: boolean;
   /** standard joints without tension (splices not secured, as PERI ForceControl for shoring) */
   spliceNoTension?: boolean;
   /** with spliceNoTension: play of a joint in tension (it carries tension once opened by this), m */
@@ -378,7 +381,7 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
     return w;
   };
   // loads of the user: permanent and variable, by the combinations they act in
-  const W = ['all', 'work', 'rest'] as const;
+  const W = ['all', 'work', 'rest', 'wind', 'calm'] as const;
   const mk = () => Object.fromEntries(W.map((w) => [w, emptyLoads3(frame)])) as Record<(typeof W)[number], Loads3>;
   const ugw = mk();
   const uqw = mk();
@@ -444,8 +447,9 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
   const share = opt.loadClass <= 1 ? 0 : opt.loadClass <= 3 ? 0.25 : 0.5;
   const combos: Combo[] = [];
   const dirs = DIRS.filter(([, d]) => (opt.dirs ?? ['x', 'y']).includes(d[0] !== 0 ? 'x' : 'y'));
-  for (const [dn, d] of dirs) {
-    // working: G + Q + working wind (outdoors) or notional horizontal load
+  const windy = opt.outdoor && opt.qWork > 0;
+  /** working: G + Q + working wind (outdoors) or, without wind, the notional horizontal load */
+  const working = (name: string, dn: string, d: V3, wind: boolean) => {
     const v = emptyLoads3(model.frame);
     addScaled(v, lc.g, GAMMA_F);
     addScaled(v, lc.q, GAMMA_F);
@@ -455,17 +459,20 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
     addScaled(v, lc.uqw.work, GAMMA_F);
     const c = emptyLoads3(model.frame);
     addScaled(c, v, 1);
-    if (opt.outdoor && opt.qWork > 0) addScaled(c, lc.wind(d, 0.4), GAMMA_F * opt.qWork);
+    if (wind) addScaled(c, lc.wind(d, 0.4), GAMMA_F * opt.qWork);
     else if (!lc.dhbForce) addScaled(c, lc.notional(d), GAMMA_F);
     // dynamic horizontal load (replaces the notional load of the decks)
     if (lc.dhbForce && (opt.dhbDir ?? 'xy').includes(d[0] !== 0 ? 'x' : 'y')) addScaled(c, lc.dhb(d), GAMMA_F);
     if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
-    for (const w of ['all', 'work'] as const) {
+    for (const w of ['all', 'work', wind ? 'wind' : 'calm'] as const) {
       addScaled(c, lc.userH('G', d, w), GAMMA_F);
       addScaled(c, lc.userH('Q', d, w), GAMMA_F);
     }
-    combos.push({ name: `A ${dn}`, loads: c, dir: d });
-  }
+    combos.push({ name: `${name} ${dn}`, loads: c, dir: d });
+  };
+  for (const [dn, d] of dirs) working('A', dn, d, windy);
+  // a day without wind outdoors: the notional horizontal load instead of the working wind
+  if (windy && opt.calm) for (const [dn, d] of dirs) working('A0', dn, d, false);
   if (opt.outdoor && opt.qMax > 0) {
     // out of service: permanent loads γ = 1.5 + share of the service load + maximum wind
     for (const [dn, d] of dirs) {

@@ -1550,7 +1550,7 @@
     "name": "Name des Schnitts",
     "field": "Feldbreite neuer Beläge",
     "qMax": "q_p des maximalen Windes",
-    "assumptions": "Berechnung des Schnitts als ebener Rahmen: aus der Ebene halten die Längsverbände das Gerüst. Lasten auf Riegel und Konsolen aus der Feldbreite. Der Wind wirkt auf einen Streifen an jedem Belag über die Feldbreite (0,4 m auf der Arbeitslage, 0,2 m auf den übrigen) und auf die Teile des Schnitts; in einem Gebäude und bei kleinem Wind die Ersatzhorizontallast 2,5 % der Nutzlast (mindestens 0,3 kN).",
+    "assumptions": "Der Schnitt wird als ebener Rahmen berechnet: aus der Ebene wird das Gerüst durch die Längsaussteifung gehalten. Lasten auf Riegel und Konsolen aus der Feldbreite. Der Wind wirkt auf ein Band an jedem Belag über die Feldbreite (0,4 m in der Arbeitslage, 0,2 m in den übrigen) und auf die Teile des Schnitts. Ohne Wind wirkt die horizontale Ersatzlast von 2,5 % der Verkehrslast (mindestens 0,3 kN) in den Arbeitslagen: im Gebäude immer, im Freien als eigene Kombination A0 (Windstille) — im Freien ist daher kein Teil geringer ausgenutzt als im Gebäude.",
     "bom": "Stückliste des Schnitts",
     "total": "Summe",
     "aboutShort": "Wie der Schnitt berechnet wird",
@@ -1610,6 +1610,7 @@
     "lifted": "abgehoben",
     "classShort": "LK {n}",
     "unstable": "Der Schnitt verliert seine Stabilität (Schwanken): Diagonalen oder Anker setzen",
-    "classNew": "Lastklasse neuer Beläge"
+    "classNew": "Lastklasse neuer Beläge",
+    "comboLegend": "A — Arbeitsbetrieb: im Freien mit Arbeitswind 0,2 kN/m², im Gebäude mit der horizontalen Ersatzlast. A0 — Arbeitsbetrieb im Freien bei Windstille (horizontale Ersatzlast statt Wind). R — außer Betrieb mit maximalem Wind, S — Standsicherheit (ständige Lasten γ = 0,9). ±x — Richtung von Wind und Schiefstellung."
   }
 }

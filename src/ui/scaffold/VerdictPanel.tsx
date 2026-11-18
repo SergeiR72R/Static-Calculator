@@ -110,7 +110,7 @@ export function VerdictPanel({ a, done, stale, selected, onSelect }: { a: Assess
   const v = done ? a.verdict : 'none';
   const remarks = a.fix.filter((f) => f.level !== 'info').length;
   return (
-    <div className="space-y-3" data-testid="scaffold-verdict" data-verdict={v}>
+    <div className="space-y-3" data-testid="scaffold-verdict" data-verdict={v} data-stale={stale ? '1' : '0'}>
       <div className={cx('flex flex-wrap items-center gap-3 rounded-lg border-2 p-3', TONE[v], stale && 'opacity-60')}>
         <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white" style={{ background: BADGE[v] }}>
           {v === 'ok' ? <IconCheck width={22} height={22} /> : v === 'none' ? <IconInfo width={22} height={22} /> : <IconAlert width={22} height={22} />}

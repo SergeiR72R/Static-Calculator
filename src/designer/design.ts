@@ -384,8 +384,8 @@ export interface LevelLoads {
   /** wind on the level in service, N: band of 0.4 m at a working level (equipment and material, EN
    * 12811-1 6.2.7.4.2), else 0.2 m (toeboard, ledger), over the field width */
   windWork: number;
-  /** notional horizontal load 2.5 % of the working load, at least 0.3 kN (EN 12811-1, 6.2.5): indoors in
-   * full, outdoors what it exceeds the working wind by */
+  /** notional horizontal load 2.5 % of the working load, at least 0.3 kN (EN 12811-1, 6.2.3), acting
+   * without wind: indoors, and outdoors on a day without wind (combinations A0) */
   notional: number;
   /** maximum wind on the level out of service, N: band of 0.2 m over the field width */
   windMax: number;
@@ -414,7 +414,7 @@ export function horizontalLoads(d: Design): LevelLoads[] {
       z: ps[0].z,
       on: ps.reduce((a, c) => (len(c) > len(a) ? c : a)),
       windWork,
-      notional: Math.max(notional - windWork, 0),
+      notional,
       windMax: d.settings.outdoor ? WIND_CF * d.settings.qMax * 0.2 * b : 0,
     };
   });
@@ -510,11 +510,11 @@ export function designDoc(d: Design): DesignDoc {
   // decked part
   for (const lv of horizontalLoads(d)) {
     const L = Math.max(Math.abs(ends(lv.on)[2] - ends(lv.on)[0]), 0.1);
-    const put = (key: string, cs: 'G' | 'Q', when: 'work' | 'rest', F: number) => {
+    const put = (key: string, cs: 'G' | 'Q', when: 'wind' | 'calm' | 'rest', F: number) => {
       if (F > 0) loads.push({ id: `${lv.on.id}.${key}`, name: `${key} ${lv.on.id}`, case: cs, kind: 'line', value: F / L, at: 0.5, parts: [lv.on.id], dir: 'x', when });
     };
-    put('wind', 'G', 'work', lv.windWork);
-    put('H', 'Q', 'work', lv.notional);
+    put('wind', 'G', 'wind', lv.windWork);
+    put('H', 'Q', 'calm', lv.notional);
     put('windMax', 'G', 'rest', lv.windMax);
   }
   const stdById = new Map(standards(d).map((s) => [s.part.id, s]));

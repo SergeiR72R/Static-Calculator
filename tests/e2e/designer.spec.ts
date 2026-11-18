@@ -279,3 +279,63 @@ test('designer: a frame without bracing is said to lose its stability; a reinfor
   await page.getByTestId('designer-checks').locator('summary').click();
   await expect(page.getByTestId('designer-checks')).toContainText('Сечение ригеля');
 });
+
+test('designer: outdoors no part is used less than indoors', async ({ page }) => {
+  // two standards 2 m apart, UH 200 at both levels decked 3 m wide, class 3, no anchors
+  const design = {
+    name: '',
+    parts: [
+      { id: 'D1', article: '100411', x: 0, z: 0, ext: 0.2 },
+      { id: 'D2', article: '100014', x: 0, z: 0.2 },
+      { id: 'D3', article: '100009', x: 0, z: 0.44 },
+      { id: 'D4', article: '100411', x: 2, z: 0, ext: 0.2 },
+      { id: 'D5', article: '100014', x: 2, z: 0.2 },
+      { id: 'D6', article: '100009', x: 2, z: 0.44 },
+      { id: 'D7', article: '114645', x: 0, z: 0.32, deck: { width: 3, work: false, cls: 3 } },
+      { id: 'D8', article: '114645', x: 0, z: 2.32, deck: { width: 3, work: true, cls: 3 } },
+    ],
+    anchors: [],
+    settings: { loadClass: 3, g: 300, field: 2.5, outdoor: false, qMax: 0 },
+  };
+  await page.addInitScript((d) => localStorage.setItem('balken.designer', d), JSON.stringify(design));
+  await page.goto('/');
+  await page.getByTestId('mode-designer').click();
+  const rows = async () => {
+    const out = new Map<string, { eta: number; combo: string }>();
+    const list = page.getByTestId('designer-check-row');
+    for (let i = 0, n = await list.count(); i < n; i++) {
+      const r = list.nth(i);
+      const key = `${await r.getAttribute('data-part')} ${await r.getAttribute('data-check')}`;
+      const eta = Number(await r.getAttribute('data-eta'));
+      if (eta > (out.get(key)?.eta ?? -1)) out.set(key, { eta, combo: (await r.locator('td').nth(2).textContent()) ?? '' });
+    }
+    return out;
+  };
+  const verdict = page.getByTestId('scaffold-verdict');
+  await page.getByTestId('designer-run').click();
+  await expect(page.getByTestId('designer-check-row').first()).toBeAttached({ timeout: 30_000 });
+  await expect(verdict).toHaveAttribute('data-stale', '0');
+  const indoor = await rows();
+  expect(indoor.size).toBeGreaterThan(8);
+  expect([...indoor.values()].every((r) => r.combo.startsWith('A '))).toBe(true);
+
+  // the same section outdoors: the working wind, and the day without wind as the combinations A0
+  await page.getByTestId('designer-exposure').selectOption('out');
+  await expect(verdict).toHaveAttribute('data-stale', '1');
+  await page.getByTestId('designer-run').click();
+  await expect(verdict).toHaveAttribute('data-stale', '0', { timeout: 30_000 });
+  const outdoor = await rows();
+  for (const [key, r] of indoor) expect(outdoor.get(key)?.eta ?? 0, key).toBeGreaterThanOrEqual(r.eta - 1e-4);
+  await page.getByTestId('designer-checks').locator('summary').click();
+  await expect(page.getByTestId('designer-combo-legend')).toContainText('A0');
+
+  // and with the maximum wind no less again
+  await page.getByTestId('designer-qmax').fill('1');
+  await page.getByTestId('designer-qmax').blur();
+  await expect(verdict).toHaveAttribute('data-stale', '1');
+  await page.getByTestId('designer-run').click();
+  await expect(verdict).toHaveAttribute('data-stale', '0', { timeout: 30_000 });
+  const storm = await rows();
+  for (const [key, r] of outdoor) expect(storm.get(key)?.eta ?? 0, key).toBeGreaterThanOrEqual(r.eta - 1e-4);
+  expect([...storm.values()].some((r) => r.combo.startsWith('R '))).toBe(true);
+});

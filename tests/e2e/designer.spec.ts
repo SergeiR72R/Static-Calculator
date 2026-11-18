@@ -173,6 +173,22 @@ test('designer: the example section works and every setting explains itself', as
   await expect(page.getByTestId('scaffold-verdict')).not.toContainText('устарели', { timeout: 30_000 });
   await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', /^(ok|check|fail)$/);
   await expect(page.locator('[data-testid^="designer-point-node-"]').first()).toBeVisible();
+  // reactions under the supports (the base jacks) and the forces of the anchors
+  await expect(page.getByTestId('designer-reaction-D1')).toContainText('V =');
+  await expect(page.getByTestId('designer-reaction-D1')).toContainText('H =');
+  await expect(page.getByTestId('designer-anchor-force-A1')).toContainText('kN');
+  // nodes and joints: all, from a threshold, none (settings)
+  const all = await page.locator('[data-testid^="designer-point-"]').count();
+  await page.getByTestId('designer-view-toggle').click();
+  await page.getByTestId('designer-view-points').selectOption('threshold');
+  await page.getByTestId('designer-view-threshold').fill('60');
+  await expect.poll(async () => page.locator('[data-testid^="designer-point-"]').count()).toBeLessThan(all);
+  await page.getByTestId('designer-view-points').selectOption('none');
+  await expect(page.locator('[data-testid^="designer-point-"]')).toHaveCount(0);
+  await page.getByTestId('designer-view-reactions').uncheck();
+  await expect(page.getByTestId('designer-reaction-D1')).toHaveCount(0);
+  await page.getByTestId('designer-view-points').selectOption('all');
+  await page.getByTestId('designer-view-reactions').check();
   await page.getByTestId('help-designer-field').click();
   await expect(page.getByTestId('help-text-designer-field')).toContainText('Что меняет');
   await page.keyboard.press('Escape');

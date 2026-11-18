@@ -11,6 +11,18 @@ import { DEFAULT_SETTINGS, emptyDesign, type Design, type DesignAnchor, type Des
 
 const KEY = 'balken.designer';
 const FAM_KEY = 'balken.designer.families';
+const VIEW_KEY = 'balken.designer.view';
+
+/** what the drawing shows of the result */
+export interface DesignView {
+  /** nodes of the rosettes and joints of the standards: all, from a utilisation on, none */
+  points: 'all' | 'threshold' | 'none';
+  /** utilisation from which they are shown (points 'threshold'), 0…1 */
+  threshold: number;
+  /** reactions of the supports and forces of the anchors */
+  reactions: boolean;
+}
+export const DEFAULT_VIEW: DesignView = { points: 'all', threshold: 0.5, reactions: true };
 const UNDO = 100;
 
 export interface DesignRun {
@@ -33,6 +45,8 @@ interface DesignerState {
   /** series of parts shown in the catalogue (FAMILIES) */
   families: string[];
   setFamilies: (f: string[]) => void;
+  view: DesignView;
+  setView: (v: Partial<DesignView>) => void;
   /** change the section (one step of the undo history) */
   edit: (f: (d: Design) => Design) => void;
   addPart: (p: Omit<Placed, 'id'>) => string;
@@ -58,6 +72,16 @@ function loadDesign(): Design {
     /* ignore */
   }
   return emptyDesign();
+}
+
+function loadView(): DesignView {
+  try {
+    const v = JSON.parse(storage.get(VIEW_KEY) ?? 'null') as Partial<DesignView> | null;
+    if (v && typeof v === 'object') return { ...DEFAULT_VIEW, ...v };
+  } catch {
+    /* ignore */
+  }
+  return { ...DEFAULT_VIEW };
 }
 
 function loadFamilies(): string[] {
@@ -118,6 +142,12 @@ export const useDesigner = create<DesignerState>()((set, get) => ({
       return { ...d, parts: [...d.parts, ...parts], anchors: [...d.anchors, ...anchors] };
     });
     return [...map.values()];
+  },
+  view: loadView(),
+  setView: (v) => {
+    const view = { ...get().view, ...v };
+    storage.set(VIEW_KEY, JSON.stringify(view));
+    set({ view });
   },
   families: loadFamilies(),
   setFamilies: (families) => {

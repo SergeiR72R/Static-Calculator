@@ -12,7 +12,7 @@ export type Tool = { kind: 'select' } | { kind: 'part'; article: string } | { ki
 const angleTo = (p: { x: number; z: number }, x: number) => (x < p.x ? 180 : 0);
 
 /** anchor: a tie from the standard in its direction to the building (hatched) */
-function AnchorMark({ id, x, y, angle, on, ghost }: { id: string; x: number; y: number; angle: number; on?: boolean; ghost?: boolean }) {
+function AnchorMark({ id, x, y, angle, on, ghost, force }: { id: string; x: number; y: number; angle: number; on?: boolean; ghost?: boolean; force?: string }) {
   const r = (angle * Math.PI) / 180;
   const ux = Math.cos(r);
   const uy = -Math.sin(r);
@@ -37,6 +37,11 @@ function AnchorMark({ id, x, y, angle, on, ghost }: { id: string; x: number; y: 
           {id}
         </text>
       )}
+      {force && (
+        <text x={ex + ux * 12} y={ey + uy * 12 + 15} textAnchor={ux < -0.3 ? 'end' : ux > 0.3 ? 'start' : 'middle'} className="text-[10px]" fill={color} data-testid={`designer-anchor-force-${id}`}>
+          {force}
+        </text>
+      )}
     </g>
   );
 }
@@ -50,7 +55,8 @@ interface View {
   s: number;
 }
 
-function fit(d: Design, w: number, h: number): View {
+/** the whole section in view; `bottom`: pixels kept free under the ground (reactions, the hint) */
+function fit(d: Design, w: number, h: number, bottom = 0): View {
   const pts = d.parts.flatMap((p) => {
     const e = ends(p);
     return [
@@ -63,9 +69,14 @@ function fit(d: Design, w: number, h: number): View {
   const zs = [...pts.map((p) => p[1]), 0];
   const x0 = Math.min(...xs) - 1;
   const x1 = Math.max(...xs) + 1;
-  const z0 = Math.min(...zs) - 0.4;
   const z1 = Math.max(...zs) + 0.8;
-  return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: Math.min(w / (x1 - x0), h / (z1 - z0), 400) };
+  let z0 = Math.min(...zs) - 0.4;
+  let sc = Math.min(w / (x1 - x0), h / (z1 - z0), 400);
+  if (bottom > 0) {
+    z0 = Math.min(...zs) - Math.max(0.4, (bottom + 30) / sc);
+    sc = Math.min(w / (x1 - x0), h / (z1 - z0), 400);
+  }
+  return { cx: (x0 + x1) / 2, cz: (z0 + z1) / 2, s: sc };
 }
 
 /**
@@ -80,6 +91,8 @@ export function DesignCanvas({
   setSelected,
   eta,
   points = [],
+  reactions = [],
+  anchorForces,
 }: {
   tool: Tool;
   setTool: (t: Tool) => void;
@@ -88,6 +101,10 @@ export function DesignCanvas({
   eta: Map<string, number> | null;
   /** checks at a point: nodes of the rosettes and joints of the standards */
   points?: { x: number; z: number; eta: number; check: string; part: string; node: number }[];
+  /** reactions of the supports (largest V, smallest V, largest H), N, at the base of a part */
+  reactions?: { part: string; Vmax: number; Vmin: number; H: number; lifted?: boolean }[];
+  /** largest force of each anchor, N */
+  anchorForces?: Map<string, number>;
 }) {
   const fmt = useFmt();
   const dz = useDesigner();
@@ -111,7 +128,7 @@ export function DesignCanvas({
     setSize({ w: el.clientWidth, h: el.clientHeight });
     return () => ro.disconnect();
   }, []);
-  const v = view ?? fit(d, size.w, size.h);
+  const v = view ?? fit(d, size.w, size.h, reactions.length ? 70 : 0);
   const X = (x: number) => size.w / 2 + (x - v.cx) * v.s;
   const Y = (z: number) => size.h / 2 - (z - v.cz) * v.s;
   const toWorld = (px: number, py: number) => ({ x: v.cx + (px - size.w / 2) / v.s, z: v.cz - (py - size.h / 2) / v.s });
@@ -394,11 +411,36 @@ export function DesignCanvas({
         {supports.map((s, k) => (
           <path key={`s${k}`} d={`M ${X(s.x)} ${Y(s.z)} l -7 11 h 14 z`} fill="none" stroke="#475569" strokeWidth={1.5} />
         ))}
+        {/* reactions of the supports: largest V (uplift if any), largest H */}
+        {reactions.map((r) => {
+          const p = d.parts.find((q) => q.id === r.part);
+          if (!p) return null;
+          const x = X(p.x);
+          const y = Y(p.z) + 22;
+          return (
+            <g key={`re${r.part}`} data-testid={`designer-reaction-${r.part}`}>
+              <line x1={x} y1={y + 26} x2={x} y2={y + 4} stroke="#0f766e" strokeWidth={2} />
+              <path d={`M ${x - 4} ${y + 10} L ${x} ${y + 3} L ${x + 4} ${y + 10}`} fill="none" stroke="#0f766e" strokeWidth={2} />
+              <text x={x + 7} y={y + 12} className="text-[10px] font-semibold" fill="#0f766e">
+                V = {fmt.q(r.Vmax, 'force', 1)}
+              </text>
+              <text x={x + 7} y={y + 24} className="text-[10px]" fill="#0f766e">
+                H = {fmt.q(r.H, 'force', 1)}
+              </text>
+              {(r.lifted || r.Vmin < -1) && (
+                <text x={x + 7} y={y + 36} className="text-[10px] font-semibold" fill="#b45309">
+                  {r.Vmin < -1 ? `V_min = ${fmt.q(r.Vmin, 'force', 1)}` : fmt.t('designer.lifted')}
+                </text>
+              )}
+            </g>
+          );
+        })}
         {/* anchors: from the standard towards the building, in their direction */}
         {d.anchors.map((a) => {
           const s = stds.find((q) => q.part.id === a.part);
           if (!s) return null;
-          return <AnchorMark key={a.id} id={a.id} x={X(s.x)} y={Y(a.z)} angle={anchorAngle(d, a)} on={selected.includes(a.id) || selected.includes(a.part)} />;
+          const F = anchorForces?.get(a.id);
+          return <AnchorMark key={a.id} id={a.id} x={X(s.x)} y={Y(a.z)} angle={anchorAngle(d, a)} on={selected.includes(a.id) || selected.includes(a.part)} force={F !== undefined ? fmt.q(F, 'force', 1) : undefined} />;
         })}
         {tool.kind === 'anchor' && anchorStart && ptr && <AnchorMark id="" x={X(anchorStart.x)} y={Y(anchorStart.z)} angle={angleTo(anchorStart, ptr.x)} ghost />}
         {/* the copied parts at the place of the pointer */}

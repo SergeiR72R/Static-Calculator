@@ -1474,6 +1474,16 @@
         "what": "On which side of the standard the wall (building) is that the anchor is fixed to.",
         "why": "In the drawing the anchor goes to the wall; it shows which standards stand at the facade and where they are tied.",
         "effect": "The anchor holds the standard horizontally (X) both ways – tension and compression; the side of the wall decides how it is drawn and where its force points in the report."
+      },
+      "viewPoints": {
+        "what": "Which checks of the nodes (standard + ledgers at the rosette) and of the joints of the standards are shown on the drawing as circles with percent.",
+        "why": "There are many nodes – the threshold leaves only the loaded ones.",
+        "effect": "“All” – every node and joint; “from a utilisation” – only from the value entered; “none” – no circles. No effect on the analysis."
+      },
+      "viewReactions": {
+        "what": "Reactions of the supports (under the base plates of the jacks) and forces of the anchors on the drawing after the analysis.",
+        "why": "To see the load on the ground and on the fixings to the building.",
+        "effect": "V – largest vertical reaction (and V_min when lifting off), H – largest horizontal, over all combinations; at an anchor its largest force. No effect on the analysis."
       }
     }
   },
@@ -1570,6 +1580,16 @@
     "pointJoint": "joint",
     "pointsLegend": "Circles – checks of the nodes (standard + ledgers at the rosette) and the joints of the standards, at their place.",
     "copy": "Copy",
-    "paste": "Paste ({n})"
+    "paste": "Paste ({n})",
+    "view": {
+      "title": "Display of the result",
+      "points": "Nodes and joints on the drawing",
+      "all": "all",
+      "threshold": "from a utilisation",
+      "none": "none",
+      "from": "Show from, %",
+      "reactions": "Reactions of the supports and forces of the anchors"
+    },
+    "lifted": "lifted"
   }
 }

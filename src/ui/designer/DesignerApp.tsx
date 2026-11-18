@@ -225,6 +225,35 @@ function Properties({ selected, setSelected }: { selected: string[]; setSelected
   );
 }
 
+/** what the drawing shows of the result: nodes and joints, reactions */
+function ViewCard() {
+  const fmt = useFmt();
+  const view = useDesigner((s) => s.view);
+  const setView = useDesigner((s) => s.setView);
+  return (
+    <FoldCard title={fmt.t('designer.view.title')} testId="designer-view" state={<FoldState items={view.points === 'threshold' ? [`≥ ${Math.round(view.threshold * 100)} %`] : view.points === 'none' ? ['–'] : []} />}>
+      <div className="grid grid-cols-1 gap-2">
+        <SelectField
+          label={fmt.t('designer.view.points')}
+          help="designer.viewPoints"
+          value={view.points}
+          testId="designer-view-points"
+          options={[
+            { value: 'all', label: fmt.t('designer.view.all') },
+            { value: 'threshold', label: fmt.t('designer.view.threshold') },
+            { value: 'none', label: fmt.t('designer.view.none') },
+          ]}
+          onChange={(v) => setView({ points: v })}
+        />
+        {view.points === 'threshold' && (
+          <NumberField label={fmt.t('designer.view.from')} value={view.threshold * 100} onChange={(v) => setView({ threshold: Math.min(Math.max(v, 0), 500) / 100 })} testId="designer-view-threshold" />
+        )}
+        <CheckField className="text-xs" checked={view.reactions} onChange={(v) => setView({ reactions: v })} label={fmt.t('designer.view.reactions')} help="designer.viewReactions" testId="designer-view-reactions" />
+      </div>
+    </FoldCard>
+  );
+}
+
 /** which series of parts the catalogue shows (first generation by default) */
 function FamiliesCard() {
   const fmt = useFmt();
@@ -306,10 +335,17 @@ export default function DesignerApp() {
     }
     return m;
   }, [fresh]);
+  const view = dz.view;
+  // nodes and joints as chosen in the settings: all, from a utilisation on, none
   const points = useMemo(
-    () => (fresh ? (fresh.result.points ?? []).map((c) => ({ x: c.at[0], z: c.at[2], eta: c.eta, check: c.check, part: c.part, node: c.node })) : []),
-    [fresh],
+    () =>
+      fresh && view.points !== 'none'
+        ? (fresh.result.points ?? []).filter((c) => view.points === 'all' || c.eta >= view.threshold).map((c) => ({ x: c.at[0], z: c.at[2], eta: c.eta, check: c.check, part: c.part, node: c.node }))
+        : [],
+    [fresh, view.points, view.threshold],
   );
+  const reactions = fresh && view.reactions ? fresh.result.bases : [];
+  const anchorForces = useMemo(() => (fresh && view.reactions ? new Map(fresh.result.fixings.map((f) => [f.id, f.F])) : undefined), [fresh, view.reactions]);
   const assessment = useMemo(() => {
     const zs = d.parts.flatMap((p) => [p.z, p.z2 ?? p.z]);
     const xs = standards(d).map((s) => s.x);
@@ -403,7 +439,7 @@ export default function DesignerApp() {
           }
         >
           <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('designer.intro')}</p>
-          <DesignCanvas tool={tool} setTool={setTool} selected={selected} setSelected={setSelected} eta={eta} points={points} />
+          <DesignCanvas tool={tool} setTool={setTool} selected={selected} setSelected={setSelected} eta={eta} points={points} reactions={reactions} anchorForces={anchorForces} />
           {eta && (
             <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
               {fmt.t('designer.etaLegend')}
@@ -497,6 +533,7 @@ export default function DesignerApp() {
           </div>
           <p className="mt-2 text-[11px] text-slate-500">{fmt.t('designer.assumptions')}</p>
         </Card>
+        <ViewCard />
         <FamiliesCard />
         <FoldCard title={fmt.t('designer.bom')} testId="designer-bom" state={<FoldState items={bom.length ? [`${fmt.num(kg, 0)} kg`] : []} />}>
           {bom.length > 0 && (

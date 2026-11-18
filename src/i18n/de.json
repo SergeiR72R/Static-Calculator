@@ -1474,6 +1474,16 @@
         "what": "Auf welcher Seite des Stiels die Wand (das Bauwerk) ist, an der der Anker befestigt wird.",
         "why": "In der Zeichnung geht der Anker zur Wand; so ist zu sehen, welche Stiele an der Fassade stehen und wo befestigt ist.",
         "effect": "Der Anker hält den Stiel horizontal (X) in beide Richtungen – Zug und Druck; die Seite der Wand bestimmt, wie er gezeichnet ist und wohin seine Kraft im Bericht zeigt."
+      },
+      "viewPoints": {
+        "what": "Welche Nachweise der Knoten (Stiel + Riegel an der Rosette) und der Stielstöße als Kreise mit Prozent in der Zeichnung erscheinen.",
+        "why": "Alle Knoten sind viele – die Schwelle lässt nur die belasteten stehen.",
+        "effect": "„Alle“ – jeder Knoten und Stoß; „ab einer Ausnutzung“ – nur ab dem eingegebenen Wert; „nicht zeigen“ – ohne Kreise. Ohne Einfluss auf die Berechnung."
+      },
+      "viewReactions": {
+        "what": "Auflagerkräfte (unter den Spindelplatten) und Ankerkräfte in der Zeichnung nach der Berechnung.",
+        "why": "Um die Last auf den Untergrund und auf die Befestigungen am Bauwerk zu sehen.",
+        "effect": "V – größte vertikale Auflagerkraft (und V_min beim Abheben), H – größte horizontale, über alle Kombinationen; beim Anker die größte Kraft. Ohne Einfluss auf die Berechnung."
       }
     }
   },
@@ -1570,6 +1580,16 @@
     "pointJoint": "Stoß",
     "pointsLegend": "Kreise – Nachweise der Knoten (Stiel + Riegel an der Rosette) und der Stielstöße, am Ort des Knotens.",
     "copy": "Kopieren",
-    "paste": "Einfügen ({n})"
+    "paste": "Einfügen ({n})",
+    "view": {
+      "title": "Anzeige des Ergebnisses",
+      "points": "Knoten und Stöße in der Zeichnung",
+      "all": "alle",
+      "threshold": "ab einer Ausnutzung",
+      "none": "nicht zeigen",
+      "from": "Zeigen ab, %",
+      "reactions": "Auflagerkräfte und Ankerkräfte"
+    },
+    "lifted": "abgehoben"
   }
 }

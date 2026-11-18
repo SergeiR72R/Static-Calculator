@@ -93,6 +93,16 @@ export interface PartCheck {
   at?: V3;
 }
 
+/** a check at a point: node of a rosette (standard + ledgers) or joint of two standards */
+export interface PointCheck {
+  check: 'node' | 'joint';
+  part: string;
+  node: number;
+  at: V3;
+  eta: number;
+  combo: string;
+}
+
 export interface ComboResult {
   name: string;
   ok: boolean;
@@ -174,6 +184,9 @@ export interface ScaffoldResult {
   anchors: ForceResult[];
   /** fixings to the building set by the user: largest force (resultant) and its components, design values */
   fixings: FixingResult[];
+  /** every node of the rosettes and every joint of the standards with its largest utilisation (the
+   * checks keep only the governing one of each part) */
+  points?: PointCheck[];
   /** assumed supports of beams: vertical force, N */
   beamSupports: { part: string; node: number; V: number }[];
   /** beams SRU / RCS: what stands on them and their supports (design values, envelope) */
@@ -745,6 +758,13 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
   const anchorRes = new Map<string, ForceResult>();
   const beamSup = new Map<number, { part: string; node: number; V: number }>();
   const fixRes = new Map<string, FixingResult>();
+  const pointRes = new Map<string, PointCheck>();
+  const putPoint = (p: PointCheck) => {
+    if (!Number.isFinite(p.eta)) p.eta = 99;
+    const key = `${p.check}|${p.node}`;
+    const o = pointRes.get(key);
+    if (!o || p.eta > o.eta) pointRes.set(key, p);
+  };
   const out: ComboResult[] = [];
 
   // lateral restraint of the standards: nodes with a ledger, diagonal, anchor or support
@@ -963,7 +983,10 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
           if (m.joint) {
             const sf = sectionForces(mr, 0);
             const M = Math.hypot(sf.My, sf.Mz);
-            put({ part: m.part, check: 'joint', eta: Math.max(M / JOINT.MRd, Math.max(-sf.N, 0) / JOINT.NRd), combo: cb.name, N: sf.N, M, at: frame.nodes[frame.members[k].i] });
+            const eta = Math.max(M / JOINT.MRd, Math.max(-sf.N, 0) / JOINT.NRd);
+            const nj = frame.members[k].i;
+            put({ part: m.part, check: 'joint', eta, combo: cb.name, N: sf.N, M, at: frame.nodes[nj] });
+            putPoint({ check: 'joint', part: m.part, node: nj, at: frame.nodes[nj], eta, combo: cb.name });
           }
         }
       } else if (m.kind === 'ledger') {
@@ -1051,6 +1074,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         worst = Math.max(worst, My >= 0 ? (R.alphaPos * My) / R.MyPos : (R.alphaNeg * -My) / R.MyNeg);
       }
       put({ part, check: 'node', eta: worst + IS, combo: cb.name, detail: `α·I_A = ${worst.toFixed(2)}, I_S = ${IS.toFixed(2)}`, at: frame.nodes[n] });
+      putPoint({ check: 'node', part, node: n, at: frame.nodes[n], eta: worst + IS, combo: cb.name });
     }
 
     // beams: vertical force of every node on the beam members there
@@ -1137,6 +1161,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       bases: [...baseRes.values()],
       anchors: [...anchorRes.values()],
       fixings: [...fixRes.values()],
+      points: [...pointRes.values()],
       beamSupports: [...beamSup.values()],
       beams: beamRes,
       level,
@@ -1187,12 +1212,18 @@ export function mergeResults(parts: ScaffoldResult[], order: string[]): Scaffold
   const bases = new Map<number, BaseResult>();
   const anchors = new Map<string, ForceResult>();
   const fixings = new Map<string, FixingResult>();
+  const points = new Map<string, PointCheck>();
   const beamSup = new Map<number, { part: string; node: number; V: number }>();
   const beams: BeamResult[] = first.beams.map((b) => ({ ...b, points: b.points.map((p) => ({ ...p, F: -Infinity })) }));
   const unstable = new Set<string>();
   let factorisations = 0;
   const pcg: [number, number] = [0, 0];
   for (const r of parts) {
+    for (const p of r.points ?? []) {
+      const key = `${p.check}|${p.node}`;
+      const o = points.get(key);
+      if (!o || p.eta > o.eta) points.set(key, p);
+    }
     for (const c of r.checks) {
       const key = `${c.part}|${c.check}`;
       const o = best.get(key);
@@ -1249,6 +1280,7 @@ export function mergeResults(parts: ScaffoldResult[], order: string[]): Scaffold
     bases: [...bases.values()],
     anchors: [...anchors.values()],
     fixings: [...fixings.values()],
+    points: [...points.values()],
     beamSupports: [...beamSup.values()],
     beams,
     unstable: [...unstable],

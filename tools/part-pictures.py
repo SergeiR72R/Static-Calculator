@@ -2,13 +2,20 @@ import sys, os
 import numpy as np
 from collections import deque
 from PIL import Image, ImageDraw, ImageFilter
+"""
+Pictures of the parts for the designer: the drawing of a part cut out of a screenshot of the PERI
+catalogue (frames and bars removed), enlarged 4×, firm dark lines on a transparent ground.
+Usage: part-pictures.py <screenshots dir> <out dir> <check sheet.png> [<json {file key: name}>]
+(file key: the end of the file name before ".png").
+"""
+import json
 src, out, chk = sys.argv[1:4]
-names = {'144014':'uvr150','144018':'uvr100','144021':'uvr50','144025':'uvr200','144030':'uvr300','144034':'uvh50','144037':'uvh100','144044':'uvh150','144047':'uvh200','144051':'uvh250','144102':'ubk','144114':'uh','144123':'uhv','144141':'ujb','144213':'ucm'}
+names = json.loads(sys.argv[4]) if len(sys.argv) > 4 else {'144014':'uvr150','144018':'uvr100','144021':'uvr50','144025':'uvr200','144030':'uvr300','144034':'uvh50','144037':'uvh100','144044':'uvh150','144047':'uvh200','144051':'uvh250','144102':'ubk','144114':'uh','144123':'uhv','144141':'ujb','144213':'ucm'}
 SCALE=4
 res=[]
 for f in sorted(os.listdir(src)):
-    key=f[-10:-4]
-    if key not in names: continue
+    key=next((k for k in names if f[:-4].endswith(k)), None)
+    if key is None or not f.endswith('.png'): continue
     a=np.asarray(Image.open(os.path.join(src,f)).convert('RGB')).astype(int)
     h,w,_=a.shape
     r,g,b=a[...,0],a[...,1],a[...,2]
@@ -50,7 +57,8 @@ for f in sorted(os.listdir(src)):
     big=Image.fromarray((arr*255).astype('uint8'),'L').filter(ImageFilter.UnsharpMask(radius=1.2,percent=80,threshold=2))
     alpha=Image.fromarray((255-np.asarray(big)).astype('uint8'),'L')
     # thicker, firmer lines: they stay visible when the picture is shown small
-    alpha=alpha.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(0.6))
+    # (inclined lines thicken into steps: less for the diagonals)
+    alpha=alpha.filter(ImageFilter.MaxFilter(3 if names[key] in ('ubk', 'ubl') else 5)).filter(ImageFilter.GaussianBlur(1.0 if names[key] in ('ubk', 'ubl') else 0.6))
     alpha=Image.fromarray(np.clip(np.asarray(alpha).astype(float)*1.35,0,255).astype('uint8'),'L')
     rgba=Image.new('RGBA',big.size,(30,41,59,0)); rgba.putalpha(alpha)
     p=os.path.join(out,names[key]+'.png'); rgba.save(p,optimize=True)

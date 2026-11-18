@@ -307,7 +307,7 @@ export default function DesignerApp() {
     return m;
   }, [fresh]);
   const points = useMemo(
-    () => (fresh ? fresh.result.checks.filter((c) => (c.check === 'node' || c.check === 'joint') && c.at).map((c) => ({ x: c.at![0], z: c.at![2], eta: c.eta, check: c.check, part: c.part })) : []),
+    () => (fresh ? (fresh.result.points ?? []).map((c) => ({ x: c.at[0], z: c.at[2], eta: c.eta, check: c.check, part: c.part, node: c.node })) : []),
     [fresh],
   );
   const assessment = useMemo(() => {

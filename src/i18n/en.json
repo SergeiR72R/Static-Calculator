@@ -1536,7 +1536,8 @@
       "bracket": "Brackets",
       "diagonal": "Diagonals",
       "tube": "Tubes and couplers",
-      "spigot": "Spigots on a ledger"
+      "spigot": "Spigots on a ledger",
+      "ubl": "Ledger diagonals (UBL)"
     },
     "hint": {
       "part": "Click – place the part where shown. Esc – leave the tool.",

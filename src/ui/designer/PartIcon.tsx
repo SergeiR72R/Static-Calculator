@@ -11,6 +11,7 @@ export const DESIGN_COLOR: Record<DesignKind, string> = {
   ledger: KIND_COLOR.ledger,
   bracket: KIND_COLOR.bracket,
   diagonal: KIND_COLOR.diagonal,
+  ubl: '#9333ea',
   tube: KIND_COLOR.tube,
   spigot: '#0891b2',
 };

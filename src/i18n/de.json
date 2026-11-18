@@ -1536,7 +1536,8 @@
       "bracket": "Konsolen",
       "diagonal": "Diagonalen",
       "tube": "Rohre und Kupplungen",
-      "spigot": "Zapfen auf Riegel"
+      "spigot": "Zapfen auf Riegel",
+      "ubl": "Riegeldiagonalen (UBL)"
     },
     "hint": {
       "part": "Klick – Teil an der gezeigten Stelle setzen. Esc – Werkzeug verlassen.",

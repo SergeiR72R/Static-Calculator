@@ -87,7 +87,7 @@ export function DesignCanvas({
   setSelected: (ids: string[]) => void;
   eta: Map<string, number> | null;
   /** checks at a point: nodes of the rosettes and joints of the standards */
-  points?: { x: number; z: number; eta: number; check: string; part: string }[];
+  points?: { x: number; z: number; eta: number; check: string; part: string; node: number }[];
 }) {
   const fmt = useFmt();
   const dz = useDesigner();
@@ -380,13 +380,11 @@ export function DesignCanvas({
             );
           })}
         {/* nodes of the rosettes and joints of the standards, by their utilisation */}
-        {points
-          .filter((q) => q.eta >= 0.25)
-          .map((q, k) => (
-            <g key={`pt${k}`} data-testid={`designer-point-${q.check}-${q.part}`}>
-              <circle cx={X(q.x)} cy={Y(q.z)} r={q.check === 'joint' ? 5 : 7} fill="none" stroke={etaColor(q.eta)} strokeWidth={2.5} />
-              {v.s > 50 && q.eta >= 0.5 && (
-                <text x={X(q.x) + (q.check === 'joint' ? 9 : -9)} y={Y(q.z) + (q.check === 'joint' ? -6 : 3)} textAnchor={q.check === 'joint' ? 'start' : 'end'} className="text-[10px] font-semibold" fill={etaColor(q.eta)}>
+        {points.map((q, k) => (
+            <g key={`pt${k}`} data-testid={`designer-point-${q.check}-${q.node}`} data-part={q.part}>
+              <circle cx={X(q.x)} cy={Y(q.z)} r={q.check === 'joint' ? 5 : 7} fill="none" stroke={etaColor(q.eta)} strokeWidth={q.eta >= 0.25 ? 2.5 : 1.5} />
+              {v.s > 50 && (
+                <text x={X(q.x) + (q.check === 'joint' ? 9 : -9)} y={Y(q.z) + (q.check === 'joint' ? -6 : 3)} textAnchor={q.check === 'joint' ? 'start' : 'end'} className={q.eta >= 0.5 ? 'text-[10px] font-semibold' : 'text-[9px]'} fill={etaColor(q.eta)}>
                   {fmt.t(q.check === 'joint' ? 'designer.pointJoint' : 'designer.pointNode')} {Math.round(q.eta * 100)} %
                 </text>
               )}

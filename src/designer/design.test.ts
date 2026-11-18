@@ -199,6 +199,60 @@ describe('designer: section of a PERI UP scaffold', () => {
     expect(Math.max(d1, d2)).toBeLessThan(single * 0.8);
   });
 
+  it('UVB 49: the standard on it at 0.49 m, its upper rosette on the grid of the standard', () => {
+    const d = emptyDesign();
+    place(d, 'UJB 38-50/30', 0, 0);
+    const b = place(d, 'UVB 49', 0, 0.4);
+    expect(b.z).toBeCloseTo(0.2, 3);
+    const u = place(d, 'UVR 200', 0, 1.6);
+    expect(u.z).toBeCloseTo(0.69, 3);
+    const ros = rosettes(d).map((r) => r.z);
+    expect(ros).toEqual(expect.arrayContaining([0.32, 0.57, 1.07, 1.57]));
+    // a free standard beside it on the grid of its upper rosette (0.57 + k · 0.5)
+    const f = place(d, 'UVR 100', 1, 1.2);
+    const k = (f.z + 0.38 - 0.57) / 0.5;
+    expect(Math.abs(k - Math.round(k))).toBeLessThan(1e-6);
+  });
+
+  it('UBL: a ledger diagonal sits on two ledgers of a bay and is held by them in the analysis', () => {
+    const d = emptyDesign();
+    d.settings.outdoor = false;
+    for (const x of [0, 2]) {
+      place(d, 'UJB 38-50/30', x, 0);
+      place(d, 'UVB 24', x, 0.3);
+      place(d, 'UVR 200', x, 1.4);
+    }
+    // no ledgers yet: nowhere to go
+    expect(snap(d, art('UBL 200/200'), 1, 1.3)).toBeNull();
+    place(d, 'UH 200 Plus', 1, 0.32);
+    const top = place(d, 'UH 200 Plus', 1, 2.32);
+    top.deck!.work = true;
+    const ubl = place(d, 'UBL 200/200', 1.2, 1.4);
+    expect(ubl).toMatchObject({ x: 0, z: 0.32, dir: 1 });
+    expect(designIssues(d).map((i) => i.key)).not.toContain('noBracing');
+    const { doc, loads, fixings } = designDoc(d);
+    const m = buildScaffoldModel(analyzeScaffold(doc), loads, [], { fixings, plane: true });
+    expect(m.notes.filter((x) => x.key === 'ublNoLedger')).toEqual([]);
+    expect(m.members.filter((x) => x.part === ubl.id).map((x) => x.kind)).toEqual(['ubl']);
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, qWork: 0, qMax: 0, dirs: ['x'] });
+    expect(r.combos.every((c) => c.ok)).toBe(true);
+    expect(Math.max(...r.checks.filter((c) => c.part === ubl.id).map((c) => c.eta))).toBeGreaterThan(0.01);
+  });
+
+  it('UBL is not used for a bracket built from a diagonal', () => {
+    const d = emptyDesign();
+    for (const x of [0, 0.75]) {
+      place(d, 'UJB 38-50/30', x, 0);
+      place(d, 'UVB 24', x, 0.3);
+      place(d, 'UVR 200', x, 1.4);
+    }
+    place(d, 'UVR 100', -1.2, 2.4);
+    place(d, 'UBK 125/100', -0.6, 1.8);
+    place(d, 'UH 125 Plus', -0.6, 2.32);
+    // a lower ledger of the same bay would make it a bay, but the post hangs: no UBL there
+    expect(snap(d, art('UBL 150/100'), -0.6, 1.8)).toBeNull();
+  });
+
   it('parts list of the section', () => {
     const bom = designBom(facade());
     expect(bom.find((r) => r.article === '100009')).toMatchObject({ count: 4, kg: 10 });

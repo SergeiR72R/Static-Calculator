@@ -20,6 +20,9 @@ import uhv from './pictures/uhv.png?inline';
 import ujb from './pictures/ujb.png?inline';
 import ucm from './pictures/ucm.png?inline';
 import ucb from './pictures/ucb.png?inline';
+import ubl from './pictures/ubl.png?inline';
+import uvb24 from './pictures/uvb24.png?inline';
+import uvb49 from './pictures/uvb49.png?inline';
 
 const UVR: [number, string][] = [
   [0.5, uvr50],
@@ -44,8 +47,12 @@ export function partPicture(p: CatalogPart): string | undefined {
   switch (p.kind) {
     case 'standard':
       return nearest(p.spigot ? UVR : UVH, p.L);
+    case 'base':
+      return p.L > 0.4 ? uvb49 : uvb24;
     case 'jack':
       return ujb;
+    case 'ubl':
+      return ubl;
     case 'ledger':
       return /UHV/.test(p.name) ? uhv : uh;
     case 'diagonal':

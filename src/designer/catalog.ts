@@ -8,9 +8,9 @@
 import type { PartGeom, V3 } from '../scaffold/pericad';
 import { findPart } from '../scaffold/weights';
 
-export type DesignKind = 'jack' | 'base' | 'standard' | 'ledger' | 'bracket' | 'diagonal' | 'tube' | 'spigot';
+export type DesignKind = 'jack' | 'base' | 'standard' | 'ledger' | 'bracket' | 'diagonal' | 'ubl' | 'tube' | 'spigot';
 
-export const DESIGN_KINDS: DesignKind[] = ['standard', 'base', 'jack', 'ledger', 'bracket', 'diagonal', 'tube', 'spigot'];
+export const DESIGN_KINDS: DesignKind[] = ['standard', 'base', 'jack', 'ledger', 'bracket', 'diagonal', 'ubl', 'tube', 'spigot'];
 
 export interface CatalogPart {
   /** article number of PERI */
@@ -36,6 +36,8 @@ export interface CatalogPart {
   bracketSpigot?: boolean;
   /** series (FAMILIES), e.g. "UVR", "UH-2" */
   family: string;
+  /** base standards: top of the system line (the sleeve above the system length) */
+  lineTop?: number;
 }
 
 /** first rosette above the bottom of a vertical standard; rosettes every 0.5 m */
@@ -48,6 +50,9 @@ export const UVB_ROS = 0.12;
 /** ledger and diagonal heads: distance of the part from the standard axis */
 const LEDGER_HEAD = 0.042;
 const UBK_HEAD = 0.083;
+/** ledger diagonal: its ends on the ledgers 12.5 cm from the standards, on the top of the ledger tube */
+const UBL_END = 0.125;
+export const UBL_DZ = 0.03;
 /** a standard on a spigot (bracket, ledger spigot): its bottom above the rosette / the ledger */
 export const ON_SPIGOT = 0.12;
 
@@ -80,6 +85,8 @@ export const FAMILIES: { id: string; kind: DesignKind; gen?: 1 | 2 }[] = [
   { id: 'UCM', kind: 'bracket' },
   { id: 'UBK', kind: 'diagonal', gen: 1 },
   { id: 'UBK-2', kind: 'diagonal', gen: 2 },
+  { id: 'UBL', kind: 'ubl', gen: 1 },
+  { id: 'UBL-2', kind: 'ubl', gen: 2 },
   { id: 'tube', kind: 'tube' },
   { id: 'spigot', kind: 'spigot' },
 ];
@@ -88,6 +95,7 @@ export const DEFAULT_FAMILIES = FAMILIES.filter((f) => f.gen !== 2).map((f) => f
 const std = (rows: [string, number][], prefix: string, spigot: boolean) =>
   rows.map(([a, cm]) => part(a, `${prefix} ${cm}`, 'standard', cm / 100, prefix, { rosettes: rosAt(cm / 100), spigot }));
 const ledgers = (rows: [string, number][], fmt: (cm: number) => string, family: string) => rows.map(([a, cm]) => part(a, fmt(cm), 'ledger', cm / 100, family));
+const ublRows = (rows: [string, number, number][], prefix: string) => rows.map(([a, b, h]) => part(a, `${prefix} ${b}/${h}`, 'ubl', b / 100, prefix, { H: h / 100 }));
 const ubk = (rows: [string, number, number][], prefix: string) => rows.map(([a, b, h]) => part(a, `${prefix} ${b}/${h}`, 'diagonal', b / 100, prefix, { H: h / 100 }));
 
 /** the catalogue of the designer */
@@ -141,6 +149,9 @@ export const CATALOG: CatalogPart[] = [
     false,
   ),
   part('100014', 'UVB 24', 'base', UVB_H, 'UVB', { rosettes: [UVB_ROS], spigot: true }),
+  // UVB 49: rosettes 0.12 and 0.37 (the upper one on the 0.5 m grid of the standard on it), its line to
+  // 0.72 m (as in the part library of PERI CAD)
+  part('117194', 'UVB 49', 'base', 0.49, 'UVB', { rosettes: [0.12, 0.37], spigot: true, lineTop: 0.72 }),
   // base jacks: spindle length, largest extension
   part('100411', 'UJB 38-50/30', 'jack', 0.505, 'UJB', { ext: 0.3 }),
   part('100242', 'UJB 38-80/55', 'jack', 0.8, 'UJB', { ext: 0.55 }),
@@ -245,6 +256,62 @@ export const CATALOG: CatalogPart[] = [
     ],
     'UBK-2',
   ),
+  // ledger diagonals: wedged onto the ledgers of a bay (12.5 cm from the standards), lower to upper
+  ...ublRows(
+    [
+      ['415156', 100, 50],
+      ['415513', 100, 150],
+      ['415157', 100, 200],
+      ['407867', 150, 50],
+      ['400055', 150, 100],
+      ['402846', 150, 150],
+      ['400057', 150, 200],
+      ['409034', 175, 200],
+      ['404391', 200, 50],
+      ['400059', 200, 100],
+      ['402862', 200, 150],
+      ['400061', 200, 200],
+      ['430282', 225, 50],
+      ['430283', 225, 100],
+      ['417689', 225, 200],
+      ['400063', 250, 100],
+      ['402861', 250, 150],
+      ['400065', 250, 200],
+      ['404762', 300, 50],
+      ['400067', 300, 100],
+      ['404766', 300, 150],
+      ['400069', 300, 200],
+    ],
+    'UBL',
+  ),
+  ...ublRows(
+    [
+      ['132771', 100, 50],
+      ['132773', 100, 100],
+      ['132775', 100, 150],
+      ['132777', 100, 200],
+      ['132779', 150, 50],
+      ['132781', 150, 100],
+      ['132783', 150, 150],
+      ['132785', 150, 200],
+      ['132787', 175, 200],
+      ['132789', 200, 50],
+      ['132791', 200, 100],
+      ['132793', 200, 150],
+      ['132795', 200, 200],
+      ['132797', 225, 50],
+      ['132808', 225, 100],
+      ['132810', 225, 200],
+      ['132812', 250, 100],
+      ['132814', 250, 150],
+      ['132816', 250, 200],
+      ['132827', 300, 50],
+      ['132829', 300, 100],
+      ['132831', 300, 150],
+      ['132833', 300, 200],
+    ],
+    'UBL-2',
+  ),
   // scaffold tubes on couplers RA 48/48 (any length between two standards)
   part('026415', 'Gerüstrohr Ø 48,3', 'tube', 0, 'tube'),
   // spigots on a ledger: a standard stands on the ledger
@@ -274,7 +341,7 @@ export function partGeom(p: CatalogPart, L = p.L): PartGeom {
     case 'standard':
       return { lines: [[v(0.08, 0.08, 0), v(0.08, 0.08, L + (p.spigot ? SPIGOT : 0))]], rosettes: (p.rosettes ?? []).map((z) => v(0.08, 0.08, z)) };
     case 'base':
-      return { lines: [[v(0.08, 0.08, UVB_H), v(0.08, 0.08, 0)]], rosettes: [v(0.08, 0.08, UVB_ROS)] };
+      return { lines: [[v(0.08, 0.08, p.lineTop ?? L), v(0.08, 0.08, 0)]], rosettes: (p.rosettes ?? [UVB_ROS]).map((z) => v(0.08, 0.08, z)) };
     case 'jack':
       return {
         lines: [
@@ -310,6 +377,8 @@ export function partGeom(p: CatalogPart, L = p.L): PartGeom {
     }
     case 'diagonal':
       return { lines: [[v(0, 0.05, 0), v(L - 2 * UBK_HEAD, 0.05, p.H ?? 2)]], rosettes: [] };
+    case 'ubl':
+      return { lines: [[v(0, 0.05, 0), v(L - 2 * UBL_END, 0.05, p.H ?? 2)]], rosettes: [] };
     case 'tube':
       return { lines: [[v(0, 0, 0), v(L, 0, 0)]], rosettes: [] };
     case 'spigot':
@@ -317,4 +386,4 @@ export function partGeom(p: CatalogPart, L = p.L): PartGeom {
   }
 }
 
-export const HEAD = { ledger: LEDGER_HEAD, ubk: UBK_HEAD };
+export const HEAD = { ledger: LEDGER_HEAD, ubk: UBK_HEAD, ubl: UBL_END };

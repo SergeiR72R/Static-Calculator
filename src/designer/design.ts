@@ -6,7 +6,7 @@
 import type { PartGeom, ScaffoldDoc, ScaffoldPart, V3 } from '../scaffold/pericad';
 import type { UserFixing, UserLoad } from '../scaffold/userLoads';
 import { LOAD_CLASSES } from '../scaffold/catalog';
-import { CATALOG, COUPLER, HEAD, ON_SPIGOT, SPIGOT, UVB_H, byArticle, partGeom, tubeArticle, type CatalogPart } from './catalog';
+import { CATALOG, COUPLER, HEAD, ON_SPIGOT, SPIGOT, UBL_DZ, UVB_H, byArticle, partGeom, tubeArticle, type CatalogPart } from './catalog';
 
 export interface Placed {
   id: string;
@@ -144,6 +144,12 @@ export function ends(p: Placed): [number, number, number, number] {
       return [p.x, p.z, p.x + (p.dir ?? 1) * c.L, p.z];
     case 'diagonal':
       return [p.x, p.z, p.x + (p.dir ?? 1) * c.L, p.z + (c.H ?? 2)];
+    case 'ubl': {
+      // x: axis of the left standard of the bay, z: rosette of the lower ledger; the ends on the ledgers
+      const a = p.x + HEAD.ubl;
+      const b = p.x + c.L - HEAD.ubl;
+      return (p.dir ?? 1) > 0 ? [a, p.z + UBL_DZ, b, p.z + (c.H ?? 2) + UBL_DZ] : [b, p.z + UBL_DZ, a, p.z + (c.H ?? 2) + UBL_DZ];
+    }
     case 'tube':
       return [p.x, p.z, p.x2 ?? p.x, p.z2 ?? p.z];
     case 'spigot':
@@ -171,11 +177,13 @@ const segDist = (px: number, pz: number, [ax, az, bx, bz]: [number, number, numb
 };
 
 /** rosette grid of the section: the heights of the rosettes repeat every 0.5 m */
-function gridZ(d: Design, z: number, first: number): number {
-  const ros = rosettes(d);
-  if (!ros.length) return Math.max(0, Math.round(z / 0.05) * 0.05);
-  // bottom such that the rosettes of the new standard lie on the levels of the others
-  const ref = ros[0].z - first;
+function gridZ(d: Design, z: number, first: number, px: number): number {
+  const stds = standards(d).filter((s) => s.rosettes.length);
+  if (!stds.length) return Math.max(0, Math.round(z / 0.05) * 0.05);
+  // bottom such that the rosettes of the new standard lie on the levels of the nearest standard (its
+  // top rosette: UVB 49 has one more 0.25 m below the grid)
+  const near1 = stds.reduce((a, b) => (Math.abs(b.x - px) < Math.abs(a.x - px) ? b : a));
+  const ref = near1.rosettes[near1.rosettes.length - 1] - first;
   return r3(ref + Math.round((z - ref) / 0.5) * 0.5);
 }
 
@@ -206,7 +214,7 @@ export function snap(d: Design, c: CatalogPart, px: number, pz: number, reach = 
       }
       // free: on the rosette grid of the others, 0.25 m steps from them (lengths of the ledgers)
       const x = gridX(d, px);
-      const z = gridZ(d, pz - c.L / 2, first);
+      const z = gridZ(d, pz - c.L / 2, c.kind === 'base' ? (c.rosettes?.[c.rosettes.length - 1] ?? 0.12) : first, px);
       cands.push({ part: { article: c.article, x: r3(x), z: Math.max(z, 0) }, d: reach * 0.95, ok: true });
       break;
     }
@@ -249,6 +257,24 @@ export function snap(d: Design, c: CatalogPart, px: number, pz: number, reach = 
           const side: 1 | -1 = there.length && (there[0].side ?? 1) === 1 ? -1 : 1;
           cands.push({ part: { article: c.article, x: r.x, z: r.z, dir, ...(side < 0 ? { side } : {}) }, d: segDist(px, pz, [r.x, r.z, up.x, up.z]), ok: true });
         }
+      break;
+    }
+    case 'ubl': {
+      // a ledger diagonal sits on two ledgers of the same bay (not on brackets nor on the ledger of a
+      // bracket built from a diagonal: no hanging standard in the bay)
+      const hang = new Set(hangingStandards(d));
+      const stdAt = (x: number) => standards(d).filter((s) => near(s.x, x, 0.01));
+      const ledgers = d.parts.filter((p) => cat(p)?.kind === 'ledger' && near(cat(p).L, c.L));
+      for (const lo of ledgers) {
+        const up = ledgers.find((q) => near(q.x, lo.x) && near(q.z, lo.z + (c.H ?? 2)));
+        if (!up) continue;
+        if ([...stdAt(lo.x), ...stdAt(lo.x + c.L)].some((s) => hang.has(s.part.id))) continue;
+        for (const dir of [1, -1] as const) {
+          if (d.parts.some((p) => cat(p)?.kind === 'ubl' && near(p.x, lo.x) && near(p.z, lo.z) && (p.dir ?? 1) === dir)) continue;
+          const part = { article: c.article, x: lo.x, z: lo.z, dir };
+          cands.push({ part, d: segDist(px, pz, ends({ ...part, id: '' })), ok: true });
+        }
+      }
       break;
     }
     case 'spigot': {
@@ -337,7 +363,7 @@ export function designIssues(d: Design): DesignIssue[] {
   const decks = d.parts.filter((p) => p.deck);
   if (!decks.length) out.push({ key: 'noDecks', parts: [], severity: 'warning' });
   else if (!decks.some((p) => p.deck!.work)) out.push({ key: 'noWork', parts: [], severity: 'warning' });
-  if (!d.parts.some((p) => cat(p)?.kind === 'diagonal' || cat(p)?.kind === 'tube') && !d.anchors.length) out.push({ key: 'noBracing', parts: [], severity: 'warning' });
+  if (!d.parts.some((p) => ['diagonal', 'ubl', 'tube'].includes(cat(p)?.kind)) && !d.anchors.length) out.push({ key: 'noBracing', parts: [], severity: 'warning' });
   return out;
 }
 
@@ -392,6 +418,9 @@ export function designDoc(d: Design): DesignDoc {
           const y = (p.side ?? 1) > 0 ? 0.05 : -0.05;
           add(p.id, c, (p.dir ?? 1) > 0 ? mat(ROT_X, [p.x + HEAD.ubk, y - 0.05, p.z]) : mat(ROT_NX, [p.x - HEAD.ubk, y + 0.05, p.z]));
         }
+        break;
+      case 'ubl':
+        add(p.id, c, (p.dir ?? 1) > 0 ? mat(ROT_X, [p.x + HEAD.ubl, 0, p.z + UBL_DZ]) : mat(ROT_NX, [p.x + c.L - HEAD.ubl, 0, p.z + UBL_DZ]));
         break;
       case 'spigot':
         add(p.id, c, mat(ROT_X, [p.x, 0, p.z]));

@@ -797,7 +797,8 @@
         "sway": "Horizontalverschiebung {mm} mm (Höhe / {ratio}): Das Tragwerk ist weich. Diagonalen oder Befestigungen am Bauwerk ergänzen.",
         "girder": "Gitterträger {name}: {eta} %. Im Balkenrechner öffnen; Spannweite oder Last verringern oder einen höheren Träger einsetzen.",
         "coupler": "Rohre an Kupplungen: {n} Teile, bis {eta} %{dir}. Die Kupplung kann auf dem Rohr rutschen: eine Sicherungskupplung direkt an die belastete setzen oder das Rohr durch einen PERI-UP-Riegel oder eine Diagonale ersetzen.",
-        "ledgerSway": "Riegel: {n} Teile, bis {eta} %{dir} – Biegung aus dem Schwanken des Gerüsts unter Wind, nicht aus der Belaglast. Diagonalen in den Nachbarfeldern oder eine Befestigung am Bauwerk ergänzen: sie nehmen das Moment aus den Riegeln."
+        "ledgerSway": "Riegel: {n} Teile, bis {eta} %{dir} – Biegung aus dem Schwanken des Gerüsts unter Wind, nicht aus der Belaglast. Diagonalen in den Nachbarfeldern oder eine Befestigung am Bauwerk ergänzen: sie nehmen das Moment aus den Riegeln.",
+        "bracket": "Konsolen: {n} Teile, bis {eta} %{dir}. Kürzere Konsole, kleinere Feldbreite oder Last auf dem Konsolbelag, oder einen Stiel unter die Konsole setzen."
       }
     },
     "adv": {
@@ -1045,7 +1046,8 @@
         "jack": "Spindel (N + M)",
         "unstable": "Nicht gehalten (Mechanismus)",
         "stability": "Stabilitätsverlust (Theorie II. Ordnung)",
-        "fixing": "Befestigung am Bauwerk"
+        "fixing": "Befestigung am Bauwerk",
+        "bracket": "Konsole (Rohr und Strebe)"
       },
       "bases": "Fußpunkte: {n}",
       "basesMax": "Größte Vertikalkraft {v}, Horizontalkraft {h} (Bemessungswerte).",
@@ -1472,7 +1474,7 @@
   },
   "designer": {
     "title": "Gerüstschnitt (Seitenansicht)",
-    "intro": "Teil im Katalog wählen und über die Zeichnung fahren: es springt an den nächsten Anschlusspunkt (grün – setzbar). Stiele auf Spindeln, Basisstiele und aufeinander, Riegel und Diagonalen zwischen Rosetten gleicher Höhe, Konsolen an eine Rosette. Rad – Zoom, Ziehen – verschieben, Entf – löschen, Strg+Z – rückgängig.",
+    "intro": "Teil im Katalog wählen und über die Zeichnung fahren: es springt an den nächsten Anschlusspunkt (grün – setzbar). Stiele auf Spindeln, Basisstiele und aufeinander, Riegel und Diagonalen zwischen Rosetten gleicher Höhe, Konsolen an eine Rosette. Ein Stiel kann an Diagonale und Riegel hängen – so entsteht eine Konsole aus einer Diagonale. Rad – Zoom, rechte Taste – verschieben, Rahmen – mehrere wählen, Strg+C / Strg+V – Gruppe kopieren, Entf – löschen, Strg+Z – rückgängig.",
     "catalog": "Teilekatalog PERI UP",
     "search": "Suche: Name oder Artikel",
     "tools": "Werkzeuge",
@@ -1530,7 +1532,8 @@
       "tube1": "Rohr: ersten Punkt an einem Stiel anklicken.",
       "tube2": "Rohr: zweiten Punkt an einem anderen Stiel anklicken (Kupplungen kommen selbst).",
       "anchor": "Anker: Punkt an einem Stiel anklicken – dort ist das Gerüst am Bauwerk befestigt (in X).",
-      "select": "Klick – Teil wählen, Ziehen – Zeichnung verschieben."
+      "select": "Klick – Teil wählen, Rahmen mit der linken Taste – mehrere, rechte Taste – Zeichnung verschieben. Strg+C / Strg+V – kopieren und einfügen.",
+      "paste": "Einfügen: die Gruppe folgt dem Zeiger (0,25 m, in der Höhe 0,5 m – Rosetten im Raster). Klick – setzen, mehrmals möglich; Esc – beenden."
     },
     "issue": {
       "noStandards": "Mindestens einen Stiel setzen.",
@@ -1548,6 +1551,11 @@
     "families": "Teile im Katalog",
     "familiesHint": "Welche Teilereihen der Katalog zeigt.",
     "familiesReset": "Nur 1. Generation",
-    "gen": "{n}. Gen."
+    "gen": "{n}. Gen.",
+    "pointNode": "Knoten",
+    "pointJoint": "Stoß",
+    "pointsLegend": "Kreise – Nachweise der Knoten (Stiel + Riegel an der Rosette) und der Stielstöße, am Ort des Knotens.",
+    "copy": "Kopieren",
+    "paste": "Einfügen ({n})"
   }
 }

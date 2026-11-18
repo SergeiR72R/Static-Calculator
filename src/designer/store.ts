@@ -25,6 +25,11 @@ interface DesignerState {
   past: Design[];
   future: Design[];
   run: DesignRun | null;
+  /** parts copied (with the anchors of copied standards) */
+  clipboard: { parts: Placed[]; anchors: DesignAnchor[] } | null;
+  copy: (ids: string[]) => void;
+  /** the copied parts moved by (dx, dz) into the section (one step of the history); their new ids */
+  paste: (dx: number, dz: number) => string[];
   /** series of parts shown in the catalogue (FAMILIES) */
   families: string[];
   setFamilies: (f: string[]) => void;
@@ -83,6 +88,36 @@ export const useDesigner = create<DesignerState>()((set, get) => ({
   past: [],
   future: [],
   run: null,
+  clipboard: null,
+  copy: (ids) => {
+    const d = get().design;
+    const parts = d.parts.filter((p) => ids.includes(p.id));
+    if (!parts.length) return;
+    set({ clipboard: { parts: structuredClone(parts), anchors: structuredClone(d.anchors.filter((a) => ids.includes(a.part))) } });
+  },
+  paste: (dx, dz) => {
+    const cb = get().clipboard;
+    if (!cb) return [];
+    const map = new Map<string, string>();
+    const r = (v: number) => Math.round(v * 1000) / 1000;
+    get().edit((d) => {
+      const ids = d.parts.map((p) => p.id);
+      const parts = cb.parts.map((p) => {
+        const id = nextId(ids, 'D');
+        ids.push(id);
+        map.set(p.id, id);
+        return { ...structuredClone(p), id, x: r(p.x + dx), z: r(p.z + dz), ...(p.x2 !== undefined ? { x2: r(p.x2 + dx), z2: r((p.z2 ?? p.z) + dz) } : {}) };
+      });
+      const aIds = d.anchors.map((a) => a.id);
+      const anchors = cb.anchors.map((a) => {
+        const id = nextId(aIds, 'A');
+        aIds.push(id);
+        return { ...a, id, part: map.get(a.part)!, z: r(a.z + dz) };
+      });
+      return { ...d, parts: [...d.parts, ...parts], anchors: [...d.anchors, ...anchors] };
+    });
+    return [...map.values()];
+  },
   families: loadFamilies(),
   setFamilies: (families) => {
     storage.set(FAM_KEY, JSON.stringify(families));

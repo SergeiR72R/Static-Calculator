@@ -126,6 +126,38 @@ test('designer: the example section works and every setting explains itself', as
   await expect(page.locator('[data-testid^="designer-part-"]')).toHaveCount(13);
   await page.getByTestId('designer-run').click();
   await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', 'ok', { timeout: 30_000 });
+  // load class 6: the nodes of the rosettes are shown at their place
+  await page.getByTestId('designer-class').selectOption('6');
+  await page.getByTestId('designer-run').click();
+  await expect(page.getByTestId('scaffold-verdict')).not.toContainText('устарели', { timeout: 30_000 });
+  await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', /^(ok|check|fail)$/);
+  await expect(page.locator('[data-testid^="designer-point-node-"]').first()).toBeVisible();
   await page.getByTestId('help-designer-field').click();
   await expect(page.getByTestId('help-text-designer-field')).toContainText('Что меняет');
+  await page.keyboard.press('Escape');
+  // a group: selected by a band, copied and pasted beside it
+  await page.getByTestId('designer-tool-select').click();
+  await page.getByTestId('designer-canvas').scrollIntoViewIfNeeded();
+  const c = (await page.getByTestId('designer-canvas').boundingBox())!;
+  await page.mouse.move(c.x + 5, c.y + 5);
+  await page.mouse.down();
+  await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2, { steps: 4 });
+  await page.mouse.move(c.x + c.width - 5, c.y + c.height - 40, { steps: 4 });
+  await expect(page.getByTestId('designer-band')).toBeVisible();
+  await page.mouse.up();
+  await expect(page.getByTestId('designer-props')).toContainText('13');
+  await page.keyboard.press('Control+c');
+  await expect(page.getByTestId('designer-paste')).toContainText('13');
+  await page.keyboard.press('Control+v');
+  const s1 = (await page.getByTestId('designer-part-D1').boundingBox())!;
+  const s3 = (await page.getByTestId('designer-part-D3').boundingBox())!;
+  // three metres to the right: the scale from the drawn standard UVR 200 (2.16 m with its spigot)
+  const px = s3.height / 2.16;
+  await page.mouse.move(s1.x + 3 * px, s1.y + s1.height);
+  await page.mouse.click(s1.x + 3 * px, s1.y + s1.height);
+  await expect(page.locator('[data-testid^="designer-part-"]')).toHaveCount(26);
+  await expect(page.getByTestId('designer-anchor-A4')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await page.getByTestId('designer-undo').click();
+  await expect(page.locator('[data-testid^="designer-part-"]')).toHaveCount(13);
 });

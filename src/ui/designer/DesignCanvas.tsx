@@ -6,7 +6,7 @@ import { useFmt } from '../hooks';
 import { DESIGN_COLOR } from './PartIcon';
 
 /** the tool of the canvas: select, a catalogue part (article), a tube on couplers, an anchor */
-export type Tool = { kind: 'select' } | { kind: 'part'; article: string } | { kind: 'tube' } | { kind: 'anchor' };
+export type Tool = { kind: 'select' } | { kind: 'part'; article: string } | { kind: 'tube' } | { kind: 'anchor' } | { kind: 'paste' };
 
 const etaColor = (eta: number) => (eta > 1 ? '#dc2626' : eta > 0.7 ? '#f59e0b' : '#16a34a');
 
@@ -46,12 +46,15 @@ export function DesignCanvas({
   selected,
   setSelected,
   eta,
+  points = [],
 }: {
   tool: Tool;
   setTool: (t: Tool) => void;
   selected: string[];
   setSelected: (ids: string[]) => void;
   eta: Map<string, number> | null;
+  /** checks at a point: nodes of the rosettes and joints of the standards */
+  points?: { x: number; z: number; eta: number; check: string; part: string }[];
 }) {
   const fmt = useFmt();
   const dz = useDesigner();
@@ -61,7 +64,9 @@ export function DesignCanvas({
   const [view, setView] = useState<View | null>(null);
   const [ptr, setPtr] = useState<{ x: number; z: number } | null>(null);
   const [tubeStart, setTubeStart] = useState<{ x: number; z: number } | null>(null);
-  const drag = useRef<{ x: number; y: number; v: View; moved: boolean } | null>(null);
+  const drag = useRef<{ x: number; y: number; v: View; moved: boolean; pan: boolean } | null>(null);
+  /** rubber band of the selection (screen pixels) */
+  const [band, setBand] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
 
   useEffect(() => {
     const el = box.current;
@@ -86,10 +91,34 @@ export function DesignCanvas({
     return sideLines(designDoc(g).doc).get('_ghost') ?? [];
   }, [cand, d]);
   const tp = (tool.kind === 'tube' || tool.kind === 'anchor') && ptr ? tubePoint(d, ptr.x, ptr.z) : null;
+  // pasting: the copied group by its lower left corner at the pointer, 0.25 m across and 0.5 m up (the
+  // rosettes stay on the grid of the others)
+  const clip = dz.clipboard;
+  const pasteAt = useMemo(() => {
+    if (tool.kind !== 'paste' || !clip || !ptr) return null;
+    const x0 = Math.min(...clip.parts.flatMap((p) => [ends(p)[0], ends(p)[2]]));
+    const z0 = Math.min(...clip.parts.flatMap((p) => [ends(p)[1], ends(p)[3]]));
+    return { dx: Math.round((ptr.x - x0) / 0.25) * 0.25, dz: Math.round((ptr.z - z0) / 0.5) * 0.5 };
+  }, [tool.kind, clip, ptr]);
+  const pasteGhost = useMemo(() => {
+    if (!pasteAt || !clip) return [];
+    const parts = clip.parts.map((p) => ({ ...p, id: `_p${p.id}`, x: p.x + pasteAt.dx, z: p.z + pasteAt.dz, ...(p.x2 !== undefined ? { x2: p.x2 + pasteAt.dx, z2: (p.z2 ?? p.z) + pasteAt.dz } : {}) }));
+    return [...sideLines(designDoc({ ...d, parts, anchors: [] }).doc).values()].flat();
+  }, [pasteAt, clip, d]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest('input, select, textarea')) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && selected.length) {
+        e.preventDefault();
+        dz.copy(selected);
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v' && dz.clipboard) {
+        e.preventDefault();
+        setTool({ kind: 'paste' });
+        return;
+      }
       if (e.key === 'Escape') {
         setTubeStart(null);
         setTool({ kind: 'select' });
@@ -129,6 +158,9 @@ export function DesignCanvas({
         setSelected([id]);
         setTubeStart(null);
       }
+    } else if (tool.kind === 'paste') {
+      if (!pasteAt) return;
+      setSelected(dz.paste(pasteAt.dx, pasteAt.dz));
     } else if (tool.kind === 'anchor') {
       const q = tubePoint(d, x, z);
       if (q) dz.addAnchor({ part: q.std, z: q.z });
@@ -172,21 +204,36 @@ export function DesignCanvas({
       style={{ cursor: tool.kind === 'select' ? 'default' : 'crosshair' }}
       onPointerDown={(e) => {
         const { px, py } = local(e);
-        drag.current = { x: px, y: py, v, moved: false };
+        // right or middle button: pan; left button on the empty drawing with the select tool: rubber band
+        drag.current = { x: px, y: py, v, moved: false, pan: e.button !== 0 };
         (e.target as Element).setPointerCapture?.(e.pointerId);
       }}
       onPointerMove={(e) => {
         const { px, py } = local(e);
         const g = drag.current;
-        if (g && (e.buttons & 1 || e.buttons & 4)) {
+        if (g && e.buttons) {
           if (Math.hypot(px - g.x, py - g.y) > 4) g.moved = true;
-          if (g.moved && (tool.kind === 'select' || e.buttons & 4)) setView({ ...g.v, cx: g.v.cx - (px - g.x) / g.v.s, cz: g.v.cz + (py - g.y) / g.v.s });
+          if (g.moved && g.pan) setView({ ...g.v, cx: g.v.cx - (px - g.x) / g.v.s, cz: g.v.cz + (py - g.y) / g.v.s });
+          else if (g.moved && tool.kind === 'select') setBand({ x0: g.x, y0: g.y, x1: px, y1: py });
         }
         setPtr(toWorld(px, py));
       }}
       onPointerUp={(e) => {
         const g = drag.current;
         drag.current = null;
+        if (band) {
+          // the parts lying wholly inside the band
+          const a = toWorld(Math.min(band.x0, band.x1), Math.max(band.y0, band.y1));
+          const b = toWorld(Math.max(band.x0, band.x1), Math.min(band.y0, band.y1));
+          const inside = (x: number, z: number) => x >= a.x && x <= b.x && z >= a.z && z <= b.z;
+          const ids = d.parts.filter((p) => {
+            const [x0, z0, x1, z1] = ends(p);
+            return inside(x0, z0) && inside(x1, z1);
+          }).map((p) => p.id);
+          setSelected(e.ctrlKey || e.shiftKey || e.metaKey ? [...new Set([...selected, ...ids])] : ids);
+          setBand(null);
+          return;
+        }
         if (g?.moved || e.button !== 0) return;
         const { px, py } = local(e);
         const w = toWorld(px, py);
@@ -265,6 +312,19 @@ export function DesignCanvas({
               </text>
             );
           })}
+        {/* nodes of the rosettes and joints of the standards, by their utilisation */}
+        {points
+          .filter((q) => q.eta >= 0.25)
+          .map((q, k) => (
+            <g key={`pt${k}`} data-testid={`designer-point-${q.check}-${q.part}`}>
+              <circle cx={X(q.x)} cy={Y(q.z)} r={q.check === 'joint' ? 5 : 7} fill="none" stroke={etaColor(q.eta)} strokeWidth={2.5} />
+              {v.s > 50 && q.eta >= 0.5 && (
+                <text x={X(q.x) + (q.check === 'joint' ? 9 : -9)} y={Y(q.z) + (q.check === 'joint' ? -6 : 3)} textAnchor={q.check === 'joint' ? 'start' : 'end'} className="text-[10px] font-semibold" fill={etaColor(q.eta)}>
+                  {fmt.t(q.check === 'joint' ? 'designer.pointJoint' : 'designer.pointNode')} {Math.round(q.eta * 100)} %
+                </text>
+              )}
+            </g>
+          ))}
         {/* supports */}
         {supports.map((s, k) => (
           <path key={`s${k}`} d={`M ${X(s.x)} ${Y(s.z)} l -7 11 h 14 z`} fill="none" stroke="#475569" strokeWidth={1.5} />
@@ -289,6 +349,11 @@ export function DesignCanvas({
             </g>
           );
         })}
+        {/* the copied parts at the place of the pointer */}
+        {pasteGhost.map((l, i) => seg(l, 1000 + i, '#16a34a', 3, { strokeOpacity: 0.7, strokeDasharray: '6 3' }))}
+        {band && (
+          <rect x={Math.min(band.x0, band.x1)} y={Math.min(band.y0, band.y1)} width={Math.abs(band.x1 - band.x0)} height={Math.abs(band.y1 - band.y0)} fill="#d946ef" fillOpacity={0.08} stroke="#d946ef" strokeDasharray="4 3" data-testid="designer-band" />
+        )}
         {/* the part of the tool */}
         {ghost.map((l, i) => seg(l, i, cand?.ok ? '#16a34a' : '#dc2626', 3, { strokeOpacity: 0.75, strokeDasharray: '6 3' }))}
         {tool.kind === 'tube' && tubeStart && tp && seg([tubeStart.x, tubeStart.z, tp.x, tp.z], -1, '#16a34a', 2.5, { strokeDasharray: '6 3' })}
@@ -305,7 +370,9 @@ export function DesignCanvas({
             ? part && !cand
               ? 'designer.hint.noSnap'
               : 'designer.hint.part'
-            : tool.kind === 'tube'
+            : tool.kind === 'paste'
+              ? 'designer.hint.paste'
+              : tool.kind === 'tube'
               ? tubeStart
                 ? 'designer.hint.tube2'
                 : 'designer.hint.tube1'

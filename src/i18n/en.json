@@ -797,7 +797,8 @@
         "sway": "Horizontal displacement {mm} mm (height / {ratio}): the frame is soft. Add diagonals or fixings to the building.",
         "girder": "Lattice girder {name}: {eta} %. Open it in the beam calculator; reduce the span or the load or use a deeper girder.",
         "coupler": "Tubes on couplers: {n} parts, up to {eta} %{dir}. The coupler may slip on the tube: add a safety coupler right next to the loaded one or replace the tube by a PERI UP ledger or diagonal.",
-        "ledgerSway": "Ledgers: {n} parts, up to {eta} %{dir} – bending from the sway of the scaffold under wind, not from the deck load. Add diagonals in the adjacent bays or a fixing to the building: they take the moment off the ledgers."
+        "ledgerSway": "Ledgers: {n} parts, up to {eta} %{dir} – bending from the sway of the scaffold under wind, not from the deck load. Add diagonals in the adjacent bays or a fixing to the building: they take the moment off the ledgers.",
+        "bracket": "Brackets: {n} parts, up to {eta} %{dir}. Use a shorter bracket, a smaller field width or load on the bracket deck, or put a standard under the bracket."
       }
     },
     "adv": {
@@ -1045,7 +1046,8 @@
         "jack": "Spindle (N + M)",
         "unstable": "Not held (mechanism)",
         "stability": "Loss of stability (second order)",
-        "fixing": "Fixing to the building"
+        "fixing": "Fixing to the building",
+        "bracket": "Bracket (tube and strut)"
       },
       "bases": "Bases: {n}",
       "basesMax": "Largest vertical force {v}, horizontal force {h} (design values).",
@@ -1472,7 +1474,7 @@
   },
   "designer": {
     "title": "Scaffold section (side view)",
-    "intro": "Choose a part in the catalogue and move over the drawing: it snaps to the nearest connection point (green – can be placed). Standards on jacks, base standards and each other, ledgers and diagonals between rosettes of equal height, brackets on a rosette. Wheel – zoom, drag – pan, Del – delete, Ctrl+Z – undo.",
+    "intro": "Choose a part in the catalogue and move over the drawing: it snaps to the nearest connection point (green – can be placed). Standards on jacks, base standards and each other, ledgers and diagonals between rosettes of equal height, brackets on a rosette. A standard can hang on a diagonal and a ledger – a bracket built from a diagonal. Wheel – zoom, right button – pan, band – select several, Ctrl+C / Ctrl+V – copy a group, Del – delete, Ctrl+Z – undo.",
     "catalog": "PERI UP parts catalogue",
     "search": "Search: name or article",
     "tools": "Tools",
@@ -1530,7 +1532,8 @@
       "tube1": "Tube: click the first point on a standard.",
       "tube2": "Tube: click the second point on another standard (couplers are added).",
       "anchor": "Anchor: click a point on a standard – there the scaffold is tied to the building (in X).",
-      "select": "Click – select a part, drag – pan the drawing."
+      "select": "Click – select a part, band with the left button – several, right button – pan the drawing. Ctrl+C / Ctrl+V – copy and paste.",
+      "paste": "Paste: the group follows the pointer (0.25 m, in height 0.5 m – rosettes on the grid). Click – place, several times; Esc – leave."
     },
     "issue": {
       "noStandards": "Place at least one standard.",
@@ -1548,6 +1551,11 @@
     "families": "Parts in the catalogue",
     "familiesHint": "Which series of parts the catalogue shows.",
     "familiesReset": "First generation only",
-    "gen": "gen. {n}"
+    "gen": "gen. {n}",
+    "pointNode": "node",
+    "pointJoint": "joint",
+    "pointsLegend": "Circles – checks of the nodes (standard + ledgers at the rosette) and the joints of the standards, at their place.",
+    "copy": "Copy",
+    "paste": "Paste ({n})"
   }
 }

@@ -76,7 +76,7 @@ export const GAMMA_G_FAV = 0.9;
 /** partial factor for all actions (EN 12811-1, 10.3.2) */
 export const GAMMA_F = 1.5;
 
-export type CheckKind = 'conn' | 'node' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable' | 'stability' | 'fixing';
+export type CheckKind = 'conn' | 'node' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'bracket' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable' | 'stability' | 'fixing';
 
 export interface PartCheck {
   part: string;
@@ -89,6 +89,8 @@ export interface PartCheck {
   N?: number;
   M?: number;
   V?: number;
+  /** place of a check at a point (node of the rosette, ledger end, joint of the standards), m */
+  at?: V3;
 }
 
 export interface ComboResult {
@@ -946,7 +948,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         const xs = m.kind === 'standard' ? [...(connAt.has(fk.i) ? [] : [0]), ...(connAt.has(fk.j) ? [] : [mr.L]), ...(m.tubeAt !== undefined ? [m.tubeAt] : [])] : [0, mr.L];
         for (const x of xs) {
           const t = tubeEta(k, x);
-          put({ part: m.part, check: 'tube', eta: t.eta, combo: cb.name, N: t.N, M: t.M, V: t.V });
+          put({ part: m.part, check: m.kind === 'bracket' ? 'bracket' : 'tube', eta: t.eta, combo: cb.name, N: t.N, M: t.M, V: t.V });
         }
         if (m.kind === 'standard') {
           const T = TUBES[m.tube!];
@@ -961,7 +963,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
           if (m.joint) {
             const sf = sectionForces(mr, 0);
             const M = Math.hypot(sf.My, sf.Mz);
-            put({ part: m.part, check: 'joint', eta: Math.max(M / JOINT.MRd, Math.max(-sf.N, 0) / JOINT.NRd), combo: cb.name, N: sf.N, M });
+            put({ part: m.part, check: 'joint', eta: Math.max(M / JOINT.MRd, Math.max(-sf.N, 0) / JOINT.NRd), combo: cb.name, N: sf.N, M, at: frame.nodes[frame.members[k].i] });
           }
         }
       } else if (m.kind === 'ledger') {
@@ -974,7 +976,8 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
             // forces of the ledger on the node in the convention of the approval
             const f: ConnForces = { N: sf.N, My: -sf.My, Vz: e === 0 ? mr.fi[2] : mr.fj[2], Vy: sf.Vy, Mz: sf.Mz, Mx: sf.Mx };
             const ci2 = connInteraction(m.head!, v, f);
-            put({ part: m.part, check: 'conn', eta: ci2.eta, combo: cb.name, detail: `Gl. ${ci2.eq}`, N: f.N, M: f.My, V: f.Vz });
+            const fk = frame.members[k];
+            put({ part: m.part, check: 'conn', eta: ci2.eta, combo: cb.name, detail: `Gl. ${ci2.eq}`, N: f.N, M: f.My, V: f.Vz, at: frame.nodes[e === 0 ? fk.i : fk.j] });
           }
           // an inner node of the ledger (e.g. a UHA hanging on it): cross-section of the span
           if (!v && m.conn) {
@@ -1047,7 +1050,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         const My = -sectionForces(mr, e === 0 ? 0 : mr.L).My;
         worst = Math.max(worst, My >= 0 ? (R.alphaPos * My) / R.MyPos : (R.alphaNeg * -My) / R.MyNeg);
       }
-      put({ part, check: 'node', eta: worst + IS, combo: cb.name, detail: `α·I_A = ${worst.toFixed(2)}, I_S = ${IS.toFixed(2)}` });
+      put({ part, check: 'node', eta: worst + IS, combo: cb.name, detail: `α·I_A = ${worst.toFixed(2)}, I_S = ${IS.toFixed(2)}`, at: frame.nodes[n] });
     }
 
     // beams: vertical force of every node on the beam members there

@@ -3,7 +3,7 @@ import { analyzeScaffold } from '../scaffold/structure';
 import { buildScaffoldModel } from '../scaffold/model';
 import { analyzeScaffoldModel, DEFAULT_ANALYSIS } from '../scaffold/analysis';
 import { CATALOG } from './catalog';
-import { designBom, designDoc, designIssues, emptyDesign, rosettes, snap, tubePoint, type Design, type Placed } from './design';
+import { designBom, designDoc, designIssues, emptyDesign, hangingStandards, rosettes, snap, tubePoint, type Design, type Placed } from './design';
 
 const art = (name: string) => CATALOG.find((c) => c.name === name)!;
 let n = 0;
@@ -78,6 +78,69 @@ describe('designer: section of a PERI UP scaffold', () => {
     const eta = Math.max(...r.checks.map((c) => c.eta));
     expect(eta).toBeGreaterThan(0.05);
     expect(eta).toBeLessThan(1.5);
+  });
+
+  it('a bracket built from a diagonal, a hanging standard and a ledger is held by them and checked', () => {
+    const d = emptyDesign();
+    d.settings.outdoor = false;
+    for (const x of [0, 0.75]) {
+      place(d, 'UJB 38-50/30', x, 0);
+      place(d, 'UVB 24', x, 0.3);
+      place(d, 'UVR 200', x, 1.4);
+    }
+    place(d, 'UH 75 Plus', 0.375, 0.32);
+    place(d, 'UH 75 Plus', 0.375, 2.32);
+    // the post outside: in the air, on the rosette grid, 1.25 m from the frame
+    const post = place(d, 'UVR 100', -1.2, 2.4);
+    expect(post).toMatchObject({ x: -1.25, z: 1.94 });
+    expect(designIssues(d).map((i) => i.key)).toContain('floating');
+    // diagonal from a lower rosette of the frame up to the post, ledger on top back to the frame
+    const diag = place(d, 'UBK 125/100', -0.6, 1.8);
+    expect(diag).toMatchObject({ x: 0, z: 1.32, dir: -1 });
+    const top = place(d, 'UH 125 Plus', -0.6, 2.32);
+    expect(top).toMatchObject({ x: -1.25, z: 2.32 });
+    top.deck!.work = true;
+    expect(hangingStandards(d)).toEqual([post.id]);
+    expect(designIssues(d).filter((i) => i.severity === 'error')).toEqual([]);
+    d.anchors.push({ id: 'A1', part: d.parts.find((p) => p.x === 0 && p.article === '100009')!.id, z: 2.32 });
+    const { doc, loads, fixings, hanging } = designDoc(d);
+    const m = buildScaffoldModel(analyzeScaffold(doc), loads, [], { fixings, plane: true, hanging });
+    // the post stands on nothing
+    expect(m.bases.map((b) => b.part)).not.toContain(post.id);
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, qWork: 0, qMax: 0, dirs: ['x'] });
+    expect(r.combos.every((c) => c.ok)).toBe(true);
+    expect(r.unstable).toEqual([]);
+    const best = (id: string, check: string) => Math.max(0, ...r.checks.filter((c) => c.part === id && c.check === check).map((c) => c.eta));
+    // the diagonal carries the bracket in compression, the ledger on top in tension
+    expect(best(diag.id, 'diagonal')).toBeGreaterThan(0.05);
+    expect(best(top.id, 'conn')).toBeGreaterThan(0.05);
+    expect(best(post.id, 'tube') + best(post.id, 'node')).toBeGreaterThan(0.01);
+  });
+
+  it('the strut of a bracket UCM carries it to the standard below (not a cantilever tube)', () => {
+    const d = emptyDesign();
+    for (const x of [0, 1]) {
+      place(d, 'UJB 38-50/30', x, 0);
+      place(d, 'UVB 24', x, 0.3);
+      place(d, 'UVR 200', x, 1.4);
+    }
+    place(d, 'UH 100 Plus', 0.5, 0.32);
+    const l = place(d, 'UH 100 Plus', 0.5, 2.32);
+    const br = place(d, 'UCM 50 mit Zapfen', 1.3, 2.32);
+    l.deck!.work = true;
+    br.deck!.work = true;
+    d.settings.loadClass = 6;
+    d.anchors.push({ id: 'A1', part: d.parts.find((p) => p.x === 0 && p.article === '100009')!.id, z: 2.32 });
+    const { doc, loads, fixings } = designDoc(d);
+    const m = buildScaffoldModel(analyzeScaffold(doc), loads, [], { fixings, plane: true });
+    expect(m.members.filter((x) => x.part === br.id)).toHaveLength(3);
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, p: 6000, loadClass: 6, outdoor: false, qWork: 0, qMax: 0, dirs: ['x'] });
+    const eta = Math.max(...r.checks.filter((c) => c.part === br.id).map((c) => c.eta));
+    expect(r.checks.find((c) => c.part === br.id)?.check).toBe('bracket');
+    // as a cantilever tube it was 171 %
+    expect(eta).toBeLessThan(0.6);
+    // node checks carry their place
+    expect(r.checks.filter((c) => c.check === 'node').every((c) => c.at)).toBe(true);
   });
 
   it('parts list of the section', () => {

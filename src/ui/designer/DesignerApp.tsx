@@ -222,9 +222,9 @@ export default function DesignerApp() {
     setBusy(fmt.t('designer.calc.model'));
     await new Promise((r) => setTimeout(r, 20));
     try {
-      const { doc, loads, fixings } = designDoc(d);
+      const { doc, loads, fixings, hanging } = designDoc(d);
       const st = analyzeScaffold(doc, { tol: 0.02 });
-      const model = buildScaffoldModel(st, loads, [], { fixings, plane: true, planLoads: false, capByArticle: true });
+      const model = buildScaffoldModel(st, loads, [], { fixings, plane: true, planLoads: false, capByArticle: true, hanging });
       const s = d.settings;
       const result = await analyzeScaffoldParallel(
         model,
@@ -241,13 +241,19 @@ export default function DesignerApp() {
   const fresh = run && !stale ? run : null;
   const eta = useMemo(() => {
     if (!fresh) return null;
+    // the parts by their own checks; nodes and joints of the standards are shown at their place
     const m = new Map<string, number>();
     for (const c of fresh.result.checks) {
+      if (c.check === 'node' || c.check === 'joint') continue;
       const id = c.part.replace(/\.c\d$/, '');
       m.set(id, Math.max(m.get(id) ?? 0, c.eta));
     }
     return m;
   }, [fresh]);
+  const points = useMemo(
+    () => (fresh ? fresh.result.checks.filter((c) => (c.check === 'node' || c.check === 'joint') && c.at).map((c) => ({ x: c.at![0], z: c.at![2], eta: c.eta, check: c.check, part: c.part })) : []),
+    [fresh],
+  );
   const assessment = useMemo(() => {
     const zs = d.parts.flatMap((p) => [p.z, p.z2 ?? p.z]);
     const xs = standards(d).map((s) => s.x);
@@ -294,6 +300,12 @@ export default function DesignerApp() {
             <Button size="sm" onClick={dz.redo} disabled={!dz.future.length} aria-label={fmt.t('designer.redo')} data-testid="designer-redo">
               <IconRedo />
             </Button>
+            <Button size="sm" onClick={() => dz.copy(selected)} disabled={!selected.length} data-testid="designer-copy" title="Ctrl+C">
+              {fmt.t('designer.copy')}
+            </Button>
+            <Button size="sm" onClick={() => setTool({ kind: 'paste' })} disabled={!dz.clipboard} aria-pressed={tool.kind === 'paste'} data-testid="designer-paste" title="Ctrl+V">
+              {fmt.t('designer.paste', { n: dz.clipboard?.parts.length ?? 0 })}
+            </Button>
             <Button
               size="sm"
               onClick={() => {
@@ -335,13 +347,14 @@ export default function DesignerApp() {
           }
         >
           <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('designer.intro')}</p>
-          <DesignCanvas tool={tool} setTool={setTool} selected={selected} setSelected={setSelected} eta={eta} />
+          <DesignCanvas tool={tool} setTool={setTool} selected={selected} setSelected={setSelected} eta={eta} points={points} />
           {eta && (
             <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
               {fmt.t('designer.etaLegend')}
               <span className="inline-block h-2 w-3 rounded-sm bg-[#16a34a]" />≤ 70 %
               <span className="inline-block h-2 w-3 rounded-sm bg-[#f59e0b]" />70 – 100 %
               <span className="inline-block h-2 w-3 rounded-sm bg-[#dc2626]" />&gt; 100 %
+              <span>· {fmt.t('designer.pointsLegend')}</span>
             </p>
           )}
         </Card>

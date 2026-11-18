@@ -291,6 +291,11 @@ export interface ModelOptions {
    * the rotations about x and z), as by the longitudinal bracing of the scaffold
    */
   plane?: boolean;
+  /**
+   * standards that hang on their ledgers and diagonals (the post of a bracket built from a diagonal
+   * and a ledger): their bottom is free, no support is assumed under them
+   */
+  hanging?: string[];
 }
 
 export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
@@ -427,6 +432,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     };
   };
 
+  /** struts of the brackets: lower end on the standard, upper end on the bracket (built with the members) */
+  const struts: { k: number; z: number; car: Carrier; q: V3; t: number; part: string }[] = [];
   for (const w of st.parts) {
     if (w.cls.kind !== 'bracket') continue;
     const ml = longestLine(w, true);
@@ -469,6 +476,18 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       ],
       inter: [],
     });
+    // the strut of the bracket (UCM): from the bracket down to the standard it bears on; the bracket is
+    // a triangle, not a cantilever
+    const car = carriers[carriers.length - 1];
+    const L = len3([c.x, c.y, P[2]], Q);
+    for (const [u, v] of w.lines) {
+      const [lo, hi] = u[2] < v[2] ? [u, v] : [v, u];
+      if (Math.hypot(lo[0] - c.x, lo[1] - c.y) > 0.1 || lo[2] > P[2] - 0.15 || lo[2] < c.z0) continue;
+      const t = Math.hypot(hi[0] - c.x, hi[1] - c.y) / Math.max(L, 0.05);
+      if (Math.abs(hi[2] - P[2]) > 0.12 || t < 0.3 || t > 1.05) continue;
+      struts.push({ k, z: lo[2], car, q: [c.x + t * (Q[0] - c.x), c.y + t * (Q[1] - c.y), P[2] + t * (Q[2] - P[2])], t: Math.min(t, 1), part: w.part.id });
+      break;
+    }
   }
 
   for (const w of st.parts) {
@@ -683,7 +702,9 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     }
     return top;
   };
+  const hanging = new Set(opts.hanging ?? []);
   cols.forEach((c, k) => {
+    if (hanging.size && hanging.has(c.parts[0].w.part.id)) return;
     const isBase = c.parts[0].w.cls.kind === 'base';
     const under = jackUnder(c);
     // a base standard without a spindle in the drawing (older PERI CAD parts are not written to DXF)
@@ -834,6 +855,12 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // ---- frame members
   const fm: Member3[] = [];
   const mm: ModelMember[] = [];
+  for (const s of struts) {
+    const nLo = colNode(s.k, s.z, 0.03);
+    const nHi = interAt(s.car, s.q, s.t);
+    fm.push({ i: nLo, j: nHi, sec: trussSec(E_STEEL * TUBES.t32.A), truss: true });
+    mm.push({ kind: 'bracket', part: s.part, tube: 't32', g: 0 });
+  }
   /** length of a member between its connection points (the rigid arms excluded) */
   // ---- point loads of the user: a node on the beam / ledger / standard at the place of the load
   /** point loads on parts that may be tubes: placed once the tubes are built */

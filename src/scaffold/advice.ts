@@ -67,6 +67,7 @@ const GROUPS: { key: string; checks: CheckKind[] }[] = [
   { key: 'node', checks: ['conn', 'node'] },
   { key: 'standard', checks: ['tube', 'buckling', 'joint'] },
   { key: 'ledger', checks: ['ledger'] },
+  { key: 'bracket', checks: ['bracket'] },
   { key: 'diagonal', checks: ['diagonal'] },
   { key: 'jack', checks: ['jack'] },
   { key: 'tie', checks: ['anchor', 'fixing'] },

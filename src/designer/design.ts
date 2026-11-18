@@ -266,6 +266,33 @@ export function hit(d: Design, px: number, pz: number, reach = 0.15): Placed | n
 
 // ---------------------------------------------------------------- checks of the section
 
+/** parts holding a standard at its rosettes or along its axis: ledgers, brackets, diagonals, tubes */
+export function holders(d: Design, s: StandardInfo): string[] {
+  const out: string[] = [];
+  const onRos = (x: number, z: number) => near(x, s.x) && s.rosettes.some((r) => near(r, z));
+  for (const p of d.parts) {
+    const c = cat(p);
+    if (!c || p.id === s.part.id) continue;
+    const [x0, z0, x1, z1] = ends(p);
+    if (c.kind === 'ledger' && (onRos(x0, z0) || onRos(x1, z1))) out.push(p.id);
+    else if (c.kind === 'bracket' && onRos(x0, z0)) out.push(p.id);
+    else if (c.kind === 'diagonal' && (onRos(x0, z0) || onRos(x1, z1))) out.push(p.id);
+    else if (c.kind === 'tube' && [[x0, z0], [x1, z1]].some(([x, z]) => near(x, s.x) && z >= s.z0 - 0.01 && z <= s.z1 + 0.01)) out.push(p.id);
+  }
+  return out;
+}
+
+/**
+ * standards that stand on nothing (neither on a seat nor on the ground) but hang on two or more parts:
+ * the post of a bracket built from a diagonal and a ledger
+ */
+export function hangingStandards(d: Design): string[] {
+  const st = seats(d);
+  return standards(d)
+    .filter((s) => s.z0 > 0.001 && !st.some((q) => near(q.x, s.x, 0.02) && near(q.z, s.z0, 0.02)) && holders(d, s).length >= 2)
+    .map((s) => s.part.id);
+}
+
 export interface DesignIssue {
   key: string;
   parts: string[];
@@ -279,7 +306,8 @@ export function designIssues(d: Design): DesignIssue[] {
   if (!stds.length) return [{ key: 'noStandards', parts: [], severity: 'error' }];
   const st = seats(d);
   // standards on nothing: on a support only if they stand on a jack or on the ground
-  const loose = stds.filter((s) => s.z0 > 0.001 && !st.some((q) => near(q.x, s.x, 0.02) && near(q.z, s.z0, 0.02)));
+  const hang = new Set(hangingStandards(d));
+  const loose = stds.filter((s) => s.z0 > 0.001 && !hang.has(s.part.id) && !st.some((q) => near(q.x, s.x, 0.02) && near(q.z, s.z0, 0.02)));
   if (loose.length) out.push({ key: 'floating', parts: loose.map((s) => s.part.id), severity: 'error' });
   const decks = d.parts.filter((p) => p.deck);
   if (!decks.length) out.push({ key: 'noDecks', parts: [], severity: 'warning' });
@@ -299,6 +327,8 @@ export interface DesignDoc {
   doc: ScaffoldDoc;
   loads: UserLoad[];
   fixings: UserFixing[];
+  /** standards hanging on their ledgers and diagonals (no support under them) */
+  hanging: string[];
 }
 
 /**
@@ -376,7 +406,7 @@ export function designDoc(d: Design): DesignDoc {
     const base = cat(s.part).kind === 'base' ? UVB_H : len;
     fixings.push({ id: a.id, name: a.id, parts: [a.part], at: Math.min(Math.max((a.z - s.z0) / base, 0), 1), dirs: ['x'], ...(a.limit ? { limit: a.limit } : {}) });
   }
-  return { doc: { fileName: d.name || 'design', parts, geom }, loads, fixings };
+  return { doc: { fileName: d.name || 'design', parts, geom }, loads, fixings, hanging: hangingStandards(d) };
 }
 
 /** the lines of the parts in the side view (x, z), from the same geometry as the drawing for the analysis */

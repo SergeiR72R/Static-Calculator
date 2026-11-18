@@ -168,6 +168,37 @@ describe('designer: section of a PERI UP scaffold', () => {
     expect(Math.abs(Math.abs(f.R[0]) - Math.abs(f.R[2]))).toBeLessThan(1e-6 * f.F + 1e-6);
   });
 
+  it('a double diagonal: the second UBK of a bay on the other side of the rosettes, both carry', () => {
+    const run = (double: boolean) => {
+      const d = facade();
+      d.anchors = [];
+      const lv = [...new Set(rosettes(d).map((r) => r.z))].sort((a, b) => a - b);
+      const a = place(d, 'UBK 75/200', 0.4, lv[0] + 1);
+      expect(a.side).toBeUndefined();
+      if (double) {
+        const b = place(d, 'UBK 75/200', 0.4, lv[0] + 1);
+        expect(b).toMatchObject({ x: a.x, z: a.z, dir: a.dir, side: -1 });
+        // no third one in the bay
+        expect(snap(d, art('UBK 75/200'), 0.4, lv[0] + 1)?.part.x === a.x && snap(d, art('UBK 75/200'), 0.4, lv[0] + 1)?.part.z === a.z).toBe(false);
+      }
+      const { doc, loads, fixings } = designDoc(d);
+      const st = analyzeScaffold(doc);
+      expect(st.issues.filter((i) => i.key === 'duplicate')).toEqual([]);
+      const m = buildScaffoldModel(st, loads, [], { fixings, plane: true });
+      const diags = d.parts.filter((p) => p.article === a.article);
+      expect(m.members.filter((x) => diags.some((p) => p.id === x.part))).toHaveLength(diags.length);
+      const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, dirs: ['x'], qMax: 500 });
+      expect(r.combos.every((c) => c.ok)).toBe(true);
+      return diags.map((p) => Math.max(...r.checks.filter((c) => c.part === p.id && c.check === 'diagonal').map((c) => c.eta)));
+    };
+    const [single] = run(false);
+    const [d1, d2] = run(true);
+    expect(d1).toBeGreaterThan(0.01);
+    expect(d2).toBeGreaterThan(0.01);
+    // the two share the force of one
+    expect(Math.max(d1, d2)).toBeLessThan(single * 0.8);
+  });
+
   it('parts list of the section', () => {
     const bom = designBom(facade());
     expect(bom.find((r) => r.article === '100009')).toMatchObject({ count: 4, kg: 10 });

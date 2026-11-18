@@ -91,6 +91,43 @@ function Properties({ selected, setSelected }: { selected: string[]; setSelected
   const dz = useDesigner();
   const d = dz.design;
   const parts = d.parts.filter((p) => selected.includes(p.id));
+  const anchorsSel = d.anchors.filter((a) => selected.includes(a.id));
+  if (!parts.length && anchorsSel.length)
+    return (
+      <div className="space-y-2 text-xs" data-testid="designer-props">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold">{anchorsSel.length > 1 ? fmt.t('designer.props.anchorsMany', { n: anchorsSel.length }) : fmt.t('designer.props.anchor', { id: anchorsSel[0].id })}</p>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => {
+              dz.removeParts(selected);
+              setSelected([]);
+            }}
+            aria-label={fmt.t('designer.props.remove')}
+            data-testid="designer-remove"
+          >
+            <IconTrash />
+          </Button>
+        </div>
+        {anchorsSel.map((a) => (
+          <div key={a.id} className="space-y-1.5 rounded border border-slate-200 p-2 dark:border-slate-700" data-testid={`designer-anchor-props-${a.id}`}>
+            <p className="text-slate-500">
+              {a.id} · {fmt.t('designer.props.anchorOn', { std: `${a.part} ${byArticle.get(d.parts.find((x) => x.id === a.part)?.article ?? '')?.name ?? ''}`, z: fmt.q(a.z, 'length', 2) })}
+            </p>
+            <SelectField
+              label={fmt.t('designer.props.anchorDir')}
+              help="designer.anchorDir"
+              value={String(anchorAngle(d, a))}
+              testId={`designer-anchor-side-${a.id}`}
+              options={ANCHOR_ANGLES.map((g) => ({ value: String(g), label: fmt.t(g === 180 ? 'designer.props.wallLeft' : 'designer.props.wallRight') }))}
+              onChange={(v) => dz.updateAnchor(a.id, { angle: Number(v) })}
+            />
+            <NumberField label={fmt.t('scaffold.fix.limit')} q="force" value={a.limit ?? 0} onChange={(v) => dz.updateAnchor(a.id, { limit: v > 0 ? v : undefined })} help="scaffold.fixLimit" testId={`designer-anchor-limit-${a.id}`} />
+          </div>
+        ))}
+      </div>
+    );
   if (!parts.length) return <p className="text-xs text-slate-500">{fmt.t('designer.props.none')}</p>;
   const p = parts[0];
   const c = cat(p);
@@ -127,6 +164,11 @@ function Properties({ selected, setSelected }: { selected: string[]; setSelected
           <IconTrash />
         </Button>
       </div>
+      {parts.length === 1 && c.kind === 'diagonal' && (p.side ?? 1) < 0 && (
+        <p className="text-slate-600 dark:text-slate-300" data-testid="designer-back-side">
+          {fmt.t('designer.props.backSide')}
+        </p>
+      )}
       {decked.length > 0 && (
         <div className="space-y-1.5 rounded border border-slate-200 p-2 dark:border-slate-700">
           <CheckField checked={all((x) => !!x.deck)} onChange={(v) => setDeck(v ? {} : null)} label={fmt.t('designer.props.deck')} help="designer.deck" testId="designer-deck" />

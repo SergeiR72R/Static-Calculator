@@ -110,6 +110,26 @@ test('designer: a frame built from catalogue parts snaps together, is loaded, an
   await expect(page.getByTestId('designer-anchor-dir-A1')).toHaveValue('180');
   await page.getByTestId('designer-anchor-dir-A1').selectOption('0');
   await expect(page.getByTestId('designer-anchor-A1')).toHaveAttribute('data-angle', '0');
+  // an anchor is selected on the drawing and deleted (and back with undo)
+  await page.getByTestId('designer-anchor-A1').locator('line').first().click({ force: true });
+  await expect(page.getByTestId('designer-props')).toContainText('A1');
+  await page.keyboard.press('Delete');
+  await expect(page.getByTestId('designer-anchor-A1')).toHaveCount(0);
+  await page.getByTestId('designer-undo').click();
+  await expect(page.getByTestId('designer-anchor-A1')).toBeVisible();
+  // a double diagonal: the second UBK of the bay on the other side of the rosettes
+  await page.getByTestId('designer-kind-diagonal').click();
+  await page.getByTestId('designer-cat-424170').click();
+  await page.getByTestId('designer-canvas').scrollIntoViewIfNeeded();
+  const dl = await bbox(page, 'D3');
+  const dr = await bbox(page, 'D6');
+  const mid = { x: (dl.x + dl.width / 2 + dr.x + dr.width / 2) / 2, y: dl.y + dl.height * 0.55 };
+  await at(page, mid.x, mid.y);
+  await expect(page.getByTestId('designer-part-D8')).toHaveAttribute('data-side', '1');
+  await at(page, mid.x, mid.y);
+  await expect(page.getByTestId('designer-part-D9')).toHaveAttribute('data-side', '-1');
+  await expect(page.getByTestId('designer-part-D9')).toHaveAttribute('data-x', (await page.getByTestId('designer-part-D8').getAttribute('data-x'))!);
+  await page.getByTestId('designer-tool-select').click();
   // calculated with the analysis of the scaffold mode
   await page.getByTestId('designer-run').click();
   await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', /^(ok|check|fail)$/, { timeout: 30_000 });

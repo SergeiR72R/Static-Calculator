@@ -206,10 +206,19 @@ export function DesignCanvas({
         setAnchorStart(null);
       }
     } else {
-      const h = hit(d, x, z, Math.max(0.12, 8 / v.s));
-      if (!h) setSelected([]);
-      else if (add) setSelected(selected.includes(h.id) ? selected.filter((s) => s !== h.id) : [...selected, h.id]);
-      else setSelected([h.id]);
+      // an anchor (its tie towards the wall) before the parts under it
+      const reachA = Math.max(0.1, 10 / v.s);
+      const an = d.anchors.find((a) => {
+        const s = stds.find((q) => q.part.id === a.part);
+        if (!s) return false;
+        const dir = anchorAngle(d, a) === 180 ? -1 : 1;
+        const tx = s.x + (dir * 28) / v.s;
+        return z >= a.z - reachA && z <= a.z + reachA && x >= Math.min(s.x, tx) - reachA / 2 && x <= Math.max(s.x, tx) + reachA / 2 && Math.abs(x - s.x) > 4 / v.s;
+      });
+      const id = an?.id ?? hit(d, x, z, Math.max(0.12, 8 / v.s))?.id;
+      if (!id) setSelected([]);
+      else if (add) setSelected(selected.includes(id) ? selected.filter((s) => s !== id) : [...selected, id]);
+      else setSelected([id]);
     }
   };
 
@@ -267,10 +276,16 @@ export function DesignCanvas({
           const a = toWorld(Math.min(band.x0, band.x1), Math.max(band.y0, band.y1));
           const b = toWorld(Math.max(band.x0, band.x1), Math.min(band.y0, band.y1));
           const inside = (x: number, z: number) => x >= a.x && x <= b.x && z >= a.z && z <= b.z;
-          const ids = d.parts.filter((p) => {
-            const [x0, z0, x1, z1] = ends(p);
-            return inside(x0, z0) && inside(x1, z1);
-          }).map((p) => p.id);
+          const ids = [
+            ...d.parts
+              .filter((p) => {
+                const [x0, z0, x1, z1] = ends(p);
+                return inside(x0, z0) && inside(x1, z1);
+              })
+              .map((p) => p.id),
+            // anchors with their point inside
+            ...d.anchors.filter((a) => inside(stds.find((q) => q.part.id === a.part)?.x ?? NaN, a.z)).map((a) => a.id),
+          ];
           setSelected(e.ctrlKey || e.shiftKey || e.metaKey ? [...new Set([...selected, ...ids])] : ids);
           setBand(null);
           return;
@@ -330,9 +345,9 @@ export function DesignCanvas({
           const k = cat(p)?.kind;
           const w = k === 'standard' || k === 'base' ? 4 : k === 'diagonal' || k === 'tube' ? 2.2 : 3;
           return (
-            <g key={p.id} data-testid={`designer-part-${p.id}`} data-article={p.article} data-x={p.x} data-z={p.z}>
+            <g key={p.id} data-testid={`designer-part-${p.id}`} data-article={p.article} data-x={p.x} data-z={p.z} data-side={p.side ?? 1}>
               {on && ls.map((l, i) => seg(l, i, '#d946ef', w + 6, { strokeOpacity: 0.35 }))}
-              {ls.map((l, i) => seg(l, i, partColor(p), k === 'jack' && i < 4 ? 5 : w))}
+              {ls.map((l, i) => seg(l, i, partColor(p), k === 'jack' && i < 4 ? 5 : w, (p.side ?? 1) < 0 ? { strokeDasharray: '7 4' } : {}))}
             </g>
           );
         })}
@@ -374,7 +389,7 @@ export function DesignCanvas({
         {d.anchors.map((a) => {
           const s = stds.find((q) => q.part.id === a.part);
           if (!s) return null;
-          return <AnchorMark key={a.id} id={a.id} x={X(s.x)} y={Y(a.z)} angle={anchorAngle(d, a)} on={selected.includes(a.part)} />;
+          return <AnchorMark key={a.id} id={a.id} x={X(s.x)} y={Y(a.z)} angle={anchorAngle(d, a)} on={selected.includes(a.id) || selected.includes(a.part)} />;
         })}
         {tool.kind === 'anchor' && anchorStart && ptr && <AnchorMark id="" x={X(anchorStart.x)} y={Y(anchorStart.z)} angle={angleTo(anchorStart, ptr.x)} ghost />}
         {/* the copied parts at the place of the pointer */}

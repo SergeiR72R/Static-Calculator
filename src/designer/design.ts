@@ -20,6 +20,11 @@ export interface Placed {
   z: number;
   /** bracket: towards +x (1) or −x (−1); diagonal: the upper end towards +x (1) or −x (−1) */
   dir?: 1 | -1;
+  /**
+   * diagonal: side of the rosettes it is wedged on (1: front, −1: back): two diagonals of a bay on both
+   * sides of the rosettes make a double diagonal (UBK can be fixed so)
+   */
+  side?: 1 | -1;
   /** tube: second end */
   x2?: number;
   z2?: number;
@@ -238,7 +243,11 @@ export function snap(d: Design, c: CatalogPart, px: number, pz: number, reach = 
         for (const dir of [1, -1] as const) {
           const up = ros.find((q) => near(q.x, r.x + dir * c.L) && near(q.z, r.z + (c.H ?? 2)));
           if (!up) continue;
-          cands.push({ part: { article: c.article, x: r.x, z: r.z, dir }, d: segDist(px, pz, [r.x, r.z, up.x, up.z]), ok: true });
+          // a diagonal of the bay on the front already: this one on the back of the rosettes (double)
+          const there = d.parts.filter((p) => cat(p)?.kind === 'diagonal' && near(p.x, r.x) && near(p.z, r.z) && (p.dir ?? 1) === dir && near(cat(p).L, c.L) && near(cat(p).H ?? 2, c.H ?? 2));
+          if (there.length >= 2) continue;
+          const side: 1 | -1 = there.length && (there[0].side ?? 1) === 1 ? -1 : 1;
+          cands.push({ part: { article: c.article, x: r.x, z: r.z, dir, ...(side < 0 ? { side } : {}) }, d: segDist(px, pz, [r.x, r.z, up.x, up.z]), ok: true });
         }
       break;
     }
@@ -378,7 +387,11 @@ export function designDoc(d: Design): DesignDoc {
         add(p.id, c, (p.dir ?? 1) > 0 ? mat(ROT_X, [p.x, -0.015, p.z]) : mat(ROT_NX, [p.x, 0.015, p.z]));
         break;
       case 'diagonal':
-        add(p.id, c, (p.dir ?? 1) > 0 ? mat(ROT_X, [p.x + HEAD.ubk, -0.05, p.z]) : mat(ROT_NX, [p.x - HEAD.ubk, 0.05, p.z]));
+        {
+          // in front of the plane of the standards (+y) or behind it (−y): the side of the rosette
+          const y = (p.side ?? 1) > 0 ? 0.05 : -0.05;
+          add(p.id, c, (p.dir ?? 1) > 0 ? mat(ROT_X, [p.x + HEAD.ubk, y - 0.05, p.z]) : mat(ROT_NX, [p.x - HEAD.ubk, y + 0.05, p.z]));
+        }
         break;
       case 'spigot':
         add(p.id, c, mat(ROT_X, [p.x, 0, p.z]));

@@ -1479,7 +1479,7 @@
   },
   "designer": {
     "title": "Scaffold section (side view)",
-    "intro": "Choose a part in the catalogue and move over the drawing: it snaps to the nearest connection point (green – can be placed). Standards on jacks, base standards and each other, ledgers and diagonals between rosettes of equal height, brackets on a rosette. A standard can hang on a diagonal and a ledger – a bracket built from a diagonal. Wheel – zoom, right button – pan, band – select several, Ctrl+C / Ctrl+V – copy a group, Del – delete, Ctrl+Z – undo.",
+    "intro": "Choose a part in the catalogue and move over the drawing: it snaps to the nearest connection point (green – can be placed). Standards on jacks, base standards and each other, ledgers and diagonals between rosettes of equal height, brackets on a rosette. A standard can hang on a diagonal and a ledger – a bracket built from a diagonal. Wheel – zoom, right button – pan, band – select several, Ctrl+C / Ctrl+V – copy a group, Del – delete, Ctrl+Z – undo. A second equal diagonal in the same bay goes on the other side of the rosette (double, dashed). An anchor is selected by a click or a band and deleted with Del.",
     "catalog": "PERI UP parts catalogue",
     "search": "Search: name or article",
     "tools": "Tools",
@@ -1514,7 +1514,11 @@
       "anchors": "Anchors on this standard (height of the rosette, m):",
       "anchorDir": "Where is the wall",
       "wallLeft": "← wall on the left",
-      "wallRight": "wall on the right →"
+      "wallRight": "wall on the right →",
+      "anchor": "Anchor {id}",
+      "anchorsMany": "Anchors selected: {n}",
+      "anchorOn": "on the standard {std}, z = {z}",
+      "backSide": "double (other side of the rosette)"
     },
     "settings": "Loads and conditions",
     "name": "Name of the section",

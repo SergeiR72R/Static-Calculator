@@ -1479,7 +1479,7 @@
   },
   "designer": {
     "title": "Gerüstschnitt (Seitenansicht)",
-    "intro": "Teil im Katalog wählen und über die Zeichnung fahren: es springt an den nächsten Anschlusspunkt (grün – setzbar). Stiele auf Spindeln, Basisstiele und aufeinander, Riegel und Diagonalen zwischen Rosetten gleicher Höhe, Konsolen an eine Rosette. Ein Stiel kann an Diagonale und Riegel hängen – so entsteht eine Konsole aus einer Diagonale. Rad – Zoom, rechte Taste – verschieben, Rahmen – mehrere wählen, Strg+C / Strg+V – Gruppe kopieren, Entf – löschen, Strg+Z – rückgängig.",
+    "intro": "Teil im Katalog wählen und über die Zeichnung fahren: es springt an den nächsten Anschlusspunkt (grün – setzbar). Stiele auf Spindeln, Basisstiele und aufeinander, Riegel und Diagonalen zwischen Rosetten gleicher Höhe, Konsolen an eine Rosette. Ein Stiel kann an Diagonale und Riegel hängen – so entsteht eine Konsole aus einer Diagonale. Rad – Zoom, rechte Taste – verschieben, Rahmen – mehrere wählen, Strg+C / Strg+V – Gruppe kopieren, Entf – löschen, Strg+Z – rückgängig. Eine zweite gleiche Diagonale im selben Feld kommt auf die andere Seite der Rosette (doppelt, gestrichelt). Ein Anker wird per Klick oder Rahmen gewählt und mit Entf gelöscht.",
     "catalog": "Teilekatalog PERI UP",
     "search": "Suche: Name oder Artikel",
     "tools": "Werkzeuge",
@@ -1514,7 +1514,11 @@
       "anchors": "Anker an diesem Stiel (Höhe der Rosette, m):",
       "anchorDir": "Wo ist die Wand",
       "wallLeft": "← Wand links",
-      "wallRight": "Wand rechts →"
+      "wallRight": "Wand rechts →",
+      "anchor": "Anker {id}",
+      "anchorsMany": "Gewählte Anker: {n}",
+      "anchorOn": "am Stiel {std}, z = {z}",
+      "backSide": "doppelt (andere Seite der Rosette)"
     },
     "settings": "Lasten und Bedingungen",
     "name": "Name des Schnitts",

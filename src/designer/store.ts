@@ -144,7 +144,8 @@ export const useDesigner = create<DesignerState>()((set, get) => ({
     get().edit((d) => ({
       ...d,
       parts: d.parts.filter((p) => !ids.includes(p.id)),
-      anchors: d.anchors.filter((a) => !ids.includes(a.part)),
+      // anchors selected themselves or on a removed standard
+      anchors: d.anchors.filter((a) => !ids.includes(a.part) && !ids.includes(a.id)),
     })),
   addAnchor: (a) =>
     get().edit((d) => ({

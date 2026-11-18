@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from 'react';
 import { KIND_COLOR } from '../../scaffold/catalog';
 import type { CatalogPart, DesignKind } from '../../designer/catalog';
+import { partPicture } from './pictures';
 
 /** colour of a designer part kind (as in the 3D view of the scaffold mode) */
 export const DESIGN_COLOR: Record<DesignKind, string> = {
@@ -21,7 +22,19 @@ const EDGE = '#475569';
  * and wing nut of a base jack, brackets with their strut and spigot, couplers. Drawn by the program
  * (no photos of PERI), proportions of the part kind; standards with their number of rosettes.
  */
-export function PartIcon({ part, size = 48 }: { part: CatalogPart; size?: number }) {
+export function PartIcon({ part, size = 56 }: { part: CatalogPart; size?: number }) {
+  const pic = partPicture(part);
+  if (pic)
+    return (
+      <span className="flex shrink-0 items-center justify-center rounded bg-white p-1 ring-1 ring-slate-200 dark:ring-slate-600" style={{ width: size, height: size }} data-testid="designer-icon">
+        <img src={pic} alt="" className="max-h-full max-w-full object-contain" draggable={false} />
+      </span>
+    );
+  return <DrawnIcon part={part} size={size} />;
+}
+
+/** drawn picture for the parts without a picture of the catalogue */
+function DrawnIcon({ part, size }: { part: CatalogPart; size: number }) {
   const uid = useId().replace(/:/g, '');
   const gv = `gv${uid}`;
   const gh = `gh${uid}`;

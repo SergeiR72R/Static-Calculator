@@ -199,10 +199,10 @@ export const CATALOG: CatalogPart[] = [
     (cm) => `UHV-2 ${cm}`,
     'UHV-2',
   ),
-  // brackets with a spigot for a standard; UCB 25 without
+  // brackets with a spigot for a standard (UCB 25 as well)
   part('412676', 'UCM 50 mit Zapfen', 'bracket', 0.5, 'UCM', { bracketSpigot: true }),
   part('412678', 'UCM 75 mit Zapfen', 'bracket', 0.75, 'UCM', { bracketSpigot: true }),
-  part('134005', 'UCB 25', 'bracket', 0.25, 'UCM', { bracketSpigot: false }),
+  part('134005', 'UCB 25', 'bracket', 0.25, 'UCM', { bracketSpigot: true }),
   // node diagonals bay / height: UBK and UBK-2
   ...ubk(
     [

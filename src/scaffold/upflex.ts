@@ -55,7 +55,7 @@ export interface LedgerSection {
 }
 
 /** ledger profiles RHP 60 × 30 (strong axis y = vertical loads) */
-export const LEDGERS: Record<'r20' | 'r30' | 'r24' | 'uhv', LedgerSection> = {
+export const LEDGERS: Record<'r20' | 'r20u' | 'r30' | 'r24' | 'uhv', LedgerSection> = {
   r20: {
     name: 'RHP 60×30×2,0 S355',
     A: 3.34 * cm2,
@@ -65,6 +65,17 @@ export const LEDGERS: Record<'r20' | 'r30' | 'r24' | 'uhv', LedgerSection> = {
     g: 2.7,
     w: { N: 80.4 * kN, My: 123 * kNcm, Vz: 41.0 * kN, Mx: 89.8 * kNcm, Mz: 109 * kNcm, Vy: 46.4 * kN },
     span: { N: 107.4 * kN, My: 202.4 * kNcm },
+  },
+  /** ledger UH (first design, S235): in the span the profile of S235 (Tabellenbuch p. 11, 24) */
+  r20u: {
+    name: 'RHP 60×30×2,0 S235',
+    A: 3.34 * cm2,
+    Iy: 15.05 * cm4,
+    Iz: 5.08 * cm4,
+    J: 12.3 * cm4,
+    g: 2.7,
+    w: { N: 80.4 * kN, My: 123 * kNcm, Vz: 41.0 * kN, Mx: 89.8 * kNcm, Mz: 109 * kNcm, Vy: 46.4 * kN },
+    span: { N: 71.1 * kN, My: 134.7 * kNcm },
   },
   r30: {
     name: 'RHP 60×30×3,0 S355',
@@ -281,6 +292,18 @@ export const LEDGER_ZUL_Q: Record<'UH' | 'PLUS' | 'UHV', Record<number, number>>
   PLUS: { 25: 52, 33: 52, 50: 52, 67: 29.8, 75: 24.1, 100: 18.3, 125: 11.7, 150: 6.5, 175: 4.88, 200: 3.49, 225: 2.6, 250: 2.0, 300: 1.29 },
   UHV: { 150: 19.8, 200: 13.6, 250: 8.53, 300: 6.29 },
 };
+
+/**
+ * Permissible loads of the brackets UCM without the bracket support UCM (PERI Tabellenbuch 05/2021,
+ * p. 48): single load at the tip F and line load q, characteristic; by the length B in cm.
+ */
+export const BRACKET_ZUL: Record<number, { F: number; q: number }> = { 50: { F: 3.58 * kN, q: 15.1 * kN }, 75: { F: 3.81 * kN, q: 10.6 * kN } };
+export function bracketZul(B: number): { F: number; q: number } | undefined {
+  const key = Object.keys(BRACKET_ZUL)
+    .map(Number)
+    .find((k) => Math.abs(k - B * 100) <= 6);
+  return key === undefined ? undefined : BRACKET_ZUL[key];
+}
 
 /** permissible line load of a ledger of the system length L (m), N/m; undefined: not in the table */
 export function ledgerZulQ(head: LedgerHead, uhv: boolean, L: number): number | undefined {

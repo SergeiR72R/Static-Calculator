@@ -335,6 +335,25 @@ describe('designer: section of a PERI UP scaffold', () => {
     expect(dh({ outdoor: true, qMax: 1000 }, 'R')).toBeGreaterThan(dh({ outdoor: true, qMax: 500 }, 'R') * 1.3);
   });
 
+  it('brackets UCM at the permissible loads of the PERI Tabellenbuch: line load and a standard on the tip', () => {
+    const run = (b: number, post: boolean) => {
+      const { d, up } = portal('UH 100 Plus', { cls: 3, b: 1 });
+      const br = place(d, 'UCM 50 mit Zapfen', 1.3, up.z);
+      br.deck = { width: b, work: true, cls: 3 };
+      if (post) place(d, 'UVR 100', 1.5, up.z + 0.8);
+      const r = solve(d);
+      return r.checks.find((c) => c.part === br.id && c.check === 'bracket')!;
+    };
+    // zul. q = 15.1 kN/m: (2.0 + 0.3) kN/m² over 15.1 / 2.3 m
+    const full = run(15.1 / 2.3, false);
+    expect(full.detail).toContain('Tabellenbuch');
+    expect(full.eta).toBeGreaterThan(0.97);
+    expect(full.eta).toBeLessThan(1.08);
+    // a standard on the spigot adds its weight as a single load at the tip (zul. F = 3.58 kN)
+    expect(run(15.1 / 2.3, true).eta).toBeGreaterThan(full.eta + 0.005);
+    expect(run(2.5, false).eta).toBeLessThan(0.45);
+  });
+
   it('shear force of the ledger for the diagram: q · L / 2 at its ends', () => {
     const { d, up } = portal('UH 200 Plus', { cls: 3, b: 1.5 });
     const r = solve(d);

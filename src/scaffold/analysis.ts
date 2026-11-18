@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
+import { COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, bracketZul, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
 
 const G = 9.81;
 
@@ -1079,6 +1079,22 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         }
       }
     });
+
+    // brackets UCM: permissible line load and single load at the tip of the PERI Tabellenbuch
+    for (const car of model.carriers) {
+      if (car.kind !== 'bracket' || !car.members.length) continue;
+      const first = frame.members[car.members[0]];
+      const lastK = car.members[car.members.length - 1];
+      const last = frame.members[lastK];
+      const B = Math.hypot(frame.nodes[last.j][0] - frame.nodes[first.i][0], frame.nodes[last.j][1] - frame.nodes[first.i][1]);
+      const zul = bracketZul(B);
+      const ml = r.members[lastK];
+      if (!zul || !ml) continue;
+      const q = Math.max(...car.members.map((k) => Math.abs(r.members[k]?.q[2] ?? 0))) / GAMMA_F;
+      const F = Math.abs(sectionForces(ml, ml.L).Vz) / GAMMA_F;
+      if (q + F <= 0) continue;
+      put({ part: car.part, check: 'bracket', eta: q / zul.q + F / zul.F, combo: cb.name, V: F * GAMMA_F, detail: `Tabellenbuch: q = ${(q / 1e3).toFixed(2)} / ${(zul.q / 1e3).toFixed(1)} kN/m, F = ${(F / 1e3).toFixed(2)} / ${(zul.F / 1e3).toFixed(2)} kN` });
+    }
 
     // shear force of the beam members at their ends (the larger of the two local components)
     if (opt.diagrams)

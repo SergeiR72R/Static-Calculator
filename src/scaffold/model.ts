@@ -182,7 +182,7 @@ function ledgerType(w: WorldPart): { head: LedgerHead; sec: keyof typeof LEDGERS
     const n = Number(/(\d{2,3})/.exec(w.part.name)?.[1]);
     return { head: 'PLUS', sec: /UHV/i.test(t) ? 'uhv' : n === 100 || n === 125 ? 'r30' : 'r20' };
   }
-  return { head: 'UH', sec: 'r20' };
+  return { head: 'UH', sec: 'r20u' };
 }
 
 const HINGE = [Infinity, Infinity, Infinity, Infinity, 0, 0];

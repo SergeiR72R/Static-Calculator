@@ -155,6 +155,16 @@ test('designer: the example section works and every setting explains itself', as
   await page.getByTestId('mode-designer').click();
   await page.getByTestId('designer-example').click();
   await expect(page.locator('[data-testid^="designer-part-"]')).toHaveCount(13);
+  // the wheel zooms the drawing; the page does not scroll
+  await page.evaluate('window.scrollTo(0, 120)');
+  const y0 = await page.evaluate('window.scrollY');
+  const h0 = (await page.getByTestId('designer-part-D3').boundingBox())!.height;
+  const cv = (await page.getByTestId('designer-canvas').boundingBox())!;
+  await page.mouse.move(cv.x + cv.width / 2, cv.y + cv.height / 2);
+  await page.mouse.wheel(0, -300);
+  await expect.poll(async () => (await page.getByTestId('designer-part-D3').boundingBox())!.height).toBeGreaterThan(h0 * 1.1);
+  expect(await page.evaluate('window.scrollY')).toBe(y0);
+  await page.getByTestId('designer-fit').click();
   await page.getByTestId('designer-run').click();
   await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', 'ok', { timeout: 30_000 });
   // load class 6: the nodes of the rosettes are shown at their place

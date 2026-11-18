@@ -174,6 +174,23 @@ export function DesignCanvas({
     return () => window.removeEventListener('keydown', onKey);
   }, [selected, dz, setSelected, setTool]);
 
+  // zoom with the wheel at the pointer; the listener is not passive, so the page does not scroll
+  const wheelRef = useRef<(e: WheelEvent) => void>(() => {});
+  wheelRef.current = (e: WheelEvent) => {
+    e.preventDefault();
+    const { px, py } = local(e);
+    const w = toWorld(px, py);
+    const s = Math.min(Math.max(v.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 20), 1500);
+    setView({ s, cx: w.x - (px - size.w / 2) / s, cz: w.z + (py - size.h / 2) / s });
+  };
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const on = (e: WheelEvent) => wheelRef.current(e);
+    el.addEventListener('wheel', on, { passive: false });
+    return () => el.removeEventListener('wheel', on);
+  }, []);
+
   const local = (e: { clientX: number; clientY: number }) => {
     const r = box.current!.getBoundingClientRect();
     return { px: e.clientX - r.left, py: e.clientY - r.top };
@@ -296,12 +313,6 @@ export function DesignCanvas({
         click(w.x, w.z, e.ctrlKey || e.shiftKey || e.metaKey);
       }}
       onPointerLeave={() => setPtr(null)}
-      onWheel={(e) => {
-        const { px, py } = local(e);
-        const w = toWorld(px, py);
-        const s = Math.min(Math.max(v.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15), 20), 1500);
-        setView({ s, cx: w.x - (px - size.w / 2) / s, cz: w.z + (py - size.h / 2) / s });
-      }}
       onContextMenu={(e) => e.preventDefault()}
     >
       <svg width={size.w} height={size.h} className="absolute inset-0" data-testid="designer-svg">

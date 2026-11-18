@@ -181,6 +181,14 @@ test('scaffold mode: space frame analysis with results in tables and in 3D', asy
   await page.getByTestId('mode-scaffold').click();
   await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
   await expect(page.getByTestId('scaffold-calc')).toBeVisible();
+  // the wheel over the 3D view zooms it; the page does not scroll
+  await page.getByTestId('scaffold-3d').scrollIntoViewIfNeeded();
+  const y0 = await page.evaluate('window.scrollY');
+  const v3 = (await page.getByTestId('scaffold-3d').boundingBox())!;
+  await page.mouse.move(v3.x + v3.width / 2, v3.y + v3.height / 2);
+  await page.mouse.wheel(0, 300);
+  await page.waitForTimeout(100);
+  expect(await page.evaluate('window.scrollY')).toBe(y0);
   // before the analysis: no verdict yet, the remarks on the model are there (no site: no maximum wind)
   await expect(page.getByTestId('scaffold-verdict')).toHaveAttribute('data-verdict', 'none');
   await expect(page.getByTestId('scaffold-verdict-title')).toHaveText('Расчёт ещё не выполнен');

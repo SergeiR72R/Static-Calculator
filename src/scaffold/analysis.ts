@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, bracketZul, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
+import { COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, bracketZul, jointK, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
 
 const G = 9.81;
 
@@ -601,7 +601,7 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads0: Loads3, secondOrde
       } else {
         if (secondOrder && Ns) st.N = Ns[k];
         // a standard joint opened under tension: no axial stiffness, bending through the spigot
-        if (m.joint && jopen[k]) st.k = [[spliceSlack > 0 ? jk[k] : JOINT_OPEN, Infinity, Infinity, Infinity, JOINT.k, JOINT.k], undefined];
+        if (m.joint && jopen[k]) st.k = [[spliceSlack > 0 ? jk[k] : JOINT_OPEN, Infinity, Infinity, Infinity, jointK(), jointK()], undefined];
         if (m.conn && (kc[k][0] || kc[k][1])) {
           const e = frame.members[k].ends!;
           st.k = [0, 1].map((i) => (kc[k][i] ? [Infinity, Infinity, kc[k][i]![3], kc[k][i]![0], kc[k][i]![1], kc[k][i]![2]] : e[i]?.k)) as MemberState['k'];
@@ -1029,7 +1029,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
             const f: ConnForces = { N: sf.N, My: -sf.My, Vz: e === 0 ? mr.fi[2] : mr.fj[2], Vy: sf.Vy, Mz: sf.Mz, Mx: sf.Mx };
             const ci2 = connInteraction(m.head!, v, f);
             const fk = frame.members[k];
-            put({ part: m.part, check: 'conn', eta: ci2.eta, combo: cb.name, detail: `Gl. ${ci2.eq}`, N: f.N, M: f.My, V: f.Vz, at: frame.nodes[e === 0 ? fk.i : fk.j] });
+            put({ part: m.part, check: 'conn', eta: ci2.eta, combo: cb.name, detail: `Gl. ${ci2.eq}: ${Object.entries(ci2.parts).filter(([, x]) => x >= 0.05).map(([n, x]) => `${n} ${x.toFixed(2)}`).join(', ')}`, N: f.N, M: f.My, V: f.Vz, at: frame.nodes[e === 0 ? fk.i : fk.j] });
           }
           // an inner node of the ledger (e.g. a UHA hanging on it): cross-section of the span
           if (!v && m.conn) {

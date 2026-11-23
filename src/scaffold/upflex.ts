@@ -149,12 +149,13 @@ const mxCurve = (h: LedgerHead): Curve => (h === 'PLUS' ? C(4700, 77.9, 45) : C(
 
 /** secant stiffness for the moment M (N·m; sign as in the approval), N·m/rad */
 function secant(c: Curve, M: number): number {
+  if (CALIB.connLinear) return c.a * kNcm;
   const m = Math.min(Math.abs(M) / kNcm, c.max);
   // never below the secant at the end of the curve
   return Math.max(c.a - c.b * m, 0.05 * c.a) * kNcm;
 }
-export const connKy = (h: LedgerHead, v: Variant, My: number) => secant(My >= 0 ? MY[h][v].pos : MY[h][v].neg, My);
-export const connKz = (h: LedgerHead, v: Variant, Mz: number) => secant(mzCurve(h, v), Mz);
+export const connKy = (h: LedgerHead, v: Variant, My: number) => secant(My >= 0 ? MY[h][v].pos : MY[h][v].neg, My) * CALIB.connMy;
+export const connKz = (h: LedgerHead, v: Variant, Mz: number) => secant(mzCurve(h, v), Mz) * CALIB.connMz;
 
 /**
  * Vertical spring c_z of the ledger connection (flexibility of the rosette; annex A pages 9, 10; for
@@ -171,9 +172,9 @@ export function connCz(v: Variant, Fz: number): number {
   let k: number;
   if (r6) k = f >= 0 ? 8 - 0.39 * Math.min(f, 15) : 36 + 0.96 * Math.max(f, -33);
   else k = f >= 0 ? 31.5 - 1.89 * Math.min(f, 15) : f >= -5 ? 60 : f / (f / 10 + 0.4167);
-  return Math.max(k, 0.05 * k0) * 1e6;
+  return Math.max(k, 0.05 * k0) * 1e6 * CALIB.connCz;
 }
-export const connKx = (h: LedgerHead, Mx: number) => secant(mxCurve(h), Mx);
+export const connKx = (h: LedgerHead, Mx: number) => secant(mxCurve(h), Mx) * CALIB.connMx;
 
 export interface ConnResistance {
   MyPos: number;
@@ -283,6 +284,35 @@ export function tubeUtilisation(n0: number, m0: number): number {
 export const JOINT = { k: 12900 * kNcm, MRd: 113 * kNcm, NRd: 100 * kN };
 
 /**
+ * Calibration factors of the stiffnesses against PERI ForceControl (1: the values of the approval and
+ * the tests). Only diagUBL differs, calibrated on 18_010 / 13_004 (decision log R-049); the others are
+ * for comparisons.
+ */
+export const CALIB = {
+  /** ledger connection: bending about y (vertical), z (horizontal), torsion; vertical spring c_z */
+  connMy: 1,
+  connMz: 1,
+  connMx: 1,
+  connCz: 1,
+  /** stiffness of the nodes by the rosette of the standard's article (else all as 6 mm, R-021) */
+  byArticle: false,
+  /** ledger connection springs at their initial stiffness (no softening with the moment) */
+  connLinear: false,
+  /** rotational stiffness of the standard joints */
+  joint: 1,
+  /** slip of the couplers */
+  couplerSlip: 1,
+  /** axial stiffness of the diagonals: all, and by type */
+  diag: 1,
+  diagUBK: 1,
+  diagUBS: 1,
+  /** ledger diagonals UBL: half the spring of tables 16 / 17 (as PERI ForceControl, R-049) */
+  diagUBL: 0.5,
+  diagUBH: 1,
+};
+export const jointK = () => JOINT.k * CALIB.joint;
+
+/**
  * Permissible uniform line load of the ledgers as single-span beams, kN/m by the system length in cm
  * (PERI Tabellenbuch 05/2021, p. 24 – 26; characteristic loads, γ_F = 1.5 included). UH: 60×30×2 S235;
  * UH Plus / UH-2; UHV / UHV Plus / UHV-2 (top chord held sideways by the decks).
@@ -326,6 +356,7 @@ export const COUPLER_RD = 9.1 * 1.5 * kN;
  * tube (as the axial slip diagrams of the coupler hinges in PERI ForceControl).
  */
 export const COUPLER_SLIP_K = (15 * kN) / 0.003;
+export const couplerSlipK = () => COUPLER_SLIP_K * CALIB.couplerSlip;
 
 export interface DiagonalData {
   /** axial stiffness in tension / compression, N */

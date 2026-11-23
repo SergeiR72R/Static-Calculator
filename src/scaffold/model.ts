@@ -17,7 +17,7 @@ import { findPeriProduct, periSI } from '../sections/peri';
 import { deckedLedger, type ScaffoldStructure, type WorldPart } from './structure';
 import type { PartKind } from './catalog';
 import { partKg } from './weights';
-import { COUPLER_SLIP_K, E_STEEL, G_STEEL, JACK, JOINT, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
+import { CALIB, E_STEEL, G_STEEL, JACK, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, couplerSlipK, jointK, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 import { planBlockLoads, type PlanLoads } from './planLoads';
 import { orderedAxis, type UserFixing, type UserLoad, type UserLoadWhen } from './userLoads';
 
@@ -196,7 +196,7 @@ const HINGE = [Infinity, Infinity, Infinity, Infinity, 0, 0];
  * stiff across (pull-apart) and in rotation.
  */
 const couplerLink = (L: number): Section3 => {
-  const EI = (COUPLER_SLIP_K * Math.max(L, 0.01) ** 3) / 12;
+  const EI = (couplerSlipK() * Math.max(L, 0.01) ** 3) / 12;
   return { EA: 1e9, EIy: EI, EIz: EI, GJ: 1e6 };
 };
 /** end panel of a lattice girder (end element ULS 50 Flex), m, and area of its posts / diagonals, m² */
@@ -350,7 +350,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
             zb = Math.min(zb, a[2], b[2]);
             zt = Math.max(zt, a[2], b[2]);
           }
-        const variant = standardVariant(w, opts.rosette6 ?? true);
+        const variant = standardVariant(w, opts.rosette6 ?? !CALIB.byArticle);
         return { w, zb, zt, variant, cap: (opts.capByArticle ?? true) ? standardVariant(w, false) : variant };
       })
       .filter((p) => Number.isFinite(p.zb))
@@ -423,7 +423,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     return [Infinity, Infinity, cz, connKx(head, 0), connKy(head, v, 0), connKz(head, v, 0)];
   };
   /** variant of a rosette not on a standard (the standards of the drawing as a whole) */
-  const looseVariant: Variant = (opts.rosette6 ?? true) ? '2a' : '1a';
+  const looseVariant: Variant = (opts.rosette6 ?? !CALIB.byArticle) ? '2a' : '1a';
   /** rosette connection of a ledger end P (other end Q) at a standard */
   const rosetteEnd = (P: V3, Q: V3, head: LedgerHead, part: string): Attach | null => {
     const k = colAt(P, 0.12);
@@ -566,7 +566,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   const tubeSec = (i: number, j: number): Section3 => {
     const L = Math.max(len3(nodes[i], nodes[j]), 0.05);
     const EA = E_STEEL * TUBES.t32.A;
-    return trussSec(L / (L / EA + 2 / COUPLER_SLIP_K));
+    return trussSec(L / (L / EA + 2 / couplerSlipK()));
   };
   const girderPanels: { part: string; m: { i: number; j: number; sec: Section3; truss: boolean }[] }[] = [];
   const flexRosettes: { p: V3; car: Carrier; part: string; t: number }[] = [];
@@ -1167,7 +1167,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       const dims = ublDims(w);
       const plus = A.c.head === 'PLUS' && B.c.head === 'PLUS';
       const d = ublData(dims ? Number(dims[1]) / 100 : dist2(nodes[A.node], nodes[B.node]), dims ? Number(dims[2]) / 100 : Math.abs(nodes[B.node][2] - nodes[A.node][2]), plus, L);
-      fm.push({ i: A.node, j: B.node, sec: trussSec(d.eaT), truss: true, ends: [{ offset: A.off }, { offset: B.off }] });
+      fm.push({ i: A.node, j: B.node, sec: trussSec(d.eaT * CALIB.diag * CALIB.diagUBL), truss: true, ends: [{ offset: A.off }, { offset: B.off }] });
       mm.push({ kind, part: w.part.id, diag: d, g: (partKg(w.part) ?? 3.5 * L) / L });
       continue;
     }
@@ -1220,7 +1220,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       return [nodes[k][0] + o[0], nodes[k][1] + o[1], nodes[k][2] + o[2]];
     };
     const L = len3(at(na, ends?.[0]), at(nb, ends?.[1]));
-    fm.push({ i: na, j: nb, sec: trussSec(d.eaT), truss: true, ...(ends ? { ends } : {}) });
+    fm.push({ i: na, j: nb, sec: trussSec(d.eaT * CALIB.diag * (kind === 'ubk' ? CALIB.diagUBK : kind === 'ubs' ? CALIB.diagUBS : kind === 'ubl' ? CALIB.diagUBL : kind === 'ubh' ? CALIB.diagUBH : 1)), truss: true, ...(ends ? { ends } : {}) });
     mm.push({ kind, part: w.part.id, diag: d, g: (partKg(w.part) ?? 3.5 * L) / L });
   }
   /** standards a tube passes (axis within 12 cm, height within the standard), ordered along the tube */
@@ -1363,7 +1363,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       const joint = pi > 0 && Math.abs(c.zs[i] - p.zb) < 0.006;
       const hinged = i === 0 && c.onCarrier;
       const ends: Member3['ends'] = joint
-        ? [{ k: [Infinity, Infinity, Infinity, Infinity, JOINT.k, JOINT.k] }, undefined]
+        ? [{ k: [Infinity, Infinity, Infinity, Infinity, jointK(), jointK()] }, undefined]
         : hinged
           ? [{ k: HINGE }, undefined]
           : undefined;

@@ -345,6 +345,7 @@
         "tension": "растяжение",
         "compression": "сжатие",
         "periChord": "сечение по PERI: n, v, m",
+        "periBuckling": "устойчивость пояса по PERI (Эйлер, Lcr = шаг связей)",
         "periDiag": "сечение по PERI: n, v, m_N",
         "standard": "потеря устойчивости стойки, кривая b",
         "flexTable": "конфигурация PERI"

@@ -345,6 +345,7 @@
         "tension": "Zug",
         "compression": "Druck",
         "periChord": "Querschnitt nach PERI: n, v, m",
+        "periBuckling": "Knicken Gurt nach PERI (Euler, Lcr = Aussteifungsabstand)",
         "periDiag": "Querschnitt nach PERI: n, v, m_N",
         "standard": "Biegeknicken Ständer, Kurve b",
         "flexTable": "Konfiguration PERI"

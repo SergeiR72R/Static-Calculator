@@ -279,7 +279,7 @@ export function combinationVariants(la: LatticeAnalysis, factors: Record<Id, num
 
 // ---------------------------------------------------------------- design
 
-export type LatticeMode = 'section' | 'haz' | 'bucklingY' | 'bucklingZ' | 'shear' | 'tension' | 'compression' | 'periChord' | 'periDiag' | 'standard' | 'flexTable';
+export type LatticeMode = 'section' | 'haz' | 'bucklingY' | 'bucklingZ' | 'shear' | 'tension' | 'compression' | 'periChord' | 'periDiag' | 'periBuckling' | 'standard' | 'flexTable';
 
 export interface MemberDesign {
   eta: number;
@@ -508,6 +508,10 @@ function standardDesign(la: LatticeAnalysis, r: FrameResult, k: number): MemberD
 /** ULS 50 / 70 after the PERI report: cross-sections of chords, posts and diagonals (no buckling, no welds) */
 function designMembersPeri(la: LatticeAnalysis, r: FrameResult): MemberDesign[] {
   const lm = la.model;
+  // chord of each chord member: buckling between its lateral restraints (PERI report: simplified,
+  // Euler case 2 with the distance of the restraints as buckling length, curve b, γ_M1 = 1.1)
+  const chordOf = new Map<number, 0 | 1>();
+  for (const c of [0, 1] as const) for (const k of chordMembers(lm, c)) chordOf.set(k, c);
   return lm.members.map((m, k) => {
     const xi = lm.nodes[m.i].x;
     const xj = lm.nodes[m.j].x;
@@ -517,6 +521,18 @@ function designMembersPeri(la: LatticeAnalysis, r: FrameResult): MemberDesign[] 
       const c = m.role === 'diag' ? periDiagCheck(s.N, m.hinged ? 0 : s.V, m.hinged ? 0 : s.M) : periChordCheck(s.N, s.V, s.M);
       if (c.eta > best.eta || best.eta === 0)
         best = { eta: c.eta, mode: m.role === 'diag' ? 'periDiag' : 'periChord', N: s.N, M: s.M, V: s.V, x: xi + (xj - xi) * s.t, parts: c.parts };
+    }
+    const ch = chordOf.get(k);
+    const Nc = Math.min(r.N1[k], r.N2[k]);
+    if (ch !== undefined && Nc < 0) {
+      const xm = (xi + xj) / 2;
+      const [a, b] = interval(lm.restraints[ch], xm, lm.L);
+      const Lcr = b - a;
+      if (Lcr > 0) {
+        const bk = standardBuckling(Lcr);
+        const eta = -Nc / bk.NRd;
+        if (eta > best.eta) best = { eta, mode: 'periBuckling', N: Nc, M: 0, V: 0, Lcr, chi: bk.chi, x: xm };
+      }
     }
     return best;
   });

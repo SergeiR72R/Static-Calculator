@@ -345,6 +345,7 @@
         "tension": "tension",
         "compression": "compression",
         "periChord": "cross-section after PERI: n, v, m",
+        "periBuckling": "chord buckling after PERI (Euler, Lcr = restraint spacing)",
         "periDiag": "cross-section after PERI: n, v, m_N",
         "standard": "flexural buckling of the standard, curve b",
         "flexTable": "PERI configuration"

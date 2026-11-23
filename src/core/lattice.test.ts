@@ -126,6 +126,26 @@ describe('lattice design against the PERI tables (Tabellenbuch PERI UP, S. 50–
     expect(eta).toBeLessThan(p.startsWith('ULA') ? 1.06 : 1);
   });
 
+  it('ULS chords in compression: buckling between the restraints as in the PERI report (L_cr 2.5 m: N_Rd 29.07 kN)', () => {
+    expect(standardBuckling(2.5).NRd / kN).toBeCloseTo(29.07, 1);
+    const m = girder('ULS50', 6.25, [0.125, 6.125], [pointLoad('Q', 3.125, 8)], { restraint: 2.5, eccentric: false });
+    const an = analyze(m);
+    const la = analyzeLattice(an)!;
+    const env = latticeEnvelope(an, la, m.combinations.filter((c) => c.type === 'ULS'), [], undefined);
+    const b = env.members.filter((d) => d.mode === 'periBuckling');
+    expect(b.length).toBeGreaterThan(0);
+    for (const d of b) {
+      expect(d.N).toBeLessThan(0);
+      expect(d.eta).toBeCloseTo(-d.N / standardBuckling(d.Lcr!).NRd, 9);
+    }
+    // closer restraints: less utilised
+    const m1 = girder('ULS50', 6.25, [0.125, 6.125], [pointLoad('Q', 3.125, 8)], { restraint: 1, eccentric: false });
+    const an1 = analyze(m1);
+    const e1 = latticeEnvelope(an1, analyzeLattice(an1)!, m1.combinations.filter((c) => c.type === 'ULS'), [], undefined);
+    const top = (e: typeof env) => Math.max(...e.members.filter((d) => d.mode === 'periBuckling').map((d) => d.eta), 0);
+    expect(top(e1)).toBeLessThan(top(env));
+  });
+
   it('larger restraint spacing (out-of-plane buckling L_cr = a): on the safe side of the table', () => {
     expect(maxEta('ULA50HD', 6.25, [0.125, 6.125], [pointLoad('Q', 3.125, 11.5)], { restraint: 1.5, eccentric: false })).toBeGreaterThan(1);
   });

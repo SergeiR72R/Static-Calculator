@@ -345,6 +345,7 @@
         "tension": "מתיחה",
         "compression": "לחיצה",
         "periChord": "חתך לפי PERI: n, v, m",
+        "periBuckling": "קריסת חגורה לפי PERI (אוילר, Lcr = מרווח קישור)",
         "periDiag": "חתך לפי PERI: n, v, m_N",
         "standard": "קריסת העמוד, עקומה b",
         "flexTable": "תצורת PERI"

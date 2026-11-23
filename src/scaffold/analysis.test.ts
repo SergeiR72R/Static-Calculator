@@ -416,6 +416,29 @@ describe('scaffold analysis', () => {
     expect(Math.abs(ra.combos.find((c) => c.name === 'R −y')!.reactions![sa])).toBeGreaterThan(100);
   });
 
+  it('clad scaffold: wind q · c_f · influence width on the standards facing it, none behind them', () => {
+    const m = buildScaffoldModel(tower());
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800, cladding: 1.3 };
+    const w = buildLoadCases(m, opt).wind([1, 0, 0], 0);
+    const len = (k: number) => Math.hypot(...[0, 1, 2].map((i) => m.frame.nodes[m.frame.members[k].j][i] - m.frame.nodes[m.frame.members[k].i][i]));
+    // the standards of the tower: x = 0, 2, 4 and y = 0, 2; wind along +x reaches the line x = 0 first
+    const loaded = w.member.filter((l) => l.q[0] !== 0);
+    expect(loaded.length).toBeGreaterThan(0);
+    for (const l of loaded) {
+      expect(m.members[l.m].kind).toBe('standard');
+      const x = (m.frame.nodes[m.frame.members[l.m].i][0] + m.frame.nodes[m.frame.members[l.m].j][0]) / 2;
+      expect(Math.abs(x)).toBeLessThan(0.2);
+      // two standards 2 m apart: each carries half the facade between them, 1 m
+      expect(l.q[0]).toBeCloseTo(1.3 * 1, 6);
+    }
+    // total: c_f · facade width (2 m) · height of the standards at x = 0
+    const H = loaded.reduce((a, l) => a + len(l.m), 0) / 2;
+    expect(loaded.reduce((a, l) => a + l.q[0] * len(l.m), 0)).toBeCloseTo(1.3 * 2 * H, 6);
+    // open scaffold: wind on all members
+    const open = buildLoadCases(m, { ...opt, cladding: 0 }).wind([1, 0, 0], 0);
+    expect(open.member.filter((l) => l.q[0] !== 0).some((l) => m.members[l.m].kind === 'ledger')).toBe(true);
+  });
+
   it('toe boards are in the wind by their face', () => {
     const m = buildScaffoldModel(tower());
     const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 };

@@ -60,7 +60,7 @@ export function AnalysisCard({
   const outdoor = sc.exposure === 'outdoor';
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
   const wind = siteWind(sc, Math.max(st.max[2] - st.min[2], 1));
-  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack, sc.planLoads, sc.spliceNoTension, sc.capByArticle, sc.fixings]);
+  const sig = JSON.stringify([sc.doc?.fileName, st.parts.length, sc.tol, p, sc.level, outdoor, Math.round(wind.qMax), sc.snow && sc.snowLoad, sc.ice && sc.iceThickness, sc.secondOrder, sc.loads, sc.cladding && sc.claddingCf, sc.dhb, sc.dhbLoad, sc.dhbDir, sc.dhbParts, sc.gFavR, sc.ubkModel, sc.diagSlack, sc.planLoads, sc.spliceNoTension, sc.capByArticle, sc.fixings]);
   const stale = !!run && run.sig !== sig;
   const byId = useMemo(() => new Map(st.parts.map((w) => [w.part.id, w])), [st]);
   const start = async () => {
@@ -82,6 +82,7 @@ export function AnalysisCard({
           outdoor,
           qWork: 200,
           qMax: wind.qMax,
+          ...(sc.cladding ? { cladding: sc.claddingCf } : {}),
           cf: 1.2,
           snow: outdoor && sc.snow ? sc.snowLoad : 0,
           ice: outdoor && sc.ice ? sc.iceThickness : 0,

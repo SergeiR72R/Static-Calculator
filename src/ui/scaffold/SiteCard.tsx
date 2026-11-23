@@ -262,6 +262,10 @@ function WindBlock({ height }: { height: number }) {
       {!sc.windManual && (
         <CheckField className="mt-1.5" checked={sc.standing} onChange={(v) => sc.setOpts({ standing: v })} label={fmt.t('scaffold.wind.standing')} help="scaffold.standing" testId="wind-standing" />
       )}
+      <CheckField className="mt-1.5" checked={sc.cladding} onChange={(v) => sc.setOpts({ cladding: v })} label={fmt.t('scaffold.wind.cladding')} help="scaffold.cladding" testId="wind-cladding" />
+      {sc.cladding && (
+        <NumberField label={fmt.t('scaffold.wind.claddingCf')} value={sc.claddingCf} onChange={(v) => sc.setOpts({ claddingCf: Math.max(0.1, v) })} testId="wind-cladding-cf" className="mt-1 max-w-[12rem]" />
+      )}
       <p className="mt-1.5 font-medium" data-testid="wind-result">
         {w.qMax > 0
           ? fmt.t('scaffold.wind.result', { qp: fmt.q(w.qp, 'areaLoad'), q: fmt.q(w.qMax, 'areaLoad'), h: fmt.q(height, 'length', 1) })

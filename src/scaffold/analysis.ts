@@ -27,6 +27,9 @@ export interface AnalysisOptions {
   qMax: number;
   /** aerodynamic force coefficient of the members */
   cf: number;
+  /** closed scaffold (cladding, sheeting): force coefficient of the clad facade; the wind acts on the
+   * windward standards with q · c_f · influence width instead of on the members (0 / absent: open) */
+  cladding?: number;
   /** snow on the decks, N/m² (0: none) */
   snow: number;
   /** ice on the members: thickness, m (0: none) */
@@ -338,8 +341,43 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
   for (const l of g.member) totalG -= l.q[2] * mlen[l.m];
   for (let n = 0; n < frame.nodes.length; n++) totalG -= g.nodal[n * 6 + 2];
 
+  /**
+   * closed scaffold: wind on the clad facade, carried by the standards facing the wind — each with the
+   * width halfway to its neighbours along the facade (as PERI ForceControl's loads on clad facades:
+   * q · c_f · influence width). A standard behind another one (seen from the wind) at the same height
+   * gets nothing.
+   */
+  const claddingWind = (d: V3, cf: number): Loads3 => {
+    const w = emptyLoads3(frame);
+    const t: [number, number] = [-d[1], d[0]];
+    const st = frame.members
+      .map((m, k) => {
+        const a = frame.nodes[m.i];
+        const b = frame.nodes[m.j];
+        return { k, s: ((a[0] + b[0]) / 2) * t[0] + ((a[1] + b[1]) / 2) * t[1], u: ((a[0] + b[0]) / 2) * d[0] + ((a[1] + b[1]) / 2) * d[1], z0: Math.min(a[2], b[2]), z1: Math.max(a[2], b[2]) };
+      })
+      .filter((p) => members[p.k].kind === 'standard' && p.z1 - p.z0 > 0.05);
+    const overlap = (p: { z0: number; z1: number }, q: { z0: number; z1: number }) => Math.min(p.z1, q.z1) - Math.max(p.z0, q.z0);
+    const LAT = 0.15;
+    const GAP = 3;
+    const exposed = st.filter((p) => !st.some((q) => q !== p && Math.abs(q.s - p.s) < LAT && q.u < p.u - 0.3 && overlap(p, q) > 0.5 * (p.z1 - p.z0)));
+    for (const p of exposed) {
+      let prev = Infinity;
+      let next = Infinity;
+      for (const q of exposed) {
+        if (overlap(p, q) <= 0) continue;
+        const ds = q.s - p.s;
+        if (ds > LAT && ds < next) next = ds;
+        if (-ds > LAT && -ds < prev) prev = -ds;
+      }
+      const b = ((prev <= GAP ? prev : 0) + (next <= GAP ? next : 0)) / 2;
+      if (b > 0) w.member.push({ m: p.k, q: [d[0] * cf * b, d[1] * cf * b, 0] });
+    }
+    return w;
+  };
   /** wind with the velocity pressure 1 N/m² in the direction d; h: height of the equivalent area on the deck levels */
   const wind = (d: V3, h: number): Loads3 => {
+    if (opt.cladding && opt.cladding > 0) return claddingWind(d, opt.cladding);
     const w = emptyLoads3(frame);
     frame.members.forEach((m, k) => {
       const a = frame.nodes[m.i];

@@ -1154,7 +1154,9 @@
       "nlHint": "q_p nach Tabelle NB.4 (Höhe aufgerundet). Gelände: Kategorie 0 → „kust“, I–II → „onbebouwd“, III–IV → „bebouwd“.",
       "vb0Auto": "nach ANB-Karte: {v} m/s",
       "beHint": "Belgien: v_b,0 je Provinz nach Bild 4.3 ANB (genau: je Gemeinde, Tabelle 4.2 ANB, nicht im Programm). q_p nach EN 1991-1-4 mit c_dir = c_season = 1, k_I = 1.",
-      "luHint": "Luxemburg: v_b,0 = 24 m/s für das ganze Land – aus einer Sekundärquelle; mit AN-LU (ILNAS) abgleichen. q_p nach EN 1991-1-4."
+      "luHint": "Luxemburg: v_b,0 = 24 m/s für das ganze Land – aus einer Sekundärquelle; mit AN-LU (ILNAS) abgleichen. q_p nach EN 1991-1-4.",
+      "cladding": "Eingehaustes Gerüst (geschlossen): Wind auf die ganze Fassade",
+      "claddingCf": "c_f der Bekleidung"
     },
     "beams": {
       "title": "Träger SRU / RCS: {n}",
@@ -1458,6 +1460,11 @@
         "what": "Welche Rohre Anker zum Bauwerk sind. Standard: wie aus der Zeichnung erkannt.",
         "why": "In PERI-CAD-Zeichnungen sind Anker oft als normale Gerüstrohre gezeichnet, und Rohre zur Aufzugsabstützung oder Aussteifung sehen wie Anker aus. Falsche Anker ändern die ganze Berechnung.",
         "effect": "Das Ankerende am Bauwerk ist in beiden horizontalen Achsen gehalten, quer und parallel zur Fassade, wie in PERI ForceControl. Das Rohr läuft durch alle seine Kupplungen durch; die Kraft jeder Kupplung ist ihr Anteil, Nachweis 13,65 kN (Bemessung). „Kein Anker“: das Rohr ist eine Aussteifung zwischen Stielen. „Abstützung“ — das Rohr stützt sich am Gebäude ab: nur Druck, bei Zug fällt es aus (wie ein Lager „nur Druck“ in PFC)."
+      },
+      "cladding": {
+        "what": "Das Gerüst ist mit Netz oder Plane bekleidet.",
+        "why": "Der Wind wirkt auf die Bekleidung wie auf ein geschlossenes Bauwerk, nicht auf die Rohre.",
+        "effect": "Die Last q · c_f · Einflussbreite (halber Abstand zu den Nachbarstielen) wirkt auf die Stiele zur Windseite; Stiele dahinter erhalten keine. c_f = 1,3 wie in den PERI-Berichten für geschlossene Gerüste."
       }
     },
     "designer": {

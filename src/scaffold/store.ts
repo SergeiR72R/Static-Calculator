@@ -67,6 +67,9 @@ export interface ScaffoldOpts {
   vb0: number;
   /** factor 0.7 for the standing time of the scaffold */
   standing: boolean;
+  /** closed scaffold (cladding, sheeting): wind on the clad facade with this force coefficient */
+  cladding: boolean;
+  claddingCf: number;
   /** dynamic horizontal load: share (0: none) of the load moved by the crane, N */
   dhb: number;
   dhbLoad: number;
@@ -145,7 +148,7 @@ export function siteWind(o: ScaffoldOpts, height: number): SiteWind {
   return { qp: 0, qMax: 0, source: 'none' };
 }
 
-export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true, dhb: DHB_SHARE, dhbLoad: 0, dhbDir: 'xy', gFavR: true, ubkModel: 'annexA', diagSlack: false, planLoads: true, spliceNoTension: true, capByArticle: true };
+export const DEFAULT_SCAFFOLD_OPTS: ScaffoldOpts = { loadClass: 3, g: 300, tol: 0.05, site: null, exposure: 'outdoor', snow: false, ice: false, terrain: 'II', qMax: 0, snowLoad: 750, iceThickness: 0.01, level: -1, secondOrder: true, windManual: false, windZone: 0, windExposure: 'inland', vb0: 0, standing: true, cladding: false, claddingCf: 1.3, dhb: DHB_SHARE, dhbLoad: 0, dhbDir: 'xy', gFavR: true, ubkModel: 'annexA', diagSlack: false, planLoads: true, spliceNoTension: true, capByArticle: true };
 
 export interface ScaffoldState extends ScaffoldOpts {
   doc: ScaffoldDoc | null;
@@ -235,6 +238,8 @@ function save(s: ScaffoldState) {
     windExposure: s.windExposure,
     vb0: s.vb0,
     standing: s.standing,
+    cladding: s.cladding,
+    claddingCf: s.claddingCf,
     dhb: s.dhb,
     dhbLoad: s.dhbLoad,
     dhbDir: s.dhbDir,

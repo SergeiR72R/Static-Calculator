@@ -4,7 +4,7 @@ import { analyzeScaffold } from './structure';
 import { buildScaffoldModel } from './model';
 import { DEFAULT_ANALYSIS, GAMMA_F, analyzeScaffoldModel, buildCombos, buildLoadCases, mergeResults, prepareAnalysis, weakDofs } from './analysis';
 import type { UserLoad } from './userLoads';
-import { connCz, connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData, ublData } from './upflex';
+import { COUPLER_SLIP_K, E_STEEL, TUBES, connCz, connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData, ublData } from './upflex';
 import { periDxf, towerParts, type TestPart } from './testDxf';
 
 const tower = (edit?: (p: TestPart[]) => void) => {
@@ -343,6 +343,13 @@ describe('scaffold analysis', () => {
     expect(a.via).toHaveLength(1);
     const m = buildScaffoldModel(st);
     expect(m.anchors[0].links).toHaveLength(2);
+    // the couplers work side by side: the tube is stiff, each coupler slips in its own link
+    for (const k of m.anchors[0].chain) expect(m.frame.members[k].sec.EA).toBeCloseTo(E_STEEL * TUBES.t32.A, 0);
+    for (const k of m.anchors[0].links) {
+      const fm = m.frame.members[k];
+      const L = Math.hypot(...[0, 1, 2].map((i) => m.frame.nodes[fm.j][i] - m.frame.nodes[fm.i][i]));
+      expect((12 * fm.sec.EIy) / L ** 3).toBeCloseTo(COUPLER_SLIP_K, -3);
+    }
     const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800, keep: true });
     expect(r.anchors[0]).toMatchObject({ part: tube.part.id, couplers: 2 });
     expect(r.checks.find((c) => c.check === 'anchor')?.detail).toMatch(/^2 Kupplungen/);

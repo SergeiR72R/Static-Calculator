@@ -190,8 +190,15 @@ function ledgerType(w: WorldPart): { head: LedgerHead; sec: keyof typeof LEDGERS
 }
 
 const HINGE = [Infinity, Infinity, Infinity, Infinity, 0, 0];
-/** link of a coupler from a tube to a standard (a few cm): stiff */
-const COUPLER_LINK: Section3 = { EA: 1e9, EIy: 1e6, EIz: 1e6, GJ: 1e6 };
+/**
+ * Link of a coupler from a tube to a standard (a few cm, across both): the coupler slips along the
+ * tube and along the standard (COUPLER_SLIP_K, as shear of the link fixed at both ends: 12 EI / L³),
+ * stiff across (pull-apart) and in rotation.
+ */
+const couplerLink = (L: number): Section3 => {
+  const EI = (COUPLER_SLIP_K * Math.max(L, 0.01) ** 3) / 12;
+  return { EA: 1e9, EIy: EI, EIz: EI, GJ: 1e6 };
+};
 /** end panel of a lattice girder (end element ULS 50 Flex), m, and area of its posts / diagonals, m² */
 const GIRDER_PANEL = 0.5;
 const GIRDER_WEB_A = 2.0e-4;
@@ -1293,11 +1300,12 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       if (Math.hypot(tp[0] - P[0], tp[1] - P[1]) < 0.02) tp = [P[0] - 0.05 * tubeDir[1], P[1] + 0.05 * tubeDir[0], P[2]];
       const nt = addNode(tp);
       chain.push(fm.length);
-      // the tube bends (it carries the force along the facade to the couplers), its couplers slip
-      fm.push({ i: nt, j: prev, sec: { ...tubeSection('t32'), EA: tubeSec(nt, prev).EA } });
+      // the tube itself: stiff (it bends and carries the force along the facade to the couplers); the
+      // slip is in the couplers, which work side by side
+      fm.push({ i: nt, j: prev, sec: tubeSection('t32') });
       mm.push(i === 0 ? { kind: 'anchor', part: a.id, tube: 't32', g: TUBES.t32.g } : { kind: 'tube', part: a.id, tube: 't32', g: 0, anchorChain: true });
       links.push(fm.length);
-      fm.push({ i: ns, j: nt, sec: COUPLER_LINK });
+      fm.push({ i: ns, j: nt, sec: couplerLink(len3(nodes[ns], nodes[nt])) });
       mm.push({ kind: 'link', part: a.id, g: 0, tie: true });
       if (i === 0) node = ns;
       prev = nt;

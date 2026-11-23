@@ -459,6 +459,37 @@ describe('every part of the drawing in the model', () => {
     expect(m.assumedSupports).toHaveLength(2);
   });
 
+  it('a scaffold turned in plan (42°): the decks still find their ledgers', () => {
+    const doc = tower();
+    const deckNotes = (d: typeof doc) => buildScaffoldModel(analyzeScaffold(d)).notes.filter((n) => n.key === 'deckNoSupport' || n.key === 'deckOneSupport').reduce((a, n) => a + n.parts.length, 0);
+    const a = (42 * Math.PI) / 180;
+    const [c, s] = [Math.cos(a), Math.sin(a)];
+    const turned = {
+      ...doc,
+      parts: doc.parts.map((p) => {
+        const m = p.m;
+        const row = (i: number) => m.slice(4 * i, 4 * i + 4);
+        const [r0, r1, r2] = [row(0), row(1), row(2)];
+        return { ...p, m: [...r0.map((v, j) => c * v - s * r1[j]), ...r0.map((v, j) => s * v + c * r1[j]), ...r2] };
+      }),
+    };
+    const base = deckNotes(doc);
+    expect(deckNotes(turned)).toBe(base);
+    // the deck area of the levels is the same
+    const area = (d: typeof doc) => buildScaffoldModel(analyzeScaffold(d)).levels.reduce((x, l) => x + l.area, 0);
+    expect(area(turned)).toBeCloseTo(area(doc), 3);
+  });
+
+  it('suspended scaffold: no supports under the standards unless set by hand', () => {
+    const st = analyzeScaffold(tower());
+    const m = buildScaffoldModel(st, [], [], { supportsManual: true });
+    expect(m.bases).toHaveLength(0);
+    expect(m.notes.some((n) => n.key === 'columnFree')).toBe(true);
+    const lowest = st.parts.filter((w) => st.columns[0].parts.includes(w.part.id) && ['standard', 'base'].includes(w.cls.kind)).sort((p, q) => p.min[2] - q.min[2])[0];
+    const h = buildScaffoldModel(st, [], [], { supportsManual: true, fixings: [{ id: 'H', name: 'H', parts: [lowest.part.id], at: 0, dirs: ['x', 'y', 'z'], support: { compression: true } }] });
+    expect(h.bases).toHaveLength(1);
+  });
+
   it('a beam with jacks standing at its ends is supported there, free along its axis', () => {
     // SRU on its own (axis at 5.06 m), a jack with a standard standing on each end
     const m = build((p) => {

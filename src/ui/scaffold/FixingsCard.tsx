@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useScaffold } from '../../scaffold/store';
 import type { ScaffoldStructure } from '../../scaffold/structure';
 import type { UserFixing } from '../../scaffold/userLoads';
-import { Button, FoldCard, FoldState, HelpTip, NumberField, TextField, cx } from '../common';
+import { Button, CheckField, FoldCard, FoldState, HelpTip, NumberField, TextField, cx } from '../common';
 import { useFmt } from '../hooks';
 
 const AXES = ['x', 'y', 'z'] as const;
@@ -46,6 +46,7 @@ export function FixingsCard({ st }: { st: ScaffoldStructure }) {
   return (
     <FoldCard title={fmt.t('scaffold.fix.title')} testId="scaffold-fixings" state={<FoldState items={sc.fixings.length ? [String(sc.fixings.length)] : []} />}>
       <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.fix.intro')}</p>
+      <CheckField className="mb-2" checked={sc.supportsManual} onChange={(v) => sc.setOpts({ supportsManual: v })} label={fmt.t('scaffold.fix.supportsManual')} help="scaffold.supportsManual" testId="scaffold-supports-manual" />
       <div className="mb-2 flex gap-1" role="radiogroup" aria-label={fmt.t('scaffold.fix.kind')}>
         {(['fixing', 'support'] as const).map((v) => (
           <button

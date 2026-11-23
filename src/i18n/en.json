@@ -838,7 +838,8 @@
       "selectStandards": "Select standards in 3D (Ctrl — several).",
       "notStandards": "not standards: {n} — skipped",
       "pressureShort": "pressure",
-      "bottom": "bottom of standard"
+      "bottom": "bottom of standard",
+      "supportsManual": "Suspended scaffold: supports of the standards set by hand only"
     },
     "loads": {
       "title": "User loads",
@@ -1117,7 +1118,8 @@
         "jackLong": "Spindle extended more than 60 cm ({n}) – not allowed by the approval, check the packing.",
         "columnOnStructure": "Standards with nothing under them ({n}) – assumed to stand on the structure below; check the bearing.",
         "ublNoLedger": "UBL diagonals without two ledgers found ({n}) – connected to the nodes of the standards, table by the prevailing ledger type.",
-        "columnOnBeam": "Standards over standards with a gap of 40 cm or more ({n}) – a beam of the structure is assumed between them: the upper standard stands on it, the lower one is not loaded by it and not held at its top."
+        "columnOnBeam": "Standards over standards with a gap of 40 cm or more ({n}) – a beam of the structure is assumed between them: the upper standard stands on it, the lower one is not loaded by it and not held at its top.",
+        "columnFree": "Standards without a support below ({n}) — suspended scaffold: they hang; supports set by hand only."
       },
       "basis": "Basis: approval Z-8.22-863 (moment–rotation curves, resistances of nodes, diagonals, joints), DIN EN 12811-1, PERI UP Tabellenbuch. Decks do not brace. Does not replace the verification by the structural engineer; comparison with RSTAB will follow.",
       "mechanismParts": "{n} parts are not held (mechanism) – kept in place by weak springs in the analysis. Check in the drawing. Show.",
@@ -1482,6 +1484,11 @@
         "what": "A support at the bottom end of a standard, set by hand.",
         "why": "To set what the scaffold stands on, as in PERI ForceControl: the ground, the structure or a beam with its elasticity.",
         "effect": "The support is placed at the bottom node of the chosen standard (with a spindle: at its foot). At the lowest standard of a column it replaces what the drawing gives: base, support on the structure, bearing on a girder or beam. Each axis rigid or a spring k. With the axis Z and \"pressure only\" it lifts off like a base."
+      },
+      "supportsManual": {
+        "what": "Suspended scaffolds (or scaffolds on special supports).",
+        "why": "Otherwise the program puts a support under every standard that rests on nothing: on the ground, the structure or a beam. The bottoms of a suspended scaffold are free.",
+        "effect": "No supports are assumed under the standards; the joints between parts of the scaffold (standard on standard, on a ledger or beam) stay. Only the supports (\"Support (bottom of standard)\") and fixings set by hand hold the scaffold."
       }
     },
     "designer": {

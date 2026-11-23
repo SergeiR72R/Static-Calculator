@@ -264,6 +264,8 @@ interface Attach {
   conn?: Variant | null;
   connCap?: Variant | null;
   k?: number[];
+  /** a standard under a beam that carries it (rigidly, with a beam adapter UVA): a support of the beam */
+  bears?: boolean;
 }
 
 interface Carrier {
@@ -321,6 +323,11 @@ export interface ModelOptions {
    * and a ledger): their bottom is free, no support is assumed under them
    */
   hanging?: string[];
+  /**
+   * suspended scaffolds: no support is assumed under standards (on the ground, on the structure, on a
+   * beam of the structure); the scaffold is held only by the supports and fixings set by hand
+   */
+  supportsManual?: boolean;
 }
 
 export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
@@ -777,7 +784,9 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     // a base standard without a spindle in the drawing (older PERI CAD parts are not written to DXF)
     // on timber planks: the spindle is added, from the planks up into the standard
     const pad = isBase && !under.length ? padTop(c) : null;
-    if (pad !== null) {
+    // suspended scaffolds (supports by hand only): no spindle on planks is added; the joints with the
+    // scaffold below (standard on standard, on a ledger or beam) are kept, supports are not
+    if (pad !== null && !opts.supportsManual) {
       const n = addNode([c.x, c.y, pad], k);
       feet.push({ col: k, foot: n, part: c.parts[0].w.part.id, virtual: true });
       bases.push({ node: n, sup: supports.length, part: c.parts[0].w.part.id, column: k });
@@ -809,6 +818,10 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
           bestGap = gap;
         }
       });
+      if (best >= 0 && bestGap >= BEAM_GAP && opts.supportsManual) {
+        note('columnFree', c.parts[0].w.part.id);
+        return;
+      }
       if (best >= 0 && bestGap >= BEAM_GAP) {
         let n = c.ns[0];
         if (foot < c.z0 - 0.02) {
@@ -840,7 +853,12 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     // spindles of all kinds, base standards (on a spindle not in the drawing), the lowest level and
     // beam clamps: supported on the ground or on a beam of the structure
     const clamp = st.parts.some((w) => w.cls.kind === 'clamp' && near(w, c.x, c.y) && w.max[2] > foot - 0.6 && w.min[2] < foot + 0.05);
-    // also a standard with nothing under it: it stands on a part of the structure (by assumption)
+    // also a standard with nothing under it: it stands on a part of the structure (by assumption);
+    // suspended scaffolds (supports by hand only): it hangs
+    if (opts.supportsManual) {
+      note('columnFree', c.parts[0].w.part.id);
+      return;
+    }
     {
       let n = c.ns[0];
       if (foot < c.z0 - 0.02) {
@@ -857,6 +875,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // tops of standards under a beam carry it; a head jack in the standard (e.g. spindle head SRU) carries
   // the beam on its head: the spindle is clamped in the standard, the beam hinged on the head
   const heads: { col: number; head: number; part: string }[] = [];
+  const uvas = st.parts.filter((w) => /^UVA\b/.test(w.part.name) || w.part.article === '136779');
   for (const car of carriers) {
     if (car.kind !== 'beam') continue;
     cols.forEach((c, k) => {
@@ -875,9 +894,33 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         node = h.head;
         z = jack.max[2];
       }
-      car.inter.push({ node, offset: [pr.q[0] - c.x, pr.q[1] - c.y, pr.q[2] - z], t: Math.min(Math.max(pr.t, 0), 1), k: HINGE });
+      // a beam adapter of VARIOKIT (UVA) on the top: the standard clamped in the beam (suspended
+      // scaffolds hang on SRU / RCS beams with it), else hinged
+      // (always rigid); in a suspended scaffold the standard hangs on the beam, it does not hold it
+      const adapter = uvas.some((w) => Math.hypot(w.part.m[3] - c.x, w.part.m[7] - c.y) < 0.15 && w.min[2] < c.z1 + 0.1 && w.max[2] > c.z1 - 0.1);
+      car.inter.push({ node, offset: [pr.q[0] - c.x, pr.q[1] - c.y, pr.q[2] - z], t: Math.min(Math.max(pr.t, 0), 1), ...(opts.supportsManual ? {} : adapter ? { bears: true } : { k: HINGE }) });
     });
   }
+  // suspended scaffolds: a beam lying across a lower beam (SRU on RCS rails …) bears on it at the
+  // crossing (elsewhere the beams are taken as drawn: each on its own supports, as PERI ForceControl)
+  const beamCars = opts.supportsManual ? carriers.filter((c) => c.kind === 'beam') : [];
+  for (const up of beamCars)
+    for (const lo of beamCars) {
+      if (up === lo) continue;
+      const [a, b] = [up.a, up.b];
+      const [c0, d0] = [lo.a, lo.b];
+      const den = (b[0] - a[0]) * (d0[1] - c0[1]) - (b[1] - a[1]) * (d0[0] - c0[0]);
+      if (Math.abs(den) < 1e-9) continue;
+      const t = ((c0[0] - a[0]) * (d0[1] - c0[1]) - (c0[1] - a[1]) * (d0[0] - c0[0])) / den;
+      const u = ((c0[0] - a[0]) * (b[1] - a[1]) - (c0[1] - a[1]) * (b[0] - a[0])) / den;
+      if (t < -0.02 || t > 1.02 || u < -0.02 || u > 1.02) continue;
+      const pu: V3 = [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])];
+      const pl: V3 = [c0[0] + u * (d0[0] - c0[0]), c0[1] + u * (d0[1] - c0[1]), c0[2] + u * (d0[2] - c0[2])];
+      const dz = pu[2] - pl[2];
+      if (dz < 0.03 || dz > 0.35) continue;
+      const n = interAt(lo, pl, Math.min(Math.max(u, 0), 1));
+      up.inter.push({ node: n, offset: [pu[0] - pl[0], pu[1] - pl[1], pu[2] - pl[2]], t: Math.min(Math.max(t, 0), 1), k: HINGE });
+    }
   // head jacks with nothing of the drawing on them (the structure on top is not drawn): clamped in the
   // standard, their head free (loads of the structure on top act there)
   cols.forEach((c, k) => {
@@ -1107,7 +1150,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       }
     }
     // ends without a node, and beam ends with only a standard or jack standing on them
-    const supportLike = c.inter.filter((a) => a.k === HINGE).length;
+    const supportLike = c.inter.filter((a) => a.k === HINGE || a.bears).length;
     for (const e of [0, 1] as const) {
       if (c.end[e] && !(c.kind === 'beam' && standsOn[e] !== undefined && supportLike < 2)) continue;
       const P = e === 0 ? c.a : c.b;
@@ -1185,7 +1228,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     }
     carrierIndex.set(c, carrierOut.length);
     const points: BeamPoint[] | undefined =
-      c.kind === 'beam' ? pts.map((q) => ({ node: q.node, t: Math.min(Math.max(q.t, 0), 1), support: q.k === HINGE || assumedSupports.some((a) => a.node === q.node) })) : undefined;
+      c.kind === 'beam' ? pts.map((q) => ({ node: q.node, t: Math.min(Math.max(q.t, 0), 1), support: q.k === HINGE || !!q.bears || assumedSupports.some((a) => a.node === q.node) })) : undefined;
     carrierOut.push({ part: c.part, kind: c.kind, members, length: members.reduce((s, m) => s + memberLength(fm[m]), 0), points });
   }
 
@@ -1579,29 +1622,49 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   let lostKg = 0;
   const deckParts = st.parts.filter((w) => w.cls.kind === 'deck').sort((a, b) => a.min[2] - b.min[2]);
   for (const w of deckParts) {
-    const long: 0 | 1 = w.max[0] - w.min[0] >= w.max[1] - w.min[1] ? 0 : 1;
-    const short = 1 - long;
-    const area = (w.max[0] - w.min[0]) * (w.max[1] - w.min[1]);
+    // the deck in its own axes (decks of a scaffold turned in plan lie at any angle): along its longest
+    // edge (e) and across it (n), from its outline; without one along x or y
+    let e: [number, number] = w.max[0] - w.min[0] >= w.max[1] - w.min[1] ? [1, 0] : [0, 1];
+    let longest = 0;
+    for (const [a, b] of w.lines) {
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const l = Math.hypot(dx, dy);
+      if (l > longest + 1e-6 && Math.abs(b[2] - a[2]) < 0.05) {
+        longest = l;
+        e = [dx / l, dy / l];
+      }
+    }
+    const nrm: [number, number] = [-e[1], e[0]];
+    const pl = (p: number[]) => p[0] * e[0] + p[1] * e[1];
+    const ps = (p: number[]) => p[0] * nrm[0] + p[1] * nrm[1];
+    const pts = w.lines.length ? w.lines.flat() : [w.min, w.max, [w.min[0], w.max[1], 0], [w.max[0], w.min[1], 0]];
+    const l0 = Math.min(...pts.map(pl));
+    const l1 = Math.max(...pts.map(pl));
+    const s0 = Math.min(...pts.map(ps));
+    const s1 = Math.max(...pts.map(ps));
+    const area = (l1 - l0) * (s1 - s0);
     const kg = partKg(w.part) ?? 22 * area;
     const z = w.min[2];
     const lv = levelOf(z);
     levels[lv].area += area;
-    const mid = (w.min[short] + w.max[short]) / 2;
+    const mid = (s0 + s1) / 2;
     const found: Carrier[] = [];
-    for (const e of [w.min[long], w.max[long]]) {
+    for (const end of [l0, l1]) {
       let best: Carrier | null = null;
       let bd = Infinity;
       for (const c of carriers) {
         if (!carrierIndex.has(c) || guardrails.has(c)) continue;
-        const dl = Math.abs(c.b[long] - c.a[long]);
-        const ds = Math.abs(c.b[short] - c.a[short]);
+        // a carrier across the deck under its end
+        const dl = Math.abs(pl(c.b) - pl(c.a));
+        const ds = Math.abs(ps(c.b) - ps(c.a));
         if (dl > 0.1 || ds < 0.2) continue;
-        if (mid < Math.min(c.a[short], c.b[short]) - 0.05 || mid > Math.max(c.a[short], c.b[short]) + 0.05) continue;
-        const pos = (c.a[long] + c.b[long]) / 2;
+        if (mid < Math.min(ps(c.a), ps(c.b)) - 0.05 || mid > Math.max(ps(c.a), ps(c.b)) + 0.05) continue;
+        const pos = (pl(c.a) + pl(c.b)) / 2;
         const cz = (c.a[2] + c.b[2]) / 2;
-        if (Math.abs(pos - e) > 0.2 || cz > z + 0.1 || cz < z - 0.3) continue;
-        if (Math.abs(pos - e) < bd) {
-          bd = Math.abs(pos - e);
+        if (Math.abs(pos - end) > 0.2 || cz > z + 0.1 || cz < z - 0.3) continue;
+        if (Math.abs(pos - end) < bd) {
+          bd = Math.abs(pos - end);
           best = c;
         }
       }

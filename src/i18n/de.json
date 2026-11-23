@@ -838,7 +838,8 @@
       "selectStandards": "Stiele in 3D wählen (Strg — mehrere).",
       "notStandards": "keine Stiele: {n} — übersprungen",
       "pressureShort": "Druck",
-      "bottom": "Stielfuß"
+      "bottom": "Stielfuß",
+      "supportsManual": "Hängegerüst: Auflager der Stiele nur von Hand"
     },
     "loads": {
       "title": "Benutzerdefinierte Lasten",
@@ -1117,7 +1118,8 @@
         "jackLong": "Spindelauszug über 60 cm ({n}) – nach Zulassung nicht erlaubt, Unterbau prüfen.",
         "columnOnStructure": "Stiele ohne Auflager darunter ({n}) – als auf dem Bauwerk darunter aufgelagert angenommen; Auflagerung prüfen.",
         "ublNoLedger": "UBL-Diagonalen ohne zwei gefundene Riegel ({n}) – an die Stielknoten angeschlossen, Tabelle nach dem überwiegenden Riegeltyp.",
-        "columnOnBeam": "Stiele über Stielen mit 40 cm Abstand oder mehr ({n}) – dazwischen ist ein Träger des Bauwerks angenommen: der obere Stiel steht darauf, der untere ist darunter unbelastet und oben nicht gehalten."
+        "columnOnBeam": "Stiele über Stielen mit 40 cm Abstand oder mehr ({n}) – dazwischen ist ein Träger des Bauwerks angenommen: der obere Stiel steht darauf, der untere ist darunter unbelastet und oben nicht gehalten.",
+        "columnFree": "Stiele ohne Auflager unten ({n}) — Hängegerüst: sie hängen; Auflager nur von Hand."
       },
       "basis": "Grundlage: Zulassung Z-8.22-863 (Moment-Drehwinkel-Beziehungen, Beanspruchbarkeiten der Knoten, Diagonalen, Stöße), DIN EN 12811-1, Tabellenbuch PERI UP. Beläge wirken nicht aussteifend. Ersetzt nicht den Nachweis durch den Statiker; Abgleich mit RSTAB folgt.",
       "mechanismParts": "{n} Teile sind nicht gehalten (Mechanismus) – in der Berechnung durch weiche Federn gehalten. Bitte in der Zeichnung prüfen. Anzeigen.",
@@ -1482,6 +1484,11 @@
         "what": "Ein von Hand gesetztes Auflager am unteren Ende eines Stiels.",
         "why": "Um festzulegen, worauf das Gerüst steht, wie in PERI ForceControl: Boden, Bauwerk oder ein Träger mit seiner Nachgiebigkeit.",
         "effect": "Das Auflager sitzt im unteren Knoten des gewählten Stiels (mit Spindel: an ihrem Fuß). Am untersten Stiel eines Stielzugs ersetzt es, was die Zeichnung ergibt: Fußpunkt, Auflager am Bauwerk, Auflagerung auf Gitterträger oder Träger. Je Achse starr oder Feder k. Mit Achse Z und „nur Druck“ hebt es ab wie ein Fußpunkt."
+      },
+      "supportsManual": {
+        "what": "Hängegerüste (oder Gerüste auf besonderen Auflagern).",
+        "why": "Sonst setzt das Programm unter jeden Stiel, der auf nichts steht, ein Auflager: Boden, Bauwerk oder Träger. Bei Hängegerüsten sind die Stielfüße frei.",
+        "effect": "Unter den Stielen werden keine Auflager angenommen; die Verbindungen der Gerüstteile (Stiel auf Stiel, auf Riegel oder Träger) bleiben. Das Gerüst halten nur die von Hand gesetzten Auflager („Auflager (Stielfuß)“) und Befestigungen."
       }
     },
     "designer": {

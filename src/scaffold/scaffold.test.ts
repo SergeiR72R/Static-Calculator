@@ -3,6 +3,7 @@ import { insertMatrix, parsePeriCadDxf, place, ScaffoldImportError } from './per
 import { mergePeriExport, parsePeriExport } from './periExport';
 import { buildScaffoldModel } from './model';
 import { analyzeScaffold, girderBeamModel } from './structure';
+import { beamEndFixings, beamsWithoutSupports } from './beamSupports';
 import { classifyPart } from './catalog';
 import { PARTS_DB_SIZE, findPart } from './weights';
 import { periDxf, towerParts, type TestPart } from './testDxf';
@@ -505,6 +506,36 @@ describe('every part of the drawing in the model', () => {
       expect(sup.map((q) => [q.dof, q.k])).toEqual([[0, 0], [1, Infinity], [2, Infinity]]);
     }
     expect(m.notes.some((n) => n.key === 'beamAssumed')).toBe(true);
+  });
+
+  it('beams without supports are found at import; supports at their ends set as fixings by hand replace the assumed ones', () => {
+    const edit = (p: TestPart[]) => {
+      p.push({ art: 'SRU', rot: 'x', t: [0, 6, 5] });
+      for (const x of [0.03, 2.19]) p.push({ art: 'UJB', rot: 'x', t: [x - 0.075, 6 - 0.075, 5.12] }, { art: 'UVR', rot: 'x', t: [x - 0.08, 6 - 0.08, 5.6] });
+    };
+    const st = analyzeScaffold(tower(edit));
+    const beam = st.parts.find((w) => w.cls.kind === 'beam')!.part.id;
+    const ends = beamsWithoutSupports(st);
+    expect(ends.map((e) => [e.part, e.at])).toEqual([
+      [beam, 0],
+      [beam, 1],
+    ]);
+    // a jack stands on each end: free along the beam (x) as the assumed supports
+    expect(ends.every((e) => e.dirs.join('') === 'yz')).toBe(true);
+    const fixings = beamEndFixings(ends, (e) => `B ${e.at}`);
+    const m = buildScaffoldModel(st, [], [], { fixings, beamEnds: false });
+    expect(m.assumedSupports).toHaveLength(0);
+    expect(m.fixings.filter((f) => f.part === beam)).toHaveLength(2);
+    expect(m.notes.some((n) => n.key === 'beamNoSupport' || n.key === 'beamAssumed')).toBe(false);
+    // held against twisting at both ends
+    const nodes = m.fixings.filter((f) => f.part === beam).map((f) => f.node);
+    expect(m.frame.supports.filter((q) => nodes.includes(q.node) && q.dof === 3)).toHaveLength(2);
+    // the beam is no more without supports; the user said "no": reported
+    expect(beamsWithoutSupports(st, { fixings })).toHaveLength(0);
+    const none = buildScaffoldModel(st, [], [], { beamEnds: false });
+    expect(none.notes.find((n) => n.key === 'beamNoSupport')?.parts).toEqual([beam]);
+    // a beam on two standards has its supports
+    expect(beamsWithoutSupports(analyzeScaffold(tower()))).toHaveLength(0);
   });
 
   it('a beam connector without geometry in the drawing joins the beams ending within its length', () => {

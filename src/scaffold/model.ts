@@ -331,6 +331,11 @@ export interface ModelOptions {
    * beam of the structure); the scaffold is held only by the supports and fixings set by hand
    */
   supportsManual?: boolean;
+  /**
+   * beams with fewer than two supports in the drawing: supported at their ends by assumption (default);
+   * false: only by what the user set (fixings on the beam), the user decided at import
+   */
+  beamEnds?: boolean;
 }
 
 export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[] = [], dhbParts: string[] = [], opts: ModelOptions = {}): ScaffoldModel {
@@ -1118,6 +1123,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         }
         return { dir: d, sup };
       });
+      // on a beam: held against twisting about its axis (it lies on the structure with its width)
+      if (f.torsion && car && car.kind === 'beam') supports.push({ node, dof: Math.abs(car.b[0] - car.a[0]) >= Math.abs(car.b[1] - car.a[1]) ? 3 : 4, k: Infinity });
       fixings.push({ id: f.id, part: id, node, sups, ...(f.limit && f.limit > 0 ? { limit: f.limit } : {}) });
     }
   }
@@ -1203,7 +1210,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       const P = e === 0 ? c.a : c.b;
       const n = c.end[e]?.node ?? addNode(P);
       c.end[e] ??= { node: n, offset: [0, 0, 0], t: e };
-      if (c.kind === 'beam' && supportLike < 2) {
+      if (c.kind === 'beam' && supportLike < 2 && opts.beamEnds !== false) {
         // beam on the structure: supported at its ends by assumption
         assumedSupports.push({ node: n, sup: supports.length, part: c.part });
         // under a standing jack the bearing is above the beam axis: free along the beam there, else the
@@ -1215,6 +1222,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       }
     }
     if (c.kind === 'beam' && assumedSupports.some((s) => s.part === c.part)) note('beamAssumed', c.part);
+    // the user decided on the supports of the beams: a beam held by too little is reported
+    if (c.kind === 'beam' && opts.beamEnds === false && supportLike + fixings.filter((f) => f.part === c.part && f.sups.some((q) => q.dir === 'z')).length < 2) note('beamNoSupport', c.part);
     const pts = [c.end[0]!, ...c.inter.sort((a, b) => a.t - b.t), c.end[1]!];
     // the chain of the carrier: points closer than 2 cm along it are one point (the ends of the carrier
     // always in the chain, they hold its connections); every other part attached there hangs on that

@@ -814,7 +814,7 @@
     },
     "fix": {
       "title": "Befestigung am Bauwerk",
-      "intro": "Punkte, an denen das Gerüst am Gebäude (oder einer anderen Konstruktion) gehalten ist und die in der Zeichnung nicht enthalten sind: Teile im 3D-Modell wählen, gehaltene Achsen und Lage am Teil angeben. Die Achsen sind die der Zeichnung; gehalten in beide Richtungen.",
+      "intro": "Punkte, an denen das Gerüst am Gebäude (oder einer anderen Konstruktion) gehalten ist und die in der Zeichnung nicht enthalten sind: Teile im 3D-Modell wählen, gehaltene Achsen und Lage am Teil angeben. Die Achsen sind die der Zeichnung; gehalten in beide Richtungen. Befestigungen und Auflager der Tabelle lassen sich ändern: Achsen (Tasten X Y Z), Stelle am Teil, auf die gewählten Teile verschieben (⇄) oder löschen (✕). Ein Auflager ohne Achse am Stielfuß entfernt das automatische Auflager.",
       "name": "Bezeichnung",
       "namePlaceholder": "z. B. Wandanker Achse A",
       "default": "Befestigung",
@@ -839,7 +839,26 @@
       "notStandards": "keine Stiele: {n} — übersprungen",
       "pressureShort": "Druck",
       "bottom": "Stielfuß",
-      "supportsManual": "Hängegerüst: Auflager der Stiele nur von Hand"
+      "supportsManual": "Hängegerüst: Auflager der Stiele nur von Hand",
+      "removeSupport": "Auflager am Fuß von {n} Stielen entfernen",
+      "toggleAxis": "Achse {d}: halten / lösen",
+      "noSupport": "kein Auflager",
+      "torsion": "hält den Träger gegen Verdrehen",
+      "moveTo": "Auf die gewählten Teile verschieben ({n})"
+    },
+    "beamEnds": {
+      "question": "{n} Träger ohne Auflager in der Zeichnung (SRU / RCS). An den Enden lagern?",
+      "explain": "Auflager an beiden Enden jedes dieser Träger (X, Y, Z und gegen Verdrehen; in Trägerrichtung frei, wo eine Spindel auf dem Ende steht); sie erscheinen unter „Befestigungen am Bauwerk“ und lassen sich dort löschen, verschieben oder ergänzen. „Nein“: die Träger halten nur von Hand gesetzte Auflager.",
+      "yes": "Ja, Auflager an den Enden ({n})",
+      "no": "Nein, setze ich selbst",
+      "later": "Später",
+      "show": "Träger zeigen",
+      "fixName": "Auflager Träger {name} — {end}",
+      "start": "Anfang",
+      "end": "Ende",
+      "statusAuto": "Träger ohne Auflager ({n}) werden automatisch an den Enden gelagert.",
+      "statusUser": "Trägerauflager von Hand: {n}. Träger ohne Auflager: {free}.",
+      "backAuto": "Automatische Trägerauflager wiederherstellen"
     },
     "loads": {
       "title": "Benutzerdefinierte Lasten",
@@ -1097,6 +1116,7 @@
       "notes": "Annahmen des Modells",
       "note": {
         "beamAssumed": "Träger SRU / RCS ohne Auflager in der Zeichnung ({n}) – an den Enden auf dem Bauwerk gelagert angenommen.",
+        "beamNoSupport": "Träger SRU / RCS mit zu wenig Auflagern ({n}): die Trägerauflager sind von Hand gesetzt — „Befestigungen am Bauwerk“ prüfen.",
         "diagonalFree": "Diagonalen, deren Enden nicht an Stielen liegen ({n}) – nicht angesetzt.",
         "diagonalType": "Diagonalen unbekannter Art ({n}: {names}) – nicht angesetzt.",
         "tubeFree": "Rohre nicht zwischen zwei Stielen ({n}) – nicht angesetzt.",

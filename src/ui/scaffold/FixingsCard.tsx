@@ -4,6 +4,8 @@ import type { ScaffoldStructure } from '../../scaffold/structure';
 import type { UserFixing } from '../../scaffold/userLoads';
 import { Button, CheckField, FoldCard, FoldState, HelpTip, NumberField, TextField, cx } from '../common';
 import { useFmt } from '../hooks';
+import { beamEndFixings } from '../../scaffold/beamSupports';
+import { beamEndName, useBeamEnds } from './BeamSupportsPrompt';
 
 const AXES = ['x', 'y', 'z'] as const;
 
@@ -26,8 +28,10 @@ export function FixingsCard({ st }: { st: ScaffoldStructure }) {
   const isStd = (id: string) => ['standard', 'base'].includes(byId.get(id)?.cls.kind ?? '');
   const sel = sc.selected.filter((id) => byId.has(id) && (kind === 'fixing' || isStd(id)));
   const skipped = kind === 'support' ? sc.selected.filter((id) => byId.has(id) && !isStd(id)).length : 0;
+  // a support with no axis: the bottom of these standards is not held (the automatic support removed)
+  const canAdd = sel.length > 0 && (dirs.length > 0 || kind === 'support');
   const add = () => {
-    if (!sel.length || !dirs.length) return;
+    if (!canAdd) return;
     const ks = Object.fromEntries(AXES.filter((d) => dirs.includes(d) && k[d] > 0).map((d) => [d, k[d]]));
     const f: UserFixing = {
       id: `F${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`,
@@ -37,16 +41,55 @@ export function FixingsCard({ st }: { st: ScaffoldStructure }) {
       dirs: AXES.filter((d) => dirs.includes(d)),
       ...(limit > 0 ? { limit } : {}),
       ...(kind === 'support' ? { support: { ...(Object.keys(ks).length ? { k: ks } : {}), compression: dirs.includes('z') && compression } } : {}),
+      ...(kind === 'fixing' && dirs.includes('z') && sel.every((id) => byId.get(id)?.cls.kind === 'beam') ? { torsion: true } : {}),
     };
     sc.addFixing(f);
     setName('');
   };
+  // beams without supports in the drawing: supports at their ends as fixings by hand
+  const beamEnds = useBeamEnds(st);
+  const beamsFree = new Set(beamEnds.map((e) => e.part)).size;
+  const beamFixings = sc.fixings.filter((f) => f.beamEnd);
+  const setBeamEnds = () => {
+    sc.addFixings(beamEndFixings(beamEnds, (e) => beamEndName(fmt.t, e)));
+    sc.setBeamEnds('user');
+  };
+  const autoBeamEnds = () => {
+    for (const f of beamFixings) sc.removeFixing(f.id);
+    sc.setBeamEnds('auto');
+  };
+  // a fixing of the table edited in place: axes, place along the part, moved to the parts selected
+  const toggleDir = (f: UserFixing, d: 'x' | 'y' | 'z') => {
+    const next = AXES.filter((x) => (x === d ? !f.dirs.includes(d) : f.dirs.includes(x)));
+    if (!next.length && !f.support) return;
+    sc.updateFixing(f.id, { dirs: next });
+  };
+  const movable = sc.selected.filter((id) => byId.has(id));
   const toggle = (d: 'x' | 'y' | 'z') => setDirs((v) => (v.includes(d) ? v.filter((x) => x !== d) : [...v, d]));
 
   return (
     <FoldCard title={fmt.t('scaffold.fix.title')} testId="scaffold-fixings" state={<FoldState items={sc.fixings.length ? [String(sc.fixings.length)] : []} />}>
       <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{fmt.t('scaffold.fix.intro')}</p>
       <CheckField className="mb-2" checked={sc.supportsManual} onChange={(v) => sc.setOpts({ supportsManual: v })} label={fmt.t('scaffold.fix.supportsManual')} help="scaffold.supportsManual" testId="scaffold-supports-manual" />
+      {(beamEnds.length > 0 || beamFixings.length > 0) && (
+        <div className="mb-2 rounded-md border border-slate-200 p-2 text-xs dark:border-slate-700" data-testid="scaffold-beam-ends">
+          <p className="mb-1 text-slate-600 dark:text-slate-300">
+            {sc.beamEnds === 'auto' ? fmt.t('scaffold.beamEnds.statusAuto', { n: beamsFree }) : fmt.t('scaffold.beamEnds.statusUser', { n: beamFixings.length, free: beamsFree })}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {beamEnds.length > 0 && (
+              <Button size="sm" onClick={setBeamEnds} data-testid="scaffold-beam-ends-set">
+                {fmt.t('scaffold.beamEnds.yes', { n: beamEnds.length })}
+              </Button>
+            )}
+            {sc.beamEnds === 'user' && (
+              <Button size="sm" variant="ghost" onClick={autoBeamEnds} data-testid="scaffold-beam-ends-auto">
+                {fmt.t('scaffold.beamEnds.backAuto')}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
       <div className="mb-2 flex gap-1" role="radiogroup" aria-label={fmt.t('scaffold.fix.kind')}>
         {(['fixing', 'support'] as const).map((v) => (
           <button
@@ -109,8 +152,8 @@ export function FixingsCard({ st }: { st: ScaffoldStructure }) {
         </div>
       )}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <Button variant="primary" size="sm" onClick={add} disabled={!sel.length || !dirs.length} data-testid="scaffold-fix-add">
-          {fmt.t(kind === 'support' ? 'scaffold.fix.addSupport' : 'scaffold.fix.add', { n: sel.length })}
+        <Button variant="primary" size="sm" onClick={add} disabled={!canAdd} data-testid="scaffold-fix-add">
+          {fmt.t(kind === 'support' ? (dirs.length ? 'scaffold.fix.addSupport' : 'scaffold.fix.removeSupport') : 'scaffold.fix.add', { n: sel.length })}
         </Button>
         <span className="text-[11px] text-slate-500">{sel.length ? '' : fmt.t(kind === 'support' ? 'scaffold.fix.selectStandards' : 'scaffold.fix.selectHint')}</span>
         {skipped > 0 && <span className="text-[11px] text-amber-700 dark:text-amber-300">{fmt.t('scaffold.fix.notStandards', { n: skipped })}</span>}
@@ -141,16 +184,65 @@ export function FixingsCard({ st }: { st: ScaffoldStructure }) {
                       </button>
                     </td>
                     <td className="px-1.5 py-1 font-medium" data-testid={`scaffold-fix-axes-${f.id}`}>
-                      {f.dirs.map((d) => (f.support?.k?.[d] ? `${d.toUpperCase()} ${fmt.q(f.support.k[d]!, 'springTrans', 0)}` : d.toUpperCase())).join(' + ')}
-                      {f.support?.compression ? ` (${fmt.t('scaffold.fix.pressureShort')})` : ''}
+                      <span className="inline-flex flex-wrap items-center gap-1">
+                        {f.vec
+                          ? '↗'
+                          : AXES.map((d) => (
+                              <button
+                                key={d}
+                                type="button"
+                                className={cx('rounded border px-1 text-[11px]', f.dirs.includes(d) ? 'border-accent-700 bg-accent-700 text-white' : 'border-slate-300 text-slate-400 dark:border-slate-600')}
+                                onClick={() => toggleDir(f, d)}
+                                aria-pressed={f.dirs.includes(d)}
+                                title={fmt.t('scaffold.fix.toggleAxis', { d: d.toUpperCase() })}
+                                data-testid={`scaffold-fix-axis-${f.id}-${d}`}
+                              >
+                                {d.toUpperCase()}
+                                {f.support?.k?.[d] && f.dirs.includes(d) ? ` ${fmt.q(f.support.k[d]!, 'springTrans', 0)}` : ''}
+                              </button>
+                            ))}
+                        {f.support && !f.dirs.length && <span className="text-amber-700 dark:text-amber-300">{fmt.t('scaffold.fix.noSupport')}</span>}
+                        {f.support?.compression ? <span>({fmt.t('scaffold.fix.pressureShort')})</span> : null}
+                        {f.torsion ? <span title={fmt.t('scaffold.fix.torsion')}>⟳</span> : null}
+                      </span>
                     </td>
-                    <td className="num px-1.5 py-1 text-end">{f.support ? fmt.t('scaffold.fix.bottom') : `${fmt.num(f.at * 100, 0)} %`}</td>
+                    <td className="num px-1.5 py-1 text-end">
+                      {f.support ? (
+                        fmt.t('scaffold.fix.bottom')
+                      ) : (
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={5}
+                          className="w-14 rounded border border-slate-300 bg-white px-1 py-0.5 text-end text-xs dark:border-slate-600 dark:bg-slate-800"
+                          value={Math.round(f.at * 100)}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            if (Number.isFinite(v)) sc.updateFixing(f.id, { at: Math.min(Math.max(v / 100, 0), 1) });
+                          }}
+                          aria-label={fmt.t('scaffold.fix.at')}
+                          data-testid={`scaffold-fix-at-${f.id}`}
+                        />
+                      )}
+                    </td>
                     <td className="num px-1.5 py-1 text-end">
                       {f.parts.length - missing}
                       {missing > 0 && <span className="ms-1 text-amber-600">(−{missing})</span>}
                     </td>
                     <td className="num px-1.5 py-1 text-end">{f.limit ? fmt.q(f.limit, 'force', 1) : '–'}</td>
-                    <td className="px-1.5 py-1 text-end">
+                    <td className="whitespace-nowrap px-1.5 py-1 text-end">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => sc.updateFixing(f.id, { parts: movable })}
+                        disabled={!movable.length || on}
+                        title={fmt.t('scaffold.fix.moveTo', { n: movable.length })}
+                        aria-label={fmt.t('scaffold.fix.moveTo', { n: movable.length })}
+                        data-testid={`scaffold-fix-move-${f.id}`}
+                      >
+                        ⇄
+                      </Button>
                       <Button size="sm" variant="ghost" onClick={() => sc.removeFixing(f.id)} aria-label={fmt.t('scaffold.fix.remove')} data-testid={`scaffold-fix-remove-${f.id}`}>
                         ✕
                       </Button>

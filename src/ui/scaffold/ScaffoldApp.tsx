@@ -16,6 +16,7 @@ import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './Anal
 import { LoadsCard } from './LoadsCard';
 import { AnchorsCard } from './AnchorsCard';
 import { FixingsCard } from './FixingsCard';
+import { BeamSupportsPrompt } from './BeamSupportsPrompt';
 import { AdvancedCard } from './AdvancedCard';
 import { orderedAxis } from '../../scaffold/userLoads';
 import { ScaffoldReport } from './ScaffoldReport';
@@ -389,6 +390,7 @@ export default function ScaffoldApp() {
       </aside>
 
       <section className="min-w-0 space-y-3 p-3">
+        <BeamSupportsPrompt st={st} />
         <AnalysisCard st={st} run={run} setRun={setRun} girders={girderEtas} />
 
         <Card

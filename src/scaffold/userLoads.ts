@@ -58,6 +58,10 @@ export interface UserFixing {
    * whether the vertical support takes pressure only (lifts off like a base)
    */
   support?: { k?: Partial<Record<'x' | 'y' | 'z', number>>; compression?: boolean };
+  /** on a beam: also held against twisting about the beam axis */
+  torsion?: boolean;
+  /** a support at the end of a beam proposed by the program (a beam without supports in the drawing) */
+  beamEnd?: boolean;
 }
 
 /** dynamic horizontal load (ForceControl "DHB"): share of the load moved by the crane (10 %) */

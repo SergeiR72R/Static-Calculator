@@ -814,7 +814,7 @@
     },
     "fix": {
       "title": "Fixings to the building",
-      "intro": "Points where the scaffold is held by the building (or another structure) that the drawing does not contain: choose parts in the 3D model, the axes held and the place along the part. Axes of the drawing; held in both directions.",
+      "intro": "Points where the scaffold is held by the building (or another structure) that the drawing does not contain: choose parts in the 3D model, the axes held and the place along the part. Axes of the drawing; held in both directions. Fixings and supports in the table can be changed: axes (buttons X Y Z), place on the part, moved to the selected parts (⇄) or removed (✕). A support with no axis at the bottom of a standard removes the automatic support.",
       "name": "Name",
       "namePlaceholder": "e.g. wall ties axis A",
       "default": "Fixing",
@@ -839,7 +839,26 @@
       "notStandards": "not standards: {n} — skipped",
       "pressureShort": "pressure",
       "bottom": "bottom of standard",
-      "supportsManual": "Suspended scaffold: supports of the standards set by hand only"
+      "supportsManual": "Suspended scaffold: supports of the standards set by hand only",
+      "removeSupport": "Remove the support at the bottom of {n} standards",
+      "toggleAxis": "Axis {d}: hold / release",
+      "noSupport": "no support",
+      "torsion": "holds the beam against twisting",
+      "moveTo": "Move to the selected parts ({n})"
+    },
+    "beamEnds": {
+      "question": "{n} beams without supports in the drawing (SRU / RCS). Support them at their ends?",
+      "explain": "Supports go at both ends of each such beam (X, Y, Z and against twisting; free along the beam where a jack stands on the end) and appear in \"Fixings to the building\". There they can be removed, moved or others added. \"No\": the beams are held only by supports set by hand.",
+      "yes": "Yes, supports at the ends ({n})",
+      "no": "No, I set them",
+      "later": "Later",
+      "show": "Show the beams",
+      "fixName": "Support of beam {name} — {end}",
+      "start": "start",
+      "end": "end",
+      "statusAuto": "Beams without supports ({n}) are supported at their ends automatically.",
+      "statusUser": "Beam supports set by hand: {n}. Beams without supports: {free}.",
+      "backAuto": "Back to automatic beam supports"
     },
     "loads": {
       "title": "User loads",
@@ -1097,6 +1116,7 @@
       "notes": "Assumptions of the model",
       "note": {
         "beamAssumed": "Beams SRU / RCS without supports in the drawing ({n}) – assumed supported on the structure at their ends.",
+        "beamNoSupport": "Beams SRU / RCS short of supports ({n}): the beam supports are set by hand — check \"Fixings to the building\".",
         "diagonalFree": "Diagonals with ends away from the standards ({n}) – not considered.",
         "diagonalType": "Diagonals of unknown kind ({n}: {names}) – not considered.",
         "tubeFree": "Tubes not between two standards ({n}) – not considered.",

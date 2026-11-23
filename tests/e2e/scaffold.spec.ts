@@ -400,3 +400,37 @@ test('scaffold mode: the user decides which tubes are anchors; an anchor works t
   await expect(page.getByTestId(`scaffold-anchor-row-${id}`)).toHaveAttribute('data-chosen', 'auto');
   await expect(page.getByTestId('scaffold-anchors-toggle')).not.toContainText('изменено');
 });
+
+test('scaffold mode: beams without supports — asked at import, supports at their ends editable as fixings', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('mode-scaffold').click();
+  // an SRU on its own with a jack and a standard standing on each end: no support in the drawing
+  const parts = towerParts();
+  parts.push({ art: 'SRU', rot: 'x', t: [0, 6, 5] });
+  for (const x of [0.03, 2.19]) parts.push({ art: 'UJB', rot: 'x', t: [x - 0.075, 6 - 0.075, 5.12] }, { art: 'UVR', rot: 'x', t: [x - 0.08, 6 - 0.08, 5.6] });
+  await page.getByTestId('scaffold-file').setInputFiles({ name: 'beam.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(parts)) });
+  await expect(page.getByTestId('scaffold-beam-prompt')).toContainText('1 балок без опор');
+  await page.getByTestId('scaffold-beam-yes').click();
+  await expect(page.getByTestId('scaffold-beam-prompt')).toHaveCount(0);
+  // two supports, as fixings by hand: free along the beam (x) under the jacks
+  await page.getByTestId('scaffold-fixings-toggle').click();
+  const rows = page.getByTestId('scaffold-fix-table').locator('tbody tr');
+  await expect(rows).toHaveCount(2);
+  await expect(page.getByTestId('scaffold-fix-table')).toContainText('начало');
+  const id = (await page.locator('[data-testid^="scaffold-fix-at-"]').first().getAttribute('data-testid'))!.replace('scaffold-fix-at-', '');
+  await expect(page.getByTestId(`scaffold-fix-axis-${id}-x`)).toHaveAttribute('aria-pressed', 'false');
+  // moved along the beam, the axis x held too, one removed
+  await page.getByTestId(`scaffold-fix-at-${id}`).fill('20');
+  await page.getByTestId(`scaffold-fix-axis-${id}-x`).click();
+  await expect(page.getByTestId(`scaffold-fix-axis-${id}-x`)).toHaveAttribute('aria-pressed', 'true');
+  await page.locator('[data-testid^="scaffold-fix-remove-"]').last().click();
+  await expect(rows).toHaveCount(1);
+  // the program does not ask again; supports of the beam set by hand
+  await expect(page.getByTestId('scaffold-beam-ends')).toContainText('вручную');
+  await page.getByTestId('scaffold-calc-run').click();
+  await expect(page.getByTestId('scaffold-calc-result')).toBeVisible({ timeout: 20_000 });
+  // back to the automatic supports
+  await page.getByTestId('scaffold-beam-ends-auto').click();
+  await expect(page.getByTestId('scaffold-fix-table')).toHaveCount(0);
+  await expect(page.getByTestId('scaffold-beam-prompt')).toBeVisible();
+});

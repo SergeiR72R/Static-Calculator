@@ -435,6 +435,23 @@ describe('every part of the drawing in the model', () => {
     expect(m.assumedSupports).toHaveLength(2);
   });
 
+  it('a beam with jacks standing at its ends is supported there, free along its axis', () => {
+    // SRU on its own (axis at 5.06 m), a jack with a standard standing on each end
+    const m = build((p) => {
+      p.push({ art: 'SRU', rot: 'x', t: [0, 6, 5] });
+      for (const x of [0.03, 2.19]) p.push({ art: 'UJB', rot: 'x', t: [x - 0.075, 6 - 0.075, 5.12] }, { art: 'UVR', rot: 'x', t: [x - 0.08, 6 - 0.08, 5.6] });
+    });
+    const beam = m.carriers.find((c) => c.kind === 'beam')!;
+    const pts = beam.points!;
+    expect(m.assumedSupports.map((s) => s.node).sort()).toEqual([pts[0].node, pts.at(-1)!.node].sort());
+    for (const s of m.assumedSupports) {
+      const sup = m.frame.supports.slice(s.sup, s.sup + 3);
+      // along the beam (x): no restraint under the jack, else the beam would arch between its ends
+      expect(sup.map((q) => [q.dof, q.k])).toEqual([[0, 0], [1, Infinity], [2, Infinity]]);
+    }
+    expect(m.notes.some((n) => n.key === 'beamAssumed')).toBe(true);
+  });
+
   it('a beam connector without geometry in the drawing joins the beams ending within its length', () => {
     const doc = tower((p) => p.push({ art: 'SRU', rot: 'x', t: [0, 1, 5] }, { art: 'SRU', rot: 'x', t: [2.25, 1, 5] }));
     // rail connector RCS 97 as PERI CAD writes it: no system lines, inserted 0.49 m before the joint

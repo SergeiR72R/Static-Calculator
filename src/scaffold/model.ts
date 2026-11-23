@@ -1006,11 +1006,16 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     spliced.add(w.part.id);
   }
   for (const c of carriers) {
-    // something attached right at a free end becomes that end
+    // something attached right at a free end becomes that end; a beam is not held by what stands on it
+    const standsOn: (number | undefined)[] = [];
     for (const e of [0, 1] as const) {
       if (c.end[e]) continue;
       const k = c.inter.findIndex((a) => (e === 0 ? a.t <= 0.02 : a.t >= 0.98));
-      if (k >= 0) c.end[e] = { ...c.inter.splice(k, 1)[0], t: e, k: undefined };
+      if (k >= 0) {
+        const a = c.inter.splice(k, 1)[0];
+        if (a.k !== HINGE) standsOn[e] = a.node;
+        c.end[e] = { ...a, t: e, k: undefined };
+      }
     }
     // a ledger with no end held (both ends in the air) cannot carry anything
     if (c.kind === 'ledger' && !c.inter.length) {
@@ -1037,17 +1042,20 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         }
       }
     }
-    // ends without a node
+    // ends without a node, and beam ends with only a standard or jack standing on them
     const supportLike = c.inter.filter((a) => a.k === HINGE).length;
     for (const e of [0, 1] as const) {
-      if (c.end[e]) continue;
+      if (c.end[e] && !(c.kind === 'beam' && standsOn[e] !== undefined && supportLike < 2)) continue;
       const P = e === 0 ? c.a : c.b;
-      const n = addNode(P);
-      c.end[e] = { node: n, offset: [0, 0, 0], t: e };
+      const n = c.end[e]?.node ?? addNode(P);
+      c.end[e] ??= { node: n, offset: [0, 0, 0], t: e };
       if (c.kind === 'beam' && supportLike < 2) {
         // beam on the structure: supported at its ends by assumption
         assumedSupports.push({ node: n, sup: supports.length, part: c.part });
-        for (const dof of [0, 1, 2]) supports.push({ node: n, dof, k: Infinity });
+        // under a standing jack the bearing is above the beam axis: free along the beam there, else the
+        // beam would be held as an arch between its ends
+        const along = Math.abs(c.b[0] - c.a[0]) >= Math.abs(c.b[1] - c.a[1]) ? 0 : 1;
+        for (const dof of [0, 1, 2]) supports.push({ node: n, dof, k: standsOn[e] !== undefined && dof === along ? 0 : Infinity });
         // torsion of the beam held at one end (rotation about its dominant horizontal direction)
         if (e === 0) supports.push({ node: n, dof: Math.abs(c.b[0] - c.a[0]) >= Math.abs(c.b[1] - c.a[1]) ? 3 : 4, k: Infinity });
       }

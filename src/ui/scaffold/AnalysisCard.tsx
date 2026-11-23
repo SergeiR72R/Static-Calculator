@@ -379,6 +379,9 @@ export function AnalysisCard({
                             <td className="num px-1.5 py-0.5 text-end">
                               {fmt.q(a.Nmin, 'force', 1)} … {fmt.q(a.Nmax, 'force', 1)}
                             </td>
+                            <td className="num px-1.5 py-0.5 text-end text-slate-500" title={fmt.t('scaffold.anchor.fcTitle')}>
+                              {a.couplers ? fmt.t('scaffold.anchor.fc', { n: a.couplers, f: fmt.q(a.Fc ?? 0, 'force', 1) }) : ''}
+                            </td>
                             <td className="num px-1.5 py-0.5 text-end font-semibold" style={{ color: etaColor(a.eta) }}>
                               {fmt.num(a.eta * 100, 0)} %
                             </td>

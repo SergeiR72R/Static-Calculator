@@ -361,3 +361,42 @@ test('scaffold mode: fixings to the building set by hand, shown in 3D, forces in
   await page.locator('[data-testid^="scaffold-fix-remove-"]').first().click();
   await expect(page.getByTestId('scaffold-fix-table')).toHaveCount(0);
 });
+
+test('scaffold mode: the user decides which tubes are anchors; an anchor works through all its couplers', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('mode-scaffold').click();
+  // a 2 m tube beside the standards x = 0, coupled to both, sticking out at y = 2.1
+  const parts = towerParts();
+  parts.push({ art: 'TUBE2', rot: 'y', t: [-0.05, 0.1, 3.2] }, { art: 'RA', rot: 'x', t: [-0.05, 0.12, 3.2] }, { art: 'RA', rot: 'x', t: [-0.05, 2, 3.2] });
+  await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(parts)) });
+  await expect(page.getByTestId('scaffold-anchors')).toBeVisible();
+  await page.getByTestId('scaffold-anchors-toggle').click();
+  await expect(page.getByTestId('scaffold-anchor-set')).toBeDisabled();
+  // the tube is listed; coupled to two standards it is no anchor by itself
+  const row = page.locator('[data-testid^="scaffold-anchor-row-"]').first();
+  await expect(row).toHaveAttribute('data-anchor', '0');
+  const id = ((await row.getAttribute('data-testid')) ?? '').replace('scaffold-anchor-row-', '');
+  // made an anchor by hand: through both couplers
+  await page.getByTestId(`scaffold-anchor-role-${id}`).selectOption('anchor');
+  await expect(row).toHaveAttribute('data-anchor', '1');
+  await expect(row).toHaveAttribute('data-chosen', 'anchor');
+  await expect(row).toHaveAttribute('data-couplers', '2');
+  await expect(page.getByTestId('scaffold-anchors-toggle')).toContainText('изменено: 1');
+  await page.getByTestId('scaffold-calc-run').click();
+  await expect(page.getByTestId('scaffold-calc-result')).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('scaffold-calc-anchors')).toContainText('2 хом.');
+  // chosen in the list (selected in 3D), made no anchor with the button; kept after a reload
+  await row.locator('button').click();
+  await expect(page.getByTestId('scaffold-anchor-unset')).toBeEnabled();
+  await page.getByTestId('scaffold-anchor-unset').click();
+  await expect(row).toHaveAttribute('data-chosen', 'tube');
+  await expect(row).toHaveAttribute('data-anchor', '0');
+  await page.reload();
+  await page.getByTestId('mode-scaffold').click();
+  await page.getByTestId('scaffold-anchors-toggle').click();
+  await expect(page.getByTestId(`scaffold-anchor-role-${id}`)).toHaveValue('tube');
+  // back to the drawing's choice
+  await page.getByTestId(`scaffold-anchor-role-${id}`).selectOption('auto');
+  await expect(page.getByTestId(`scaffold-anchor-row-${id}`)).toHaveAttribute('data-chosen', 'auto');
+  await expect(page.getByTestId('scaffold-anchors-toggle')).not.toContainText('изменено');
+});

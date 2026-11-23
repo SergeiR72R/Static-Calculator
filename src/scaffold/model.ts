@@ -60,6 +60,8 @@ export interface ModelMember {
   link?: boolean;
   /** tie of a fixing to the building (no wind, no check of its own) */
   tie?: boolean;
+  /** a piece of an anchor tube between two of its couplers (checked with the anchor, coupler by coupler) */
+  anchorChain?: boolean;
   /** spindle: base jack (under a standard) or head jack (on a standard, under a beam) */
   jack?: 'foot' | 'head';
   /** part of a group without any support (not connected to the scaffold): left out */
@@ -105,8 +107,10 @@ export interface ScaffoldModel {
   /** column index of a node on a standard, −1 otherwise */
   nodeColumn: Int32Array;
   bases: BaseSupport[];
-  /** anchors: truss member of the anchor tube */
-  anchors: { member: number; part: string; node: number }[];
+  /** anchors: truss member of the anchor tube (to the building), its node at the first standard and
+   * members of the tube from the building through all its couplers at standards (`chain`) and the
+   * links of the couplers from the tube to the standards (`links`: the force of a coupler) */
+  anchors: { member: number; part: string; node: number; chain: number[]; links: number[] }[];
   /** beam ends supported by assumption */
   assumedSupports: { node: number; sup: number; part: string }[];
   /** deck levels (height, deck area) */
@@ -186,6 +190,8 @@ function ledgerType(w: WorldPart): { head: LedgerHead; sec: keyof typeof LEDGERS
 }
 
 const HINGE = [Infinity, Infinity, Infinity, Infinity, 0, 0];
+/** link of a coupler from a tube to a standard (a few cm): stiff */
+const COUPLER_LINK: Section3 = { EA: 1e9, EIy: 1e6, EIz: 1e6, GJ: 1e6 };
 /** end panel of a lattice girder (end element ULS 50 Flex), m, and area of its posts / diagonals, m² */
 const GIRDER_PANEL = 0.5;
 const GIRDER_WEB_A = 2.0e-4;
@@ -1257,23 +1263,46 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   for (const a of st.anchors) {
     const k = colAt(a.atStandard, 0.3, 0.15);
     if (k < 0) continue;
-    const n = colNode(k, a.atStandard[2], 0.03);
+    // the tube: a continuous member along its own axis from the building through all its couplers;
+    // each coupler a short stiff link from the tube to the standard (the coupler is checked with the
+    // force of its link); the anchor plate holds the end of the tube horizontally, across and along
+    // the facade (as PERI ForceControl)
     const far = addNode(a.atStructure);
-    for (const dof of [0, 1, 2]) supports.push({ node: far, dof, k: Infinity });
-    anchors.push({ member: fm.length, part: a.id, node: n });
-    fm.push({ i: n, j: far, sec: tubeSec(n, far), truss: true });
-    mm.push({ kind: 'anchor', part: a.id, tube: 't32', g: TUBES.t32.g });
-    // the tube coupled to further standards on the way: it braces them
-    let prev = n;
+    for (const dof of [0, 1]) supports.push({ node: far, dof, k: Infinity });
+    const tubeDir: V3 = (() => {
+      const d: V3 = [a.atStandard[0] - a.atStructure[0], a.atStandard[1] - a.atStructure[1], 0];
+      const l = Math.hypot(d[0], d[1]) || 1;
+      return [d[0] / l, d[1] / l, 0];
+    })();
+    const points: { k: number; p: V3 }[] = [{ k, p: a.atStandard }];
     for (const p of a.via ?? []) {
       const kv = colAt(p, 0.3, 0.15);
-      if (kv < 0) continue;
-      const nv = colNode(kv, p[2], 0.03);
-      if (nv === prev) continue;
-      fm.push({ i: prev, j: nv, sec: tubeSec(prev, nv), truss: true });
-      mm.push({ kind: 'tube', part: a.id, tube: 't32', g: 0 });
-      prev = nv;
+      if (kv >= 0 && !points.some((q) => q.k === kv)) points.push({ k: kv, p });
     }
+    const chain: number[] = [];
+    const links: number[] = [];
+    let prev = far;
+    let node = -1;
+    for (const [i, q] of points.entries()) {
+      const ns = colNode(q.k, q.p[2], 0.03);
+      // the tube beside the standard (a coupler joins them): the point of its axis next to the
+      // standard, the link across the tube (at least 5 cm)
+      const P = nodes[ns];
+      const along = (P[0] - q.p[0]) * tubeDir[0] + (P[1] - q.p[1]) * tubeDir[1];
+      let tp: V3 = [q.p[0] + along * tubeDir[0], q.p[1] + along * tubeDir[1], P[2]];
+      if (Math.hypot(tp[0] - P[0], tp[1] - P[1]) < 0.02) tp = [P[0] - 0.05 * tubeDir[1], P[1] + 0.05 * tubeDir[0], P[2]];
+      const nt = addNode(tp);
+      chain.push(fm.length);
+      // the tube bends (it carries the force along the facade to the couplers), its couplers slip
+      fm.push({ i: nt, j: prev, sec: { ...tubeSection('t32'), EA: tubeSec(nt, prev).EA } });
+      mm.push(i === 0 ? { kind: 'anchor', part: a.id, tube: 't32', g: TUBES.t32.g } : { kind: 'tube', part: a.id, tube: 't32', g: 0, anchorChain: true });
+      links.push(fm.length);
+      fm.push({ i: ns, j: nt, sec: COUPLER_LINK });
+      mm.push({ kind: 'link', part: a.id, g: 0, tie: true });
+      if (i === 0) node = ns;
+      prev = nt;
+    }
+    anchors.push({ member: chain[0], part: a.id, node, chain, links });
   }
   for (const w of st.parts) {
     if ((w.cls.kind !== 'tube' && w.cls.kind !== 'anchor') || anchorTubes.has(w.part.id)) continue;

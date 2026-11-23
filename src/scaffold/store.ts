@@ -168,6 +168,10 @@ export interface ScaffoldState extends ScaffoldOpts {
   fixings: UserFixing[];
   addFixing: (f: UserFixing) => void;
   removeFixing: (id: string) => void;
+  /** tubes chosen by the user as anchors or as no anchors (part id); belong to the drawing */
+  anchorRoles: Record<string, 'anchor' | 'tube'>;
+  /** the role of these tubes; null: as recognised from the drawing */
+  setAnchorRole: (ids: string[], role: 'anchor' | 'tube' | null) => void;
   setDoc: (doc: ScaffoldDoc | null) => void;
   setOpts: (o: Partial<ScaffoldOpts>) => void;
   /** advanced settings back to their defaults */
@@ -187,8 +191,8 @@ function loadDoc(): ScaffoldDoc | null {
   }
 }
 
-function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[] } {
-  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null, loads: [] as UserLoad[], loadsFile: null as string | null, dhbParts: [] as string[], fixings: [] as UserFixing[] };
+function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[]; anchorRoles: Record<string, 'anchor' | 'tube'> } {
+  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null, loads: [] as UserLoad[], loadsFile: null as string | null, dhbParts: [] as string[], fixings: [] as UserFixing[], anchorRoles: {} as Record<string, 'anchor' | 'tube'> };
   try {
     const saved = JSON.parse(storage.get(OPT_KEY) ?? '{}');
     // options of version 1: deck self weight was the old default 0.20 kN/m² → new default
@@ -200,6 +204,8 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads
     if (!Array.isArray(o.loads)) o.loads = [];
     if (!Array.isArray(o.dhbParts)) o.dhbParts = [];
     if (!Array.isArray(o.fixings)) o.fixings = [];
+    if (!o.anchorRoles || typeof o.anchorRoles !== 'object' || Array.isArray(o.anchorRoles)) o.anchorRoles = {};
+    o.anchorRoles = Object.fromEntries(Object.entries(o.anchorRoles).filter(([, v]) => v === 'anchor' || v === 'tube'));
     if (o.ubkModel !== 'annexA' && o.ubkModel !== 'table15') o.ubkModel = 'annexA';
   } catch {
     /* ignore */
@@ -208,7 +214,7 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads
 }
 
 function save(s: ScaffoldState) {
-  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[] } = {
+  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[]; anchorRoles: Record<string, 'anchor' | 'tube'> } = {
     v: 3,
     loadClass: s.loadClass,
     g: s.g,
@@ -242,6 +248,7 @@ function save(s: ScaffoldState) {
     loadsFile: s.loadsFile,
     dhbParts: s.dhbParts,
     fixings: s.fixings,
+    anchorRoles: s.anchorRoles,
   };
   storage.set(OPT_KEY, JSON.stringify(o));
 }
@@ -254,7 +261,7 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   setDoc: (doc) => {
     // the loads of the user belong to the drawing: kept when the same drawing comes again
     const keep = !!doc && doc.fileName === get().loadsFile;
-    set({ doc, selected: [], girder: null, batchRef: null, ...(keep ? {} : { loads: [], dhbParts: [], fixings: [], loadsFile: doc?.fileName ?? null }) });
+    set({ doc, selected: [], girder: null, batchRef: null, ...(keep ? {} : { loads: [], dhbParts: [], fixings: [], anchorRoles: {}, loadsFile: doc?.fileName ?? null }) });
     save(get());
     // a drawing too large for the storage of the browser is not kept for the next visit; the one
     // stored before goes too (else it would come back after a reload)
@@ -287,6 +294,15 @@ export const useScaffold = create<ScaffoldState>()((set, get) => ({
   },
   removeFixing: (id) => {
     set({ fixings: get().fixings.filter((f) => f.id !== id) });
+    save(get());
+  },
+  setAnchorRole: (ids, role) => {
+    const r = { ...get().anchorRoles };
+    for (const id of ids) {
+      if (role) r[id] = role;
+      else delete r[id];
+    }
+    set({ anchorRoles: r, loadsFile: get().doc?.fileName ?? null });
     save(get());
   },
   updateLoad: (id, patch) => {

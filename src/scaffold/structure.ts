@@ -89,8 +89,11 @@ export interface Anchor {
   atStandard: V3;
   atStructure: V3;
   length: number;
-  /** further points where the tube is coupled to standards (the tube braces them) */
+  /** further points where the tube is coupled to standards, from the first one inwards: the anchor
+   * force goes to the standards through all these couplers */
   via?: V3[];
+  /** chosen as an anchor by the user */
+  chosen?: boolean;
 }
 
 export interface ScaffoldStructure {
@@ -394,6 +397,12 @@ export interface StructureOptions {
   tol: number;
   /** at most this many parts may follow a moved part (default 10) */
   maxFollow?: number;
+  /**
+   * role of tubes chosen by the user (part id): 'anchor' — an anchor to the building, coupled to
+   * the standards by all its couplers; 'tube' — not an anchor (bracing, a tie of a hoist …);
+   * tubes not listed: as recognised from the drawing
+   */
+  anchorRoles?: Record<string, 'anchor' | 'tube'>;
 }
 
 export const DEFAULT_TOL = 0.05;
@@ -460,7 +469,7 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
   const deckParts = parts.filter((w) => w.cls.kind === 'deck');
   const decked = oneEnd.filter((w) => deckedLedger(w, deckParts));
   if (decked.length) issues.push({ key: 'ledgerOneEndDecked', params: { n: decked.length }, parts: decked.map((w) => w.part.id), severity: 'warning' });
-  const anchors = findAnchors(parts, columns);
+  const anchors = findAnchors(parts, columns, opt.anchorRoles ?? {});
   if (anchors.length)
     issues.push({ key: 'anchors', params: { n: anchors.length }, parts: anchors.flatMap((a) => [a.id, ...a.couplers, ...a.flange]), severity: 'info' });
   if (columns.length && !parts.some((w) => w.cls.kind === 'diagonal'))
@@ -520,7 +529,7 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
  * itself is usually not drawn — on the other end. Tubes with standards at both ends are bracing.
  * The tubes of anchors get the kind "anchor".
  */
-function findAnchors(parts: WorldPart[], columns: Column[]): Anchor[] {
+function findAnchors(parts: WorldPart[], columns: Column[], roles: Record<string, 'anchor' | 'tube'> = {}): Anchor[] {
   const couplers = parts.filter((w) => w.cls.kind === 'coupler');
   const isFlange = (w: WorldPart) => /\bUE[CF]\b|flansch|flange/i.test(`${w.part.name} ${w.part.desc}`);
   const pos = (w: WorldPart): V3 => [w.part.m[3], w.part.m[7], w.part.m[11]];
@@ -528,8 +537,22 @@ function findAnchors(parts: WorldPart[], columns: Column[]): Anchor[] {
   const colAt = (p: V3) => columns.find((c) => Math.hypot(c.x - p[0], c.y - p[1]) <= 0.25 && p[2] >= c.z0 - 0.1 && p[2] <= c.z1 + 0.1);
   const out: Anchor[] = [];
   for (const w of parts) {
-    if (w.cls.kind !== 'tube' || !w.lines.length) continue;
+    if ((w.cls.kind !== 'tube' && w.cls.kind !== 'anchor') || !w.lines.length) continue;
     const [a, b] = w.lines.reduce((p, q) => (Math.hypot(...q[1].map((v, i) => v - q[0][i])) > Math.hypot(...p[1].map((v, i) => v - p[0][i])) ? q : p));
+    // chosen by the user: not an anchor, or an anchor through all its couplers at standards
+    if (roles[w.part.id] === 'tube') {
+      w.cls = { kind: 'tube' };
+      continue;
+    }
+    if (roles[w.part.id] === 'anchor') {
+      const an = chosenAnchor(w, a, b, couplers, columns, isFlange);
+      if (an) {
+        out.push(an);
+        w.cls = { kind: 'anchor' };
+      }
+      continue;
+    }
+    if (w.cls.kind !== 'tube') continue;
     // anchors are horizontal: an inclined tube (a brace with its ends sticking out) is none
     {
       const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
@@ -611,11 +634,85 @@ function findAnchors(parts: WorldPart[], columns: Column[]): Anchor[] {
       atStandard: out1.s.p,
       atStructure: out1.e,
       length: Math.hypot(out1.e[0] - out1.s.p[0], out1.e[1] - out1.s.p[1]),
-      via: on.filter((o) => o !== out1.s).map((o) => o.p),
+      via: on
+        .filter((o) => o !== out1.s)
+        .sort((x, y) => Math.abs(x.s - out1.s.s) - Math.abs(y.s - out1.s.s))
+        .map((o) => o.p),
     });
     w.cls = { kind: 'anchor' };
   }
   return out;
+}
+
+/**
+ * A tube chosen by the user as an anchor: coupled to the standards by all its couplers along it
+ * (without couplers in the drawing: at the standards its axis passes), held by the building at the
+ * end with no standard further on in its direction (of two alike: the one farther from the middle of
+ * the scaffold). Null when the tube touches no standard.
+ */
+function chosenAnchor(w: WorldPart, a: V3, b: V3, couplers: WorldPart[], columns: Column[], isFlange: (w: WorldPart) => boolean): Anchor | null {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  if (L < 0.1) return null;
+  const t: V3 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L, (b[2] - a[2]) / L];
+  const colAt = (p: V3, r: number) => columns.find((c) => Math.hypot(c.x - p[0], c.y - p[1]) <= r && p[2] >= c.z0 - 0.1 && p[2] <= c.z1 + 0.1);
+  const pos = (c: WorldPart): V3 => [c.part.m[3], c.part.m[7], c.part.m[11]];
+  const on: { id?: string; s: number; p: V3; col: Column }[] = [];
+  for (const c of couplers) {
+    if (isFlange(c)) continue;
+    const q = pos(c);
+    const sp = (q[0] - a[0]) * t[0] + (q[1] - a[1]) * t[1] + (q[2] - a[2]) * t[2];
+    if (sp < -0.05 || sp > L + 0.05) continue;
+    const p: V3 = [a[0] + sp * t[0], a[1] + sp * t[1], a[2] + sp * t[2]];
+    if (Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]) > 0.1) continue;
+    const col = colAt(p, 0.25);
+    if (col && !on.some((o) => o.col === col)) on.push({ id: c.part.id, s: sp, p, col });
+  }
+  if (!on.length)
+    for (const col of columns) {
+      // the axis passing a standard (within a coupler's reach)
+      const sp = (col.x - a[0]) * t[0] + (col.y - a[1]) * t[1];
+      const h = Math.hypot(t[0], t[1]);
+      if (h < 1e-6) break;
+      const s = sp / (h * h);
+      if (s < -0.05 || s > L + 0.05) continue;
+      const p: V3 = [a[0] + s * t[0], a[1] + s * t[1], a[2] + s * t[2]];
+      if (Math.hypot(col.x - p[0], col.y - p[1]) <= 0.12 && p[2] >= col.z0 - 0.1 && p[2] <= col.z1 + 0.1) on.push({ s, p, col });
+    }
+  if (!on.length) return null;
+  on.sort((x, y) => x.s - y.s);
+  const cx = columns.reduce((v, c) => v + c.x, 0) / columns.length;
+  const cy = columns.reduce((v, c) => v + c.y, 0) / columns.length;
+  const ends = [
+    { e: a, s: on[0], free: on[0].s },
+    { e: b, s: on[on.length - 1], free: L - on[on.length - 1].s },
+  ];
+  const far = (e: V3) => Math.hypot(e[0] - cx, e[1] - cy);
+  // towards the building: no standard further on in the direction of that end
+  const outward = (x: (typeof ends)[number], d: number) => {
+    const h = Math.hypot(t[0], t[1]) || 1;
+    const u = [(d * t[0]) / h, (d * t[1]) / h];
+    return !columns.some((c) => {
+      const along = (c.x - x.e[0]) * u[0] + (c.y - x.e[1]) * u[1];
+      const side = Math.abs(-(c.x - x.e[0]) * u[1] + (c.y - x.e[1]) * u[0]);
+      return along > 0 && along < 3 && side < 0.3;
+    });
+  };
+  const out = [outward(ends[0], -1), outward(ends[1], 1)];
+  const end = out[0] !== out[1] ? (out[0] ? ends[0] : ends[1]) : far(ends[0].e) >= far(ends[1].e) ? ends[0] : ends[1];
+  const flange = couplers.filter((c) => isFlange(c) && Math.hypot(...pos(c).map((v, i) => v - end.e[i])) <= 0.25).map((c) => c.part.id);
+  return {
+    id: w.part.id,
+    couplers: on.filter((o) => o.id).map((o) => o.id!),
+    flange,
+    atStandard: end.s.p,
+    atStructure: end.e,
+    length: Math.hypot(end.e[0] - end.s.p[0], end.e[1] - end.s.p[1]),
+    via: on
+      .filter((o) => o !== end.s)
+      .sort((x, y) => Math.abs(x.s - end.s.s) - Math.abs(y.s - end.s.s))
+      .map((o) => o.p),
+    chosen: true,
+  };
 }
 
 export interface LoadOptions {

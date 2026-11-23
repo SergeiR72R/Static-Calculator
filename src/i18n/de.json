@@ -1052,7 +1052,7 @@
       "bases": "Fußpunkte: {n}",
       "basesMax": "Größte Vertikalkraft {v}, Horizontalkraft {h} (Bemessungswerte).",
       "uplift": "Abheben (Zug) an {n} Fußpunkten – Ballast oder Verankerung nötig. Zeigen.",
-      "anchors": "Verankerungen: {n} (Kraft in Rohrachse, Kupplung 13,65 kN)",
+      "anchors": "Anker: {n} (Kraft zum Bauwerk in Rohrachse; jede Kupplung am Stiel für ihren Anteil nachgewiesen, 13,65 kN)",
       "defects": {
         "title": "Fehler beim Aufbau des Rechenmodells (Fehler des Programms, nicht der Zeichnung) – Ergebnisse nicht verwenden, bitte melden:",
         "carrierBroken": "Träger / Riegel nicht durchgehend ({n} Teile)",
@@ -1220,6 +1220,27 @@
     "clearSelection": "Hervorhebung aufheben ({n})",
     "fold": {
       "none": "keine"
+    },
+    "anchor": {
+      "title": "Verankerung",
+      "intro": "Anker werden aus der Zeichnung erkannt: Rohr mit Kupplung am Stiel, das andere Ende am Bauwerk. Ist das falsch, die Rolle des Rohrs in der Liste festlegen oder Rohre im 3D-Modell wählen und „Anker“ / „Kein Anker“ drücken. Die Ankerkraft geht über alle Kupplungen des Rohrs in die Stiele; jede Kupplung wird für ihren Anteil nachgewiesen.",
+      "count": "{n} Anker",
+      "changed": "geändert: {n}",
+      "set": "Anker ({n})",
+      "unset": "Kein Anker ({n})",
+      "reset": "Wie erkannt",
+      "selectHint": "Rohre im 3D-Modell wählen (Strg/Umschalt: mehrere).",
+      "failed": "{n} Rohr(e) konnten kein Anker werden: das Rohr berührt keinen Stiel",
+      "colTube": "Rohr",
+      "colCouplers": "Kupplungen an Stielen",
+      "colZ": "Höhe",
+      "fc": "{n} Kuppl., max. {f}",
+      "fcTitle": "Kupplungen an Stielen: Anzahl und größte Kraft einer Kupplung",
+      "colRole": "Rolle",
+      "autoYes": "Anker (Zeichnung)",
+      "autoNo": "kein Anker (Zeichnung)",
+      "optAnchor": "Anker",
+      "optTube": "kein Anker"
     }
   },
   "help": {
@@ -1427,6 +1448,11 @@
         "what": "Bemessungswert der Tragfähigkeit einer Befestigung (zum Beispiel eines Ankers).",
         "why": "Damit das Programm die Befestigung nachweist.",
         "effect": "Wenn eingegeben – die resultierende Reaktion wird damit verglichen (Nachweis „Befestigung“, η). 0 – ohne Nachweis, nur Reaktionen."
+      },
+      "anchorRole": {
+        "what": "Welche Rohre Anker zum Bauwerk sind. Standard: wie aus der Zeichnung erkannt.",
+        "why": "In PERI-CAD-Zeichnungen sind Anker oft als normale Gerüstrohre gezeichnet, und Rohre zur Aufzugsabstützung oder Aussteifung sehen wie Anker aus. Falsche Anker ändern die ganze Berechnung.",
+        "effect": "Das Ankerende am Bauwerk ist in beiden horizontalen Achsen gehalten, quer und parallel zur Fassade, wie in PERI ForceControl. Das Rohr läuft durch alle seine Kupplungen durch; die Kraft jeder Kupplung ist ihr Anteil, Nachweis 13,65 kN (Bemessung). „Kein Anker“: das Rohr ist eine Aussteifung zwischen Stielen."
       }
     },
     "designer": {

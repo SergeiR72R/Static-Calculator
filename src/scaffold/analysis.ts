@@ -166,6 +166,9 @@ export interface ForceResult {
   Nmin: number;
   eta: number;
   combo: string;
+  /** anchors: couplers at standards sharing the force, the largest force of one of them (N) */
+  couplers?: number;
+  Fc?: number;
 }
 
 export interface BeamResult {
@@ -1068,24 +1071,45 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       } else if (m.diag) {
         const N = mr.N;
         put({ part: m.part, check: 'diagonal', eta: N >= 0 ? N / m.diag.nT : -N / m.diag.nC, combo: cb.name, N });
-      } else if (m.kind === 'anchor' || m.kind === 'tube') {
+      } else if (m.kind === 'tube' && !m.anchorChain) {
         const N = mr.N;
-        put({ part: m.part, check: m.kind === 'anchor' ? 'anchor' : 'coupler', eta: Math.abs(N) / COUPLER_RD, combo: cb.name, N });
-        if (m.kind === 'anchor') {
-          const o = anchorRes.get(m.part);
-          const eta = Math.abs(N) / COUPLER_RD;
-          if (!o) anchorRes.set(m.part, { part: m.part, Nmax: N, Nmin: N, eta, combo: cb.name });
-          else {
-            o.Nmax = Math.max(o.Nmax, N);
-            o.Nmin = Math.min(o.Nmin, N);
-            if (eta > o.eta) {
-              o.eta = eta;
-              o.combo = cb.name;
-            }
-          }
-        }
+        put({ part: m.part, check: 'coupler', eta: Math.abs(N) / COUPLER_RD, combo: cb.name, N });
       }
     });
+
+    // anchors: the force to the building (first piece of the tube) and the share of each coupler at
+    // the standards (difference of the forces of the tube either side of it)
+    for (const an of model.anchors) {
+      const N = r.members[an.chain[0]]?.N ?? 0;
+      // the force of each coupler: the resultant of its link from the tube to the standard
+      const F = an.links.map((k) => {
+        const ml = r.members[k];
+        if (!ml) return 0;
+        const sf = sectionForces(ml, 0);
+        return Math.hypot(sf.N, sf.Vy, sf.Vz);
+      });
+      const Fmax = Math.max(...F);
+      const eta = Fmax / COUPLER_RD;
+      put({
+        part: an.part,
+        check: 'anchor',
+        eta,
+        combo: cb.name,
+        N,
+        detail: F.length > 1 ? `${F.length} Kupplungen: ${F.map((f) => (f / 1e3).toFixed(2)).join(' / ')} kN` : undefined,
+      });
+      const o = anchorRes.get(an.part);
+      if (!o) anchorRes.set(an.part, { part: an.part, Nmax: N, Nmin: N, eta, combo: cb.name, couplers: F.length, Fc: Fmax });
+      else {
+        o.Nmax = Math.max(o.Nmax, N);
+        o.Nmin = Math.min(o.Nmin, N);
+        if (eta > o.eta) {
+          o.eta = eta;
+          o.combo = cb.name;
+          o.Fc = Fmax;
+        }
+      }
+    }
 
     // brackets UCM: permissible line load and single load at the tip of the PERI Tabellenbuch
     for (const car of model.carriers) {
@@ -1317,7 +1341,7 @@ export function mergeResults(parts: ScaffoldResult[], order: string[]): Scaffold
       else {
         o.Nmax = Math.max(o.Nmax, a.Nmax);
         o.Nmin = Math.min(o.Nmin, a.Nmin);
-        if (a.eta > o.eta) [o.eta, o.combo] = [a.eta, a.combo];
+        if (a.eta > o.eta) [o.eta, o.combo, o.Fc] = [a.eta, a.combo, a.Fc];
       }
     }
     for (const f of r.fixings ?? []) {

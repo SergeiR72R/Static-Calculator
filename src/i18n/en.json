@@ -1052,7 +1052,7 @@
       "bases": "Bases: {n}",
       "basesMax": "Largest vertical force {v}, horizontal force {h} (design values).",
       "uplift": "Uplift (tension) at {n} bases – ballast or anchoring needed. Show.",
-      "anchors": "Anchors: {n} (force along the tube, coupler 13.65 kN)",
+      "anchors": "Anchors: {n} (force to the building along the tube; each coupler at a standard checked for its share, 13.65 kN)",
       "defects": {
         "title": "Error building the analysis model (an error of the program, not of the drawing) – do not use the results, please report:",
         "carrierBroken": "beam / ledger not continuous ({n} parts)",
@@ -1220,6 +1220,27 @@
     "clearSelection": "Clear highlighting ({n})",
     "fold": {
       "none": "none"
+    },
+    "anchor": {
+      "title": "Anchors",
+      "intro": "Anchors are found in the drawing: a tube with a coupler on a standard, its other end at the building. Where that is wrong, set the role of the tube in the list, or choose tubes in the 3D model and press Anchor / Not an anchor. The force of an anchor goes to the standards through all couplers of the tube; each coupler is checked for its share.",
+      "count": "{n} anchors",
+      "changed": "changed: {n}",
+      "set": "Anchor ({n})",
+      "unset": "Not an anchor ({n})",
+      "reset": "As recognised",
+      "selectHint": "Choose tubes in the 3D model (Ctrl/Shift: several).",
+      "failed": "{n} tube(s) could not become anchors: the tube touches no standard",
+      "colTube": "Tube",
+      "colCouplers": "Couplers at standards",
+      "colZ": "Height",
+      "fc": "{n} cpl., max {f}",
+      "fcTitle": "Couplers at standards: number and largest force of one coupler",
+      "colRole": "Role",
+      "autoYes": "anchor (drawing)",
+      "autoNo": "no anchor (drawing)",
+      "optAnchor": "anchor",
+      "optTube": "no anchor"
     }
   },
   "help": {
@@ -1427,6 +1448,11 @@
         "what": "Design resistance of one fixing (for example of a tie).",
         "why": "So that the program checks the fixing.",
         "effect": "If entered – the resultant reaction is compared with it (check “fixing”, η). 0 – no check, reactions only."
+      },
+      "anchorRole": {
+        "what": "Which tubes are anchors to the building. By default as recognised from the drawing.",
+        "why": "In PERI CAD drawings anchors are often drawn as plain tubes, and the ties of a hoist or bracing tubes look like anchors. Wrong anchors change the whole analysis.",
+        "effect": "The end of an anchor at the building is held in both horizontal axes, across and along the facade, as in PERI ForceControl. The tube runs continuous through all its couplers; the force of each coupler is its share, checked against 13.65 kN (design). \"Not an anchor\": the tube is bracing between standards."
       }
     },
     "designer": {

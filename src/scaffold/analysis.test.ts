@@ -319,6 +319,59 @@ describe('scaffold analysis', () => {
     const dx = (r: typeof res) => r.combos.find((c) => c.name === 'R +x')!.dh;
     expect(dx(res)).toBeLessThan(dx(free));
   });
+
+  it('anchors chosen by the user: a tube through two couplers becomes an anchor, a recognised one can be none', () => {
+    // a 2 m tube along y beside the standards x = 0, coupled to both, sticking out 10 cm at y = 2.1
+    const withTube = (p: TestPart[]) => {
+      p.push({ art: 'TUBE2', rot: 'y', t: [-0.05, 0.1, 3.2] });
+      p.push({ art: 'RA', rot: 'x', t: [-0.05, 0.12, 3.2] });
+      p.push({ art: 'RA', rot: 'x', t: [-0.05, 2, 3.2] });
+    };
+    const parts = towerParts();
+    withTube(parts);
+    const doc = parsePeriCadDxf(periDxf(parts), 'tower.dxf');
+    const tube = analyzeScaffold(doc).parts.find((w) => w.part.name === 'TUBE 2m')!;
+    // made no anchor: bracing between the two standards
+    const auto = analyzeScaffold(doc, { tol: 0.05, anchorRoles: { [tube.part.id]: 'tube' } });
+    expect(auto.anchors).toHaveLength(0);
+    const st = analyzeScaffold(doc, { tol: 0.05, anchorRoles: { [tube.part.id]: 'anchor' } });
+    expect(st.anchors).toHaveLength(1);
+    const a = st.anchors[0];
+    expect(a).toMatchObject({ id: tube.part.id, chosen: true });
+    // held at the end beyond the last standard, through both couplers
+    expect(a.atStructure[1]).toBeCloseTo(2.1, 2);
+    expect(a.via).toHaveLength(1);
+    const m = buildScaffoldModel(st);
+    expect(m.anchors[0].links).toHaveLength(2);
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800, keep: true });
+    expect(r.anchors[0]).toMatchObject({ part: tube.part.id, couplers: 2 });
+    expect(r.checks.find((c) => c.check === 'anchor')?.detail).toMatch(/^2 Kupplungen/);
+    // the end at the building is held across and along the facade
+    const far = m.frame.members[m.anchors[0].chain[0]].j;
+    const sups = m.frame.supports.map((q, i) => ({ ...q, i })).filter((q) => q.node === far);
+    expect(sups.map((q) => q.dof).sort()).toEqual([0, 1]);
+    const peak = (dof: number) => Math.max(...r.combos.map((c) => Math.abs(c.reactions![sups.find((q) => q.dof === dof)!.i])));
+    expect(peak(0)).toBeGreaterThan(100);
+    expect(peak(1)).toBeGreaterThan(100);
+    // each coupler's force from its link; the anchor check is the larger one
+    expect(r.anchors[0].Fc).toBeGreaterThan(0);
+    expect(r.anchors[0].eta).toBeCloseTo(r.anchors[0].Fc! / 13650, 6);
+    // the sway along the tube is smaller than without the anchor
+    const dy = (x: typeof r) => x.combos.find((c) => c.name === 'R +y')!.dh;
+    expect(dy(r)).toBeLessThan(dy(analyzeScaffoldModel(buildScaffoldModel(auto), { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 })));
+    // and the other way round: a recognised anchor made no anchor
+    const anchored = tower((p) => {
+      p.push({ art: 'TUBE', rot: 'nx', t: [-0.06, 0, 4.2] });
+      p.push({ art: 'RA', rot: 'x', t: [-0.06, 0, 4.2] });
+      p.push({ art: 'UEC', rot: 'x', t: [-1.06, 0, 4.2] });
+    });
+    expect(anchored.anchors).toHaveLength(1);
+    const p2 = towerParts();
+    p2.push({ art: 'TUBE', rot: 'nx', t: [-0.06, 0, 4.2] }, { art: 'RA', rot: 'x', t: [-0.06, 0, 4.2] }, { art: 'UEC', rot: 'x', t: [-1.06, 0, 4.2] });
+    const none = analyzeScaffold(parsePeriCadDxf(periDxf(p2), 'tower.dxf'), { tol: 0.05, anchorRoles: { [anchored.anchors[0].id]: 'tube' } });
+    expect(none.anchors).toHaveLength(0);
+    expect(none.parts.find((w) => w.part.id === anchored.anchors[0].id)?.cls.kind).toBe('tube');
+  });
 });
 
 describe('ledger diagonals UBL', () => {

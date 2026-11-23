@@ -307,6 +307,7 @@ export function ScaffoldReport({ st, run, girders = [] }: { st: ScaffoldStructur
                     <th className={th}>{fmt.t('scaffold.calc.part')}</th>
                     <th className={th}>N_max</th>
                     <th className={th}>N_min</th>
+                    <th className={th}>{fmt.t('scaffold.anchor.fcTitle')}</th>
                     <th className={th}>η</th>
                     <th className={th}>{fmt.t('scaffold.calc.combo')}</th>
                   </tr>
@@ -321,6 +322,7 @@ export function ScaffoldReport({ st, run, girders = [] }: { st: ScaffoldStructur
                         </td>
                         <td className={tn}>{fmt.q(a.Nmax, 'force', 2)}</td>
                         <td className={tn}>{fmt.q(a.Nmin, 'force', 2)}</td>
+                        <td className={tn}>{a.couplers ? fmt.t('scaffold.anchor.fc', { n: a.couplers, f: fmt.q(a.Fc ?? 0, 'force', 2) }) : ''}</td>
                         <td className={tn}>{pct(a.eta)}</td>
                         <td className={td}>{a.combo}</td>
                       </tr>

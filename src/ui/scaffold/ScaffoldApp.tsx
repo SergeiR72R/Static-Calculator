@@ -14,6 +14,7 @@ import { downloadExportScript, openScaffoldFiles } from './openDxf';
 import { SiteCard } from './SiteCard';
 import { AnalysisCard, etaColor as partEtaColor, type ScaffoldRun } from './AnalysisCard';
 import { LoadsCard } from './LoadsCard';
+import { AnchorsCard } from './AnchorsCard';
 import { FixingsCard } from './FixingsCard';
 import { AdvancedCard } from './AdvancedCard';
 import { orderedAxis } from '../../scaffold/userLoads';
@@ -208,7 +209,7 @@ export default function ScaffoldApp() {
     };
   }, []);
   const doc = sc.doc;
-  const st = useMemo(() => (doc ? analyzeScaffold(doc, { tol: sc.tol }) : null), [doc, sc.tol]);
+  const st = useMemo(() => (doc ? analyzeScaffold(doc, { tol: sc.tol, anchorRoles: sc.anchorRoles }) : null), [doc, sc.tol, sc.anchorRoles]);
   const p = (LOAD_CLASSES[sc.loadClass] ?? 2) * 1e3;
   const models = useMemo(() => (st && doc ? st.girders.map((g) => ({ g, m: girderBeamModel(g, { p, g: sc.g }, doc.fileName) })) : []), [st, doc, p, sc.g]);
   const sums = useMemo(() => models.map(({ m }) => beamSummary(m)), [models]);
@@ -452,6 +453,7 @@ export default function ScaffoldApp() {
 
         <LoadsCard st={st} />
 
+        <AnchorsCard st={st} />
         <FixingsCard st={st} />
 
         <Card

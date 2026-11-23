@@ -88,6 +88,8 @@ export interface BaseSupport {
   sup: number;
   part: string;
   column: number;
+  /** the lowest standard of the column (supports by hand are set on it) */
+  standard?: string;
 }
 
 export interface DeckShare {
@@ -1870,7 +1872,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     lengths: fm.map(memberLength),
     ...(opts.supportsManual ? { suspended: true } : {}),
     nodeColumn: Int32Array.from(nodeCol),
-    bases,
+    bases: bases.map((b) => ({ ...b, standard: cols[b.column]?.parts[0]?.w.part.id })),
     anchors,
     assumedSupports,
     levels,

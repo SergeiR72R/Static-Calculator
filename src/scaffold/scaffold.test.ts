@@ -4,6 +4,7 @@ import { mergePeriExport, parsePeriExport } from './periExport';
 import { buildScaffoldModel } from './model';
 import { analyzeScaffold, girderBeamModel } from './structure';
 import { beamEndFixings, beamsWithoutSupports } from './beamSupports';
+import { modelSupports } from './supports';
 import { classifyPart } from './catalog';
 import { PARTS_DB_SIZE, findPart } from './weights';
 import { periDxf, towerParts, type TestPart } from './testDxf';
@@ -542,6 +543,40 @@ describe('every part of the drawing in the model', () => {
     expect(none.notes.find((n) => n.key === 'beamNoSupport')?.parts).toEqual([beam]);
     // a beam on two standards has its supports
     expect(beamsWithoutSupports(analyzeScaffold(tower()))).toHaveLength(0);
+  });
+
+  it('all supports of the model in one list: bases, beam supports, fixings; set by hand where the user set them', () => {
+    const edit = (p: TestPart[]) => {
+      p.push({ art: 'SRU', rot: 'x', t: [0, 6, 5] });
+      for (const x of [0.03, 2.19]) p.push({ art: 'UJB', rot: 'x', t: [x - 0.075, 6 - 0.075, 5.12] }, { art: 'UVR', rot: 'x', t: [x - 0.08, 6 - 0.08, 5.6] });
+    };
+    const st = analyzeScaffold(tower(edit));
+    const m = buildScaffoldModel(st);
+    const list = modelSupports(m);
+    const count = (k: string, l = list) => l.filter((s) => s.kind === k).length;
+    expect(count('base')).toBe(m.bases.length);
+    expect(count('beamEnd')).toBe(2);
+    expect(list.find((s) => s.kind === 'beamEnd')!.dirs).toBe('yzr');
+    // the base of the first column set by hand (springs), a fixing at the top, the beams by hand
+    const col = st.columns.find((c) => c.z0 < 0.5)!;
+    const lowest = st.parts.filter((w) => col.parts.includes(w.part.id) && ['standard', 'base'].includes(w.cls.kind)).sort((a, b) => a.min[2] - b.min[2])[0].part.id;
+    const top = st.parts.filter((w) => col.parts.includes(w.part.id)).sort((a, b) => b.max[2] - a.max[2])[0].part.id;
+    const fixings = [
+      { id: 'S', name: 'S', parts: [lowest], at: 0, dirs: ['x', 'y', 'z'] as ('x' | 'y' | 'z')[], support: { k: { z: 1e7 }, compression: true } },
+      { id: 'F', name: 'F', parts: [top], at: 1, dirs: ['x', 'y'] as ('x' | 'y' | 'z')[] },
+      ...beamEndFixings(beamsWithoutSupports(st), (e) => e.name),
+    ];
+    const u = modelSupports(buildScaffoldModel(st, [], [], { fixings, beamEnds: false }), fixings);
+    expect(count('base', u)).toBe(m.bases.length - 1);
+    expect(u.find((s) => s.kind === 'baseUser')).toMatchObject({ part: lowest, fixing: 'S', springs: true, dirs: 'xyz' });
+    expect(count('beamEnd', u)).toBe(0);
+    expect(u.filter((s) => s.kind === 'fixing').map((s) => s.dirs).sort()).toEqual(['xy', 'yzr', 'yzr']);
+    // a base removed by hand (a support with no axis): no support there
+    const none = [{ id: 'N', name: 'N', parts: [lowest], at: 0, dirs: [] as ('x' | 'y' | 'z')[], support: {} }];
+    const n = modelSupports(buildScaffoldModel(st, [], [], { fixings: none }), none);
+    expect(count('base', n)).toBe(m.bases.length - 1);
+    // listed (to be undone): the support set by hand with no axis
+    expect(n.find((s) => s.kind === 'baseUser')).toMatchObject({ part: lowest, fixing: 'N', dirs: '' });
   });
 
   it('a beam connector without geometry in the drawing joins the beams ending within its length', () => {

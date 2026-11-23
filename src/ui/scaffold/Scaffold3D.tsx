@@ -20,8 +20,8 @@ export interface Scaffold3DProps {
   onPick: (partId: string | null, add?: boolean) => void;
   /** hover text of a part */
   describe: (partId: string) => string;
-  /** fixings to the building: point and the axes held ("xy" …) */
-  fixings?: { p: [number, number, number]; dirs: string }[];
+  /** supports and fixings to the building: point, the axes held ("xy" …), colour, arrows along the axes */
+  fixings?: { p: [number, number, number]; dirs: string; color?: number; arrows?: boolean; size?: number }[];
 }
 
 interface Scene {
@@ -232,17 +232,26 @@ export default function Scaffold3D({ st, girderColor, partColor, selected, moved
       const ballGeo = new THREE.SphereGeometry(0.06, 12, 8);
       const ballMat = new THREE.MeshLambertMaterial({ color: FIX, depthTest: false });
       const axisDir: Record<string, THREE.Vector3> = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 0, -1), z: new THREE.Vector3(0, 1, 0) };
+      const mats = new Map<number, THREE.Material>();
+      const matOf = (c: number) => {
+        let m = mats.get(c);
+        if (!m) mats.set(c, (m = c === FIX ? ballMat : new THREE.MeshLambertMaterial({ color: c, depthTest: false })));
+        return m;
+      };
       for (const f of fixings) {
         const p = toThree(f.p, center);
-        const ball = new THREE.Mesh(ballGeo.clone(), ballMat.clone());
+        const color = f.color ?? FIX;
+        const ball = new THREE.Mesh(ballGeo, matOf(color));
         ball.position.copy(p);
+        if (f.size) ball.scale.setScalar(f.size);
         ball.renderOrder = 11;
         s.content.add(ball);
+        if (f.arrows === false) continue;
         for (const d of f.dirs) {
           const v = axisDir[d];
           if (!v) continue;
           for (const sgn of [1, -1]) {
-            const arrow = new THREE.ArrowHelper(v.clone().multiplyScalar(sgn), p, 0.32, FIX, 0.1, 0.06);
+            const arrow = new THREE.ArrowHelper(v.clone().multiplyScalar(sgn), p, 0.32, color, 0.1, 0.06);
             arrow.renderOrder = 11;
             arrow.traverse((o) => {
               const mat = (o as THREE.Mesh).material as THREE.Material | undefined;

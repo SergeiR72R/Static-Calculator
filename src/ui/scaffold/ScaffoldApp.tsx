@@ -17,6 +17,7 @@ import { LoadsCard } from './LoadsCard';
 import { AnchorsCard } from './AnchorsCard';
 import { FixingsCard } from './FixingsCard';
 import { BeamSupportsPrompt } from './BeamSupportsPrompt';
+import { SUPPORT_COLOR, SupportsCard, useModelSupports } from './SupportsCard';
 import { AdvancedCard } from './AdvancedCard';
 import { orderedAxis } from '../../scaffold/userLoads';
 import { ScaffoldReport } from './ScaffoldReport';
@@ -245,6 +246,13 @@ export default function ScaffoldApp() {
       }
     return out;
   }, [st, sc.fixings]);
+  // all supports of the model (on demand); in the 3D view only when the user turns them on
+  const sup = useModelSupports(st);
+  const marks = useMemo(() => {
+    if (!sc.showSupports) return [];
+    if (!sup.list) return fixMarks;
+    return sup.list.map((q) => ({ p: q.p, dirs: q.dirs.replace(/[^xyz]/g, ''), color: SUPPORT_COLOR[q.kind], ...(q.kind === 'base' ? { arrows: false, size: 0.8 } : {}) }));
+  }, [sc.showSupports, sup.list, fixMarks]);
   // opening a drawing ends when its structure has been worked out
   useEffect(() => {
     const p = useProgress.getState();
@@ -440,8 +448,18 @@ export default function ScaffoldApp() {
               </span>
             </label>
           )}
+          <label className="mb-1 flex items-center gap-2 text-xs" data-testid="scaffold-view-supports">
+            <input type="checkbox" checked={sc.showSupports} onChange={(e) => sc.setOpts({ showSupports: e.target.checked })} />
+            {fmt.t('scaffold.supports.show3d')}
+            {sc.showSupports && sup.busy && <span className="text-[11px] text-slate-500">{fmt.t('scaffold.supports.building')}</span>}
+            {sc.showSupports && !sup.list && !sup.busy && (
+              <button type="button" className="text-[11px] underline" onClick={sup.build} data-testid="scaffold-view-supports-build">
+                {fmt.t('scaffold.supports.build')}
+              </button>
+            )}
+          </label>
           <Suspense fallback={<div className="h-[460px]" />}>
-            <Scaffold3D st={shown} girderColor={girderColor} partColor={partColor} selected={sc.selected} moved={moved} resetKey={resetKey} onPick={pick} describe={describe} fixings={fixMarks} />
+            <Scaffold3D st={shown} girderColor={girderColor} partColor={partColor} selected={sc.selected} moved={moved} resetKey={resetKey} onPick={pick} describe={describe} fixings={marks} />
           </Suspense>
           <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
             <span>{fmt.t('scaffold.view.hint')}</span>
@@ -455,6 +473,7 @@ export default function ScaffoldApp() {
 
         <LoadsCard st={st} />
 
+        <SupportsCard st={st} sup={sup} />
         <AnchorsCard st={st} />
         <FixingsCard st={st} />
 

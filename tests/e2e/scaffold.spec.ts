@@ -434,3 +434,28 @@ test('scaffold mode: beams without supports — asked at import, supports at the
   await expect(page.getByTestId('scaffold-fix-table')).toHaveCount(0);
   await expect(page.getByTestId('scaffold-beam-prompt')).toBeVisible();
 });
+
+test('scaffold mode: all supports of the model listed, shown in 3D on demand, changed in place', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('mode-scaffold').click();
+  await page.getByTestId('scaffold-file').setInputFiles({ name: 'tower.dxf', mimeType: 'application/dxf', buffer: Buffer.from(periDxf(towerParts())) });
+  // off by default; the list is worked out when the card is opened
+  await expect(page.getByTestId('scaffold-view-supports').locator('input')).not.toBeChecked();
+  await page.getByTestId('scaffold-supports-toggle').click();
+  await expect(page.getByTestId('scaffold-sup-kind-base')).toContainText('6');
+  await expect(page.getByTestId('scaffold-sup-table').locator('tbody tr')).toHaveCount(6);
+  // shown in 3D when asked for (the same option in the card and above the 3D view)
+  await page.getByTestId('scaffold-supports-3d').check();
+  await expect(page.getByTestId('scaffold-view-supports').locator('input')).toBeChecked();
+  // a base removed: the bottom of that standard is free, listed as set by hand with no axis
+  await page.getByTestId('scaffold-sup-remove').first().click();
+  await expect(page.getByTestId('scaffold-sup-kind-base')).toContainText('5');
+  await expect(page.getByTestId('scaffold-sup-row-baseUser')).toContainText('нет опоры');
+  // a base turned into a support by hand: in "Fixings" with all three axes
+  await page.getByTestId('scaffold-sup-row-base').first().getByTestId('scaffold-sup-edit').click();
+  await expect(page.getByTestId('scaffold-fix-table').locator('tbody tr')).toHaveCount(2);
+  await expect(page.getByTestId('scaffold-sup-kind-base')).toContainText('4');
+  // undone: the removed one back
+  await page.getByTestId('scaffold-sup-row-baseUser').filter({ hasText: 'нет опоры' }).getByTestId('scaffold-sup-remove').click();
+  await expect(page.getByTestId('scaffold-sup-kind-base')).toContainText('5');
+});

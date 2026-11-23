@@ -368,11 +368,12 @@ export function Card({ title, children, className, actions, testId }: { title?: 
  * Card under a spoiler: closed by default, the title with a short state (e.g. how many are set);
  * for what is seldom needed.
  */
-export function FoldCard({ title, state, children, testId, defaultOpen }: { title: ReactNode; state?: ReactNode; children: ReactNode; testId?: string; defaultOpen?: boolean }) {
+export function FoldCard({ title, state, children, testId, defaultOpen, onToggle }: { title: ReactNode; state?: ReactNode; children: ReactNode; testId?: string; defaultOpen?: boolean; onToggle?: (open: boolean) => void }) {
   return (
     <details
       data-testid={testId}
       open={defaultOpen}
+      onToggle={onToggle ? (e) => onToggle((e.currentTarget as HTMLDetailsElement).open) : undefined}
       className="group rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900"
     >
       <summary className="flex cursor-pointer list-none items-center justify-between gap-2 p-3 [&::-webkit-details-marker]:hidden" data-testid={testId ? `${testId}-toggle` : undefined}>

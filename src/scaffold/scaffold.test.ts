@@ -530,6 +530,12 @@ describe('every part of the drawing in the model', () => {
     // held against twisting at both ends
     const nodes = m.fixings.filter((f) => f.part === beam).map((f) => f.node);
     expect(m.frame.supports.filter((q) => nodes.includes(q.node) && q.dof === 3)).toHaveLength(2);
+    // supports of the beam for the beam calculator, also when moved along it
+    const pts = m.carriers.find((c) => c.part === beam)!.points!;
+    expect(pts.filter((q) => q.support).map((q) => q.t)).toEqual([0, 1]);
+    const moved = buildScaffoldModel(st, [], [], { fixings: fixings.map((f) => (f.at === 1 ? { ...f, at: 0.8 } : f)), beamEnds: false });
+    const pm = moved.carriers.find((c) => c.part === beam)!.points!;
+    expect(pm.filter((q) => q.support).map((q) => q.t)).toEqual([0, expect.closeTo(0.8, 2)]);
     // the beam is no more without supports; the user said "no": reported
     expect(beamsWithoutSupports(st, { fixings })).toHaveLength(0);
     const none = buildScaffoldModel(st, [], [], { beamEnds: false });

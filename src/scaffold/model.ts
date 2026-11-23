@@ -1284,7 +1284,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     }
     carrierIndex.set(c, carrierOut.length);
     const points: BeamPoint[] | undefined =
-      c.kind === 'beam' ? pts.map((q) => ({ node: q.node, t: Math.min(Math.max(q.t, 0), 1), support: q.k === HINGE || !!q.bears || assumedSupports.some((a) => a.node === q.node) })) : undefined;
+      c.kind === 'beam' ? pts.map((q) => ({ node: q.node, t: Math.min(Math.max(q.t, 0), 1), support: q.k === HINGE || !!q.bears || assumedSupports.some((a) => a.node === q.node) || fixings.some((f) => f.node === q.node && f.sups.some((u) => u.dir === 'z')) })) : undefined;
     carrierOut.push({ part: c.part, kind: c.kind, members, length: members.reduce((s, m) => s + memberLength(fm[m]), 0), points });
   }
 

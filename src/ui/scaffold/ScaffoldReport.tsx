@@ -140,7 +140,7 @@ export function ScaffoldReport({ st, run, girders = [] }: { st: ScaffoldStructur
             <td className={td}>{fmt.t(sc.gFavR ? 'scaffold.report.methodText' : 'scaffold.report.methodTextG15', {
                 diag: fmt.t(sc.diagSlack ? 'scaffold.report.diagSlack' : 'scaffold.report.diagNoSlack'),
                 ubk: fmt.t(sc.ubkModel === 'table15' ? 'scaffold.report.ubkTable15' : 'scaffold.report.ubkAnnexA'),
-                splice: fmt.t(sc.spliceNoTension ? 'scaffold.report.spliceFree' : 'scaffold.report.spliceTension'),
+                splice: fmt.t(sc.spliceNoTension && !sc.supportsManual ? 'scaffold.report.spliceFree' : 'scaffold.report.spliceTension'),
                 cap: fmt.t(sc.capByArticle ? 'scaffold.report.capArticle' : 'scaffold.report.capSix'),
               })}</td>
           </tr>

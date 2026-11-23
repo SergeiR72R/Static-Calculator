@@ -101,6 +101,9 @@ export interface DeckShare {
 
 export interface ScaffoldModel {
   frame: FrameModel3;
+  /** a suspended scaffold (supports set by hand only): the joints of the standards are secured (bolted,
+   * they carry tension) */
+  suspended?: boolean;
   members: ModelMember[];
   /** member lengths between the connection points, m */
   lengths: number[];
@@ -588,12 +591,42 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   const girderPanels: { part: string; m: { i: number; j: number; sec: Section3; truss: boolean }[] }[] = [];
   const flexRosettes: { p: V3; car: Carrier; part: string; t: number }[] = [];
   const connectorPosts: { i: number; j: number; part: string }[] = [];
+  const girderCar = new Map<string, Carrier>();
   for (const g of st.girders) {
     const eq = latticeEquivalent(g.product);
     const E = g.product.startsWith('ULA') ? 70e9 : E_STEEL;
     const a: V3 = [g.origin[0], g.origin[1], g.zTop];
     const b: V3 = [g.origin[0] + g.u[0] * g.L, g.origin[1] + g.u[1] * g.L, g.zTop];
     const kg = g.parts.reduce((s, id) => s + ((byId.get(id) ? partKg(byId.get(id)!.part) : undefined) ?? 0), 0);
+    if (g.flat) {
+      // a girder lying flat (horizontal truss of a level): stiff in plan, in the vertical only its two
+      // chords; held at the standards its chords are coupled to (through the tubes under it)
+      const It = TUBES.t32.I;
+      const car: Carrier = {
+        w: null,
+        part: g.parts[0],
+        kind: 'girder',
+        a,
+        b,
+        sec: { EA: E * eq.A, EIy: 2 * E * It, EIz: E * eq.I, GJ: G_STEEL * 4 * It },
+        g: (kg || 12 * g.L) / g.L,
+        end: [null, null],
+        inter: [],
+      };
+      for (const q of g.flat.cols) {
+        const k = colAt([q.x, q.y, g.zTop], 0.05, 0.2);
+        if (k < 0) continue;
+        const p: V3 = [g.origin[0] + g.u[0] * q.s, g.origin[1] + g.u[1] * q.s, g.zTop];
+        const zr = rosetteNear(k, g.zTop, 0.12) ?? Math.min(Math.max(g.zTop, cols[k].z0), cols[k].z1);
+        const n = colNode(k, zr, 0.006);
+        car.inter.push({ node: n, offset: [p[0] - cols[k].x, p[1] - cols[k].y, g.zTop - zr], t: q.s / g.L, k: HINGE });
+      }
+      if (car.inter.length) {
+        carriers.push(car);
+        girderCar.set(g.key, car);
+      }
+      continue;
+    }
     const car: Carrier = {
       w: null,
       part: g.parts[0],
@@ -637,6 +670,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       else car.inter.push(at);
     }
     carriers.push(car);
+    girderCar.set(g.key, car);
     if (g.product === 'ULSFLEX')
       for (const id of g.parts) {
         const w = byId.get(id);
@@ -656,6 +690,19 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     flexNodes.push({ p: r.p, node: n });
     connectorPosts.push({ i: top, j: n, part: r.part });
   }
+  // anchors / struts coupled to the chords of girders lying flat: a node on the girder axis there
+  const anchorGirderNodes = new Map<string, number>();
+  const anchorPointKey = (id: string, p: V3) => `${id}|${p.map((v) => v.toFixed(3)).join(',')}`;
+  for (const an of st.anchors)
+    for (const ga of an.girderAt ?? []) {
+      const car = girderCar.get(ga.key);
+      if (!car) continue;
+      const d = [car.b[0] - car.a[0], car.b[1] - car.a[1]];
+      const L2 = d[0] * d[0] + d[1] * d[1];
+      if (L2 < 1e-9) continue;
+      const t = Math.min(Math.max(((ga.p[0] - car.a[0]) * d[0] + (ga.p[1] - car.a[1]) * d[1]) / L2, 0), 1);
+      anchorGirderNodes.set(anchorPointKey(an.id, ga.p), interAt(car, [car.a[0] + t * d[0], car.a[1] + t * d[1], car.a[2]], t));
+    }
   const flexRosetteAt = (P: V3) => flexNodes.find((f) => dist2(f.p, P) <= FLEX_ROSETTE && Math.abs(f.p[2] - P[2]) <= 0.1);
 
   /** point of a carrier axis next to P: parameter t, point and distances */
@@ -1403,8 +1450,10 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     if (anc && other) tubeJoints.set(anc, [...(tubeJoints.get(anc) ?? []), { q, tube: other }]);
   }
   for (const a of st.anchors) {
-    const k = colAt(a.atStandard, 0.3, 0.15);
-    if (k < 0) continue;
+    const gNode = (p: V3) => anchorGirderNodes.get(anchorPointKey(a.id, p));
+    const g0 = gNode(a.atStandard);
+    const k = g0 === undefined ? colAt(a.atStandard, 0.3, 0.15) : -1;
+    if (k < 0 && g0 === undefined) continue;
     // the tube: a continuous member along its own axis from the building through all its couplers;
     // each coupler a short stiff link from the tube to the standard (the coupler is checked with the
     // force of its link); the anchor plate holds the end of the tube horizontally, across and along
@@ -1417,8 +1466,14 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       const l = Math.hypot(d[0], d[1]) || 1;
       return [d[0] / l, d[1] / l, 0];
     })();
-    const points: { k: number; p: V3 }[] = [{ k, p: a.atStandard }];
+    // the points holding the tube: couplers at standards or at the chords of girders lying flat
+    const points: { k: number; p: V3; node?: number }[] = [{ k, p: a.atStandard, node: g0 }];
     for (const p of a.via ?? []) {
+      const gv = gNode(p);
+      if (gv !== undefined) {
+        if (!points.some((q) => q.node === gv)) points.push({ k: -1, p, node: gv });
+        continue;
+      }
       const kv = colAt(p, 0.3, 0.15);
       if (kv >= 0 && !points.some((q) => q.k === kv)) points.push({ k: kv, p });
     }
@@ -1444,7 +1499,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     };
     for (const [i, q] of points.entries()) {
       tubeTo(sOf(q.p));
-      const ns = colNode(q.k, q.p[2], 0.03);
+      const ns = q.node ?? colNode(q.k, q.p[2], 0.03);
       // the tube beside the standard (a coupler joins them): the point of its axis next to the
       // standard, the link across the tube (at least 5 cm)
       const P = nodes[ns];
@@ -1804,6 +1859,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     frame: { nodes, members: fm, supports },
     members: mm,
     lengths: fm.map(memberLength),
+    ...(opts.supportsManual ? { suspended: true } : {}),
     nodeColumn: Int32Array.from(nodeCol),
     bases,
     anchors,

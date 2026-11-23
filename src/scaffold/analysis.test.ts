@@ -804,3 +804,66 @@ describe('beams SRU / RCS for the beam calculator', () => {
     expect(rcs.model.supports.map((s) => s.x)).toEqual([0, 4.98]);
   });
 });
+
+describe('suspended scaffolds: girders lying flat, struts with jacks, secured joints', () => {
+  /** the tower with a ULS 50/425 lying flat at +1.0 m beside the standards of y = 0 (chords at y 0.12
+   * and 0.57) and a tube across it at x = 1 with a jack in its end at the building (y < 0) */
+  const doc = () => {
+    const d = parsePeriCadDxf(periDxf(towerParts()), 'tower.dxf');
+    const I = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0];
+    const at = (x: number, y: number, z: number) => [1, 0, 0, x, 0, 1, 0, y, 0, 0, 1, z];
+    d.parts.push(
+      { id: 'G1', article: '100330', name: 'ULS 50/425', desc: '', layer: '0', m: I, geom: { lines: [[[-0.125, 0.12, 1], [4.125, 0.12, 1]], [[-0.125, 0.57, 1], [4.125, 0.57, 1]], [[-0.125, 0.12, 1], [-0.125, 0.57, 1]], [[4.125, 0.12, 1], [4.125, 0.57, 1]]], rosettes: [] } },
+      { id: 'T1', article: '026412', name: 'TUBE 2m', desc: '', layer: '0', m: I, geom: { lines: [[[1, 0.8, 1.05], [1, -1.2, 1.05]]], rosettes: [] } },
+      { id: 'C1', article: '017020', name: 'RA 48/48', desc: '', layer: '0', m: at(1, 0.12, 1.02), geom: { lines: [], rosettes: [] } },
+      { id: 'C2', article: '017020', name: 'RA 48/48', desc: '', layer: '0', m: at(1, 0.57, 1.02), geom: { lines: [], rosettes: [] } },
+      { id: 'J1', article: '100159', name: 'UJS 38-80/55', desc: '', layer: '0', m: I, geom: { lines: [[[1, -1.3, 1.05], [1, -1.3, 1.05]]], rosettes: [] } },
+    );
+    return d;
+  };
+
+  it('a girder lying flat is held at the standards its chords are coupled to', () => {
+    const st = analyzeScaffold(doc());
+    const g = st.girders.find((q) => q.parts.includes('G1'))!;
+    expect(g.flat?.width).toBeCloseTo(0.45, 6);
+    expect(g.supportsAssumed).toBe(false);
+    expect(g.flat!.cols.map((c) => [c.x, c.y])).toEqual([[0, 0], [2, 0], [4, 0]].map(([x, y]) => [expect.closeTo(x, 2), expect.closeTo(y, 2)]));
+    const m = buildScaffoldModel(st);
+    const car = m.carriers.find((c) => c.part === 'G1');
+    expect(car).toBeDefined();
+  });
+
+  it('a tube with a jack in its end is a strut, coupled to the chords of the flat girder', () => {
+    const st = analyzeScaffold(doc());
+    const a = st.anchors.find((q) => q.id === 'T1')!;
+    expect(a.strut).toBe(true);
+    expect(a.atStructure[1]).toBeCloseTo(-1.3, 6);
+    expect(a.girderAt?.length).toBe(2);
+    const m = buildScaffoldModel(st);
+    const an = m.anchors.find((q) => q.part === 'T1')!;
+    expect(an.strut).toBeDefined();
+    // the tube hangs on the girder: its couplers at both chords of one section, a link to the node of
+    // the girder axis there
+    expect(an.links).toHaveLength(1);
+    // chosen as an anchor by the user it pulls too
+    const st2 = analyzeScaffold(doc(), { tol: 0.05, anchorRoles: { T1: 'anchor' } });
+    expect(st2.anchors.find((q) => q.id === 'T1')?.strut).toBe(false);
+  });
+
+  it('hanging from the top: the joints of the standards carry tension', () => {
+    const st = tower();
+    const tops = st.columns.filter((c) => c.z1 > 4).map((c) => st.parts.filter((w) => c.parts.includes(w.part.id)).sort((p, q) => q.max[2] - p.max[2])[0].part.id);
+    const fixings = [{ id: 'H', name: 'H', parts: tops, at: 1, dirs: ['x', 'y', 'z'] as ('x' | 'y' | 'z')[], support: {} }];
+    const m = buildScaffoldModel(st, [], [], { supportsManual: true, fixings });
+    expect(m.suspended).toBe(true);
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: false, keep: true };
+    const c = analyzeScaffoldModel(m, opt).combos[0];
+    expect(c.ok).toBe(true);
+    // a joint in tension (the standards below hang on it), closed: the bottom of an outer standard
+    // hangs on the joints, not on the ledgers
+    expect(m.members.some((q, k) => q.joint && (c.members?.[k]?.N ?? 0) > 100)).toBe(true);
+    const open = analyzeScaffoldModel({ ...m, suspended: false }, opt).combos[0];
+    const foot = m.frame.nodes.findIndex((p) => Math.hypot(p[0], p[1] - 2) < 0.01 && p[2] < 0.2);
+    expect(Math.abs(c.u![foot * 6 + 2])).toBeLessThan(0.3 * Math.abs(open.u![foot * 6 + 2]));
+  });
+});

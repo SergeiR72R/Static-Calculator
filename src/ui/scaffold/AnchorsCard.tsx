@@ -27,8 +27,8 @@ export function AnchorsCard({ st }: { st: ScaffoldStructure }) {
         .sort((p, q) => Number(anchorOf.has(q.part.id)) - Number(anchorOf.has(p.part.id)) || p.min[2] - q.min[2]),
     [st, anchorOf],
   );
-  // chosen as anchors but not possible (the tube touches no standard)
-  const failed = Object.keys(roles).filter((id) => roles[id] === 'anchor' && byId.has(id) && !st.anchors.some((a) => a.id === id));
+  // chosen as anchors / struts but not possible (the tube touches no standard and no flat girder)
+  const failed = Object.keys(roles).filter((id) => (roles[id] === 'anchor' || roles[id] === 'strut') && byId.has(id) && !st.anchors.some((a) => a.id === id));
   const changed = Object.keys(roles).filter((id) => byId.has(id)).length;
   const sel = (ids: string[]) => {
     const on = ids.length > 0 && sc.selected.length === ids.length && ids.every((id) => sc.selected.includes(id));
@@ -45,6 +45,9 @@ export function AnchorsCard({ st }: { st: ScaffoldStructure }) {
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="primary" size="sm" onClick={() => sc.setAnchorRole(tubes, 'anchor')} disabled={!tubes.length} data-testid="scaffold-anchor-set">
           {fmt.t('scaffold.anchor.set', { n: tubes.length })}
+        </Button>
+        <Button size="sm" onClick={() => sc.setAnchorRole(tubes, 'strut')} disabled={!tubes.length} data-testid="scaffold-anchor-strut">
+          ⇥ {fmt.t('scaffold.anchor.setStrut', { n: tubes.length })}
         </Button>
         <Button size="sm" onClick={() => sc.setAnchorRole(tubes, 'tube')} disabled={!tubes.length} data-testid="scaffold-anchor-unset">
           {fmt.t('scaffold.anchor.unset', { n: tubes.length })}
@@ -105,7 +108,7 @@ export function AnchorsCard({ st }: { st: ScaffoldStructure }) {
                         aria-label={fmt.t('scaffold.anchor.colRole')}
                         data-testid={`scaffold-anchor-role-${id}`}
                       >
-                        <option value="auto">{fmt.t(a && !roles[id] ? 'scaffold.anchor.autoYes' : 'scaffold.anchor.autoNo')}</option>
+                        <option value="auto">{fmt.t(a && !roles[id] ? (a.strut ? 'scaffold.anchor.autoStrut' : 'scaffold.anchor.autoYes') : 'scaffold.anchor.autoNo')}</option>
                         <option value="anchor">{fmt.t('scaffold.anchor.optAnchor')}</option>
                         <option value="strut">{fmt.t('scaffold.anchor.optStrut')}</option>
                         <option value="tube">{fmt.t('scaffold.anchor.optTube')}</option>

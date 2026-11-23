@@ -1243,14 +1243,15 @@
     },
     "anchor": {
       "title": "Verankerung",
-      "intro": "Anker werden aus der Zeichnung erkannt: Rohr mit Kupplung am Stiel, das andere Ende am Bauwerk. Ist das falsch, die Rolle des Rohrs in der Liste festlegen oder Rohre im 3D-Modell wählen und „Anker“ / „Kein Anker“ drücken. Die Ankerkraft geht über alle Kupplungen des Rohrs in die Stiele; jede Kupplung wird für ihren Anteil nachgewiesen.",
+      "intro": "Anker werden aus der Zeichnung erkannt: Rohr mit Kupplung am Stiel, das andere Ende am Bauwerk. Ist das falsch, die Rolle des Rohrs in der Liste festlegen oder Rohre im 3D-Modell wählen und „Anker“ / „Kein Anker“ drücken. Die Ankerkraft geht über alle Kupplungen des Rohrs in die Stiele; jede Kupplung wird für ihren Anteil nachgewiesen. Ein Rohr mit Spindel (UJS mit Platte) im Ende wird als Abstützung erkannt: es trägt nur Druck. Anker und Abstützungen können auch an den Gurten liegender ULS-Gitterträger angekuppelt sein. Abstützungen von Hand: Rohre wählen und „Abstützung“ drücken.",
       "count": "{n} Anker",
       "changed": "geändert: {n}",
       "set": "Anker ({n})",
       "unset": "Kein Anker ({n})",
+      "setStrut": "Abstützung ({n})",
       "reset": "Wie erkannt",
       "selectHint": "Rohre im 3D-Modell wählen (Strg/Umschalt: mehrere).",
-      "failed": "{n} Rohr(e) konnten kein Anker werden: das Rohr berührt keinen Stiel",
+      "failed": "{n} Rohr(e) konnten kein Anker werden: das Rohr berührt weder Stiel noch liegenden Gitterträger",
       "colTube": "Rohr",
       "colCouplers": "Kupplungen an Stielen",
       "colZ": "Höhe",
@@ -1258,6 +1259,7 @@
       "fcTitle": "Kupplungen an Stielen: Anzahl und größte Kraft einer Kupplung",
       "colRole": "Rolle",
       "autoYes": "Anker (Zeichnung)",
+      "autoStrut": "Abstützung (Zeichnung: Spindel)",
       "autoNo": "kein Anker (Zeichnung)",
       "optAnchor": "Anker",
       "optStrut": "Abstützung (nur Druck)",
@@ -1473,7 +1475,7 @@
       "anchorRole": {
         "what": "Welche Rohre Anker zum Bauwerk sind. Standard: wie aus der Zeichnung erkannt.",
         "why": "In PERI-CAD-Zeichnungen sind Anker oft als normale Gerüstrohre gezeichnet, und Rohre zur Aufzugsabstützung oder Aussteifung sehen wie Anker aus. Falsche Anker ändern die ganze Berechnung.",
-        "effect": "Das Ankerende am Bauwerk ist in beiden horizontalen Achsen gehalten, quer und parallel zur Fassade, wie in PERI ForceControl. Das Rohr läuft durch alle seine Kupplungen durch; die Kraft jeder Kupplung ist ihr Anteil, Nachweis 13,65 kN (Bemessung). „Kein Anker“: das Rohr ist eine Aussteifung zwischen Stielen. „Abstützung“ — das Rohr stützt sich am Gebäude ab: nur Druck, bei Zug fällt es aus (wie ein Lager „nur Druck“ in PFC)."
+        "effect": "Das Ankerende am Bauwerk ist in beiden horizontalen Achsen gehalten, quer und parallel zur Fassade, wie in PERI ForceControl. Das Rohr läuft durch alle seine Kupplungen durch; die Kraft jeder Kupplung ist ihr Anteil, Nachweis 13,65 kN (Bemessung). „Kein Anker“: das Rohr ist eine Aussteifung zwischen Stielen. „Abstützung“ — das Rohr stützt sich am Gebäude ab: nur Druck, bei Zug fällt es aus (wie ein Lager „nur Druck“ in PFC). Rohre mit Spindel im Ende macht das Programm selbst zu Abstützungen."
       },
       "cladding": {
         "what": "Das Gerüst ist mit Netz oder Plane bekleidet.",

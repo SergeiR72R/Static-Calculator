@@ -1243,14 +1243,15 @@
     },
     "anchor": {
       "title": "Anchors",
-      "intro": "Anchors are found in the drawing: a tube with a coupler on a standard, its other end at the building. Where that is wrong, set the role of the tube in the list, or choose tubes in the 3D model and press Anchor / Not an anchor. The force of an anchor goes to the standards through all couplers of the tube; each coupler is checked for its share.",
+      "intro": "Anchors are found in the drawing: a tube with a coupler on a standard, its other end at the building. Where that is wrong, set the role of the tube in the list, or choose tubes in the 3D model and press Anchor / Not an anchor. The force of an anchor goes to the standards through all couplers of the tube; each coupler is checked for its share. A tube with a jack (UJS with its plate) in its end is recognised as a strut: it takes pressure only. Anchors and struts may also be coupled to the chords of ULS girders lying flat. To set struts by hand, choose the tubes and press Strut.",
       "count": "{n} anchors",
       "changed": "changed: {n}",
       "set": "Anchor ({n})",
       "unset": "Not an anchor ({n})",
+      "setStrut": "Strut ({n})",
       "reset": "As recognised",
       "selectHint": "Choose tubes in the 3D model (Ctrl/Shift: several).",
-      "failed": "{n} tube(s) could not become anchors: the tube touches no standard",
+      "failed": "{n} tube(s) could not become anchors: the tube touches no standard and no girder lying flat",
       "colTube": "Tube",
       "colCouplers": "Couplers at standards",
       "colZ": "Height",
@@ -1258,6 +1259,7 @@
       "fcTitle": "Couplers at standards: number and largest force of one coupler",
       "colRole": "Role",
       "autoYes": "anchor (drawing)",
+      "autoStrut": "strut (drawing: jack)",
       "autoNo": "no anchor (drawing)",
       "optAnchor": "anchor",
       "optStrut": "strut (pressure only)",
@@ -1473,7 +1475,7 @@
       "anchorRole": {
         "what": "Which tubes are anchors to the building. By default as recognised from the drawing.",
         "why": "In PERI CAD drawings anchors are often drawn as plain tubes, and the ties of a hoist or bracing tubes look like anchors. Wrong anchors change the whole analysis.",
-        "effect": "The end of an anchor at the building is held in both horizontal axes, across and along the facade, as in PERI ForceControl. The tube runs continuous through all its couplers; the force of each coupler is its share, checked against 13.65 kN (design). \"Not an anchor\": the tube is bracing between standards. \"Strut\" — the tube bears against the building: it takes pressure only and is released when pulled (as a compression-only support in PFC)."
+        "effect": "The end of an anchor at the building is held in both horizontal axes, across and along the facade, as in PERI ForceControl. The tube runs continuous through all its couplers; the force of each coupler is its share, checked against 13.65 kN (design). \"Not an anchor\": the tube is bracing between standards. \"Strut\" — the tube bears against the building: it takes pressure only and is released when pulled (as a compression-only support in PFC). Tubes with a jack in their end are made struts by the program."
       },
       "cladding": {
         "what": "The scaffold is covered with netting or sheeting.",

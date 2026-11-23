@@ -93,6 +93,8 @@ export function classifyPart(article: string, name: string, desc = ''): PartClas
   if (flex && /endelement|end element/i.test(text)) return { kind: 'flexEnd' };
   if (flex && /verbinder|connector/i.test(text)) return { kind: 'flexConnector' };
   if (ARTICLES[article]) return ARTICLES[article];
+  // beam adapter of VARIOKIT (UVA): joins a standard to an SRU / RCS beam, no member of its own
+  if (/\bUVA\b/.test(text) || article === '136779') return { kind: 'other' };
   const g = /\bUL([AS])\s*(50|70)\b/i.exec(text);
   if (g && !flex) return { kind: 'girder', girder: g[1].toUpperCase() === 'A' ? (g[2] === '50' ? 'ULA50HD' : 'ULA70HD') : g[2] === '50' ? 'ULS50' : 'ULS70' };
   if (/treppe|leiter|durchstieg|podest|\bUAS\b|\bUA[ACFILW]\b/i.test(text) && !/geländer|belag|tafel/i.test(text)) return { kind: 'stair' };

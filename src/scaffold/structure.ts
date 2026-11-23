@@ -57,6 +57,11 @@ export interface Girder {
   /** support positions along the girder, m */
   supports: number[];
   supportsAssumed: boolean;
+  /**
+   * a girder lying flat (a horizontal truss of a level): width between the chords, m, and the standards
+   * that hold it (directly or through a tube with couplers), each at its position along the girder
+   */
+  flat?: { width: number; cols: { s: number; x: number; y: number }[] };
   loads: GirderLoad[];
   warnings: { key: string; params?: Record<string, string | number> }[];
 }
@@ -94,8 +99,12 @@ export interface Anchor {
   via?: V3[];
   /** chosen as an anchor by the user */
   chosen?: boolean;
-  /** a strut against the building (chosen by the user): it only pushes, released when pulled */
+  /** a strut against the building (a jack with its plate at the end of the tube, or chosen by the
+   * user): it only pushes, released when pulled */
   strut?: boolean;
+  /** of the points above (atStandard, via), those where the tube is coupled to the chord of a girder
+   * lying flat (key of the girder) instead of a standard */
+  girderAt?: { p: V3; key: string }[];
 }
 
 /** role of a tube chosen by the user: anchor, strut (pressure only) or bracing tube */
@@ -143,11 +152,17 @@ function worldPart(doc: ScaffoldDoc, p0: ScaffoldPart): WorldPart {
   const min: V3 = [0, 1, 2].map((i) => Math.min(...pts.map((q) => q[i]))) as V3;
   const max: V3 = [0, 1, 2].map((i) => Math.max(...pts.map((q) => q[i]))) as V3;
   let u: [number, number] = [p.m[0], p.m[4]];
+  const cls = classifyPart(p.article, p.name, p.desc);
+  // lattice girders: along their chords (parts of an export are placed without a rotation)
+  if (cls.kind === 'girder') {
+    const ch = lines.filter(([a, b]) => isHor(a, b)).reduce<[V3, V3] | null>((m, l) => (Math.hypot(l[1][0] - l[0][0], l[1][1] - l[0][1]) > (m ? Math.hypot(m[1][0] - m[0][0], m[1][1] - m[0][1]) : 0.5) ? l : m), null);
+    if (ch) u = [ch[1][0] - ch[0][0], ch[1][1] - ch[0][1]];
+  }
   const n = Math.hypot(u[0], u[1]);
   u = n > 1e-6 ? [u[0] / n, u[1] / n] : [1, 0];
   // canonical sign: the larger component positive
   if ((Math.abs(u[0]) >= Math.abs(u[1]) && u[0] < 0) || (Math.abs(u[1]) > Math.abs(u[0]) && u[1] < 0)) u = [-u[0], -u[1]];
-  return { part: { ...p, m: [...p.m] }, cls: classifyPart(p.article, p.name, p.desc), lines, rosettes, min, max, u };
+  return { part: { ...p, m: [...p.m] }, cls, lines, rosettes, min, max, u };
 }
 
 /** the longest vertical line of a part (axis of a standard or connector) */
@@ -284,11 +299,19 @@ function oneGirder(w: WorldPart, key: string): Girder {
   const mid = (Math.max(...ss) + s0) / 2;
   const start = mid - L / 2;
   const [zBottom, zTop] = chordZ([w]);
+  // lying flat: the chords side by side at one height; the axis between them
+  const chords = w.lines.filter(([a, b]) => isHor(a, b) && Math.abs(along([0, 0], u, [b[0] - a[0], b[1] - a[1]])) > 0.5);
+  const ps = chords.flatMap(([a, b]) => [perp(o, u, [a[0], a[1]]), perp(o, u, [b[0], b[1]])]);
+  const width = ps.length ? Math.max(...ps) - Math.min(...ps) : 0;
+  const flat = zTop - zBottom < 0.05 && width > 0.2;
+  const sh = flat ? (Math.max(...ps) + Math.min(...ps)) / 2 : 0;
+  const nn: [number, number] = [-u[1], u[0]];
   return {
     key,
     product: id,
     L,
-    origin: [o[0] + u[0] * start, o[1] + u[1] * start],
+    origin: [o[0] + u[0] * start + nn[0] * sh, o[1] + u[1] * start + nn[1] * sh],
+    ...(flat ? { flat: { width, cols: [] } } : {}),
     u,
     zBottom,
     zTop,
@@ -298,6 +321,58 @@ function oneGirder(w: WorldPart, key: string): Girder {
     loads: [],
     warnings,
   };
+}
+
+/**
+ * supports of a girder lying flat: standards at a chord (coupled to it), or a scaffold tube coupled to
+ * a chord and to a standard (the chord lies on tubes across the level) — the standard nearest along
+ * the tube
+ */
+function flatSupports(g: Girder & { flat: NonNullable<Girder['flat']> }, cols: Column[], parts: WorldPart[]) {
+  const z = g.zTop;
+  const out = g.flat.cols;
+  const add = (s: number, c: Column) => {
+    const x = r3(Math.min(Math.max(s, 0), g.L));
+    if (!out.some((q) => Math.abs(q.s - x) < 0.05 && Math.hypot(q.x - c.x, q.y - c.y) < 0.05)) out.push({ s: x, x: c.x, y: c.y });
+  };
+  const atZ = (c: Column, zz: number) => c.z0 <= zz + 0.15 && c.z1 >= zz - 0.15;
+  const onChord = (p: [number, number], tol: number) => Math.abs(Math.abs(perp(g.origin, g.u, p)) - g.flat.width / 2) <= tol;
+  const within = (p: [number, number]) => {
+    const s = along(g.origin, g.u, p);
+    return s >= -0.2 && s <= g.L + 0.2;
+  };
+  for (const c of cols) if (atZ(c, z) && within([c.x, c.y]) && onChord([c.x, c.y], 0.16)) add(along(g.origin, g.u, [c.x, c.y]), c);
+  const tubes = parts.filter((w) => (w.cls.kind === 'tube' || w.cls.kind === 'anchor') && w.lines.length);
+  for (const cp of parts) {
+    if (cp.cls.kind !== 'coupler') continue;
+    const P: V3 = [cp.part.m[3], cp.part.m[7], cp.part.m[11]];
+    if (P[2] < z - 0.15 || P[2] > z + 0.1 || !within([P[0], P[1]]) || !onChord([P[0], P[1]], 0.1)) continue;
+    let best: { c: Column; d: number } | null = null;
+    for (const t of tubes)
+      for (const [a, b] of t.lines) {
+        if (!isHor(a, b) || Math.abs(a[2] - P[2]) > 0.15) continue;
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        if (L < 0.2) continue;
+        const v: [number, number] = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+        const o: [number, number] = [a[0], a[1]];
+        const tp = along(o, v, [P[0], P[1]]);
+        if (Math.abs(perp(o, v, [P[0], P[1]])) > 0.1 || tp < -0.1 || tp > L + 0.1) continue;
+        for (const c of cols) {
+          const tc = along(o, v, [c.x, c.y]);
+          if (!atZ(c, a[2]) || Math.abs(perp(o, v, [c.x, c.y])) > 0.12 || tc < -0.1 || tc > L + 0.1) continue;
+          const d = Math.abs(tc - tp);
+          if (d > 0.05 && (!best || d < best.d)) best = { c, d };
+        }
+      }
+    if (best) add(along(g.origin, g.u, [P[0], P[1]]), best.c);
+  }
+  out.sort((p, q) => p.s - q.s);
+  const xs = [...new Set(out.map((q) => q.s))];
+  if (xs.length < 2) {
+    g.supportsAssumed = true;
+    g.warnings.push({ key: 'girderSupports', params: { n: xs.length } });
+  }
+  g.supports = xs;
 }
 
 /** supports of a girder: standards on its axis that reach the bottom chord */
@@ -448,6 +523,8 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
     const dmax = Math.max(...moves.map((m) => Math.hypot(...m.d)));
     issues.push({ key: 'healed', params: { n: moves.length, d: Math.round(dmax * 1000) }, parts: moves.map((m) => m.id), severity: 'info' });
   }
+  // connectors of ULS Flex with no elements of a girder on them: a short standard (a post with rosettes)
+  for (const chain of flexChains(parts)) if (chain.every((w) => w.cls.kind === 'flexConnector')) for (const w of chain) w.cls = { kind: 'standard' };
   const columns = buildColumns(parts);
 
   // ledgers: both ends at a standard (or carried by another part)
@@ -474,9 +551,6 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
   const deckParts = parts.filter((w) => w.cls.kind === 'deck');
   const decked = oneEnd.filter((w) => deckedLedger(w, deckParts));
   if (decked.length) issues.push({ key: 'ledgerOneEndDecked', params: { n: decked.length }, parts: decked.map((w) => w.part.id), severity: 'warning' });
-  const anchors = findAnchors(parts, columns, opt.anchorRoles ?? {});
-  if (anchors.length)
-    issues.push({ key: 'anchors', params: { n: anchors.length }, parts: anchors.flatMap((a) => [a.id, ...a.couplers, ...a.flange]), severity: 'info' });
   if (columns.length && !parts.some((w) => w.cls.kind === 'diagonal'))
     issues.push({ key: 'noDiagonals', parts: [], severity: 'warning' });
 
@@ -499,9 +573,13 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
   girders.sort((a, b) => a.zBottom - b.zBottom || a.origin[0] - b.origin[0] || a.origin[1] - b.origin[1]);
   girders.forEach((g, k) => (g.key = `T${k + 1}`));
   for (const g of girders) {
-    findSupports(g, columns);
+    if (g.flat) flatSupports(g as Girder & { flat: NonNullable<Girder['flat']> }, columns, parts);
+    else findSupports(g, columns);
     findLoads(g, parts);
   }
+  const anchors = findAnchors(parts, columns, opt.anchorRoles ?? {}, girders.filter((g) => g.flat));
+  if (anchors.length)
+    issues.push({ key: 'anchors', params: { n: anchors.length }, parts: anchors.flatMap((a) => [a.id, ...a.couplers, ...a.flange]), severity: 'info' });
 
   const bomMap = new Map<string, BomRow>();
   for (const w of parts) {
@@ -534,12 +612,82 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
  * itself is usually not drawn — on the other end. Tubes with standards at both ends are bracing.
  * The tubes of anchors get the kind "anchor".
  */
-function findAnchors(parts: WorldPart[], columns: Column[], roles: Record<string, AnchorRole> = {}): Anchor[] {
+/** the flat girder whose chord passes the point p (within a coupler's reach) */
+function flatGirderAt(p: V3, flats: Girder[]): Girder | undefined {
+  const hit = flats.filter((g) => {
+    if (Math.abs(p[2] - g.zTop) > 0.15) return false;
+    const s = along(g.origin, g.u, [p[0], p[1]]);
+    return s >= -0.1 && s <= g.L + 0.1 && Math.abs(Math.abs(perp(g.origin, g.u, [p[0], p[1]])) - g.flat!.width / 2) <= 0.1;
+  });
+  // of girders lying one above the other: the nearest in height
+  return hit.sort((x, y) => Math.abs(p[2] - x.zTop) - Math.abs(p[2] - y.zTop))[0];
+}
+
+/**
+ * A strut against the building: a tube with a jack (UJS with its plate) in one end, coupled along it to
+ * standards or to the chords of girders lying flat. Its end at the building is the plate of the jack.
+ */
+function jackStrut(w: WorldPart, a: V3, b: V3, couplers: WorldPart[], columns: Column[], flats: Girder[], jacks: WorldPart[], isFlange: (w: WorldPart) => boolean): Anchor | null {
+  const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+  if (L < 0.3 || Math.abs(b[2] - a[2]) > 0.05 * L) return null;
+  const t: V3 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L, (b[2] - a[2]) / L];
+  // the jack in an end: on the axis, at most its length beyond the end
+  let end: { e: V3; d: number; plate: V3 } | null = null;
+  for (const j of jacks) {
+    const pts = j.lines.length ? j.lines.flat() : [j.min, j.max];
+    for (const [e, d] of [
+      [a, -1],
+      [b, 1],
+    ] as [V3, number][])
+      for (const q of pts) {
+        const sp = ((q[0] - e[0]) * t[0] + (q[1] - e[1]) * t[1] + (q[2] - e[2]) * t[2]) * d;
+        const off = Math.hypot(q[0] - e[0] - d * sp * t[0], q[1] - e[1] - d * sp * t[1], q[2] - e[2] - d * sp * t[2]);
+        if (sp < -0.15 || sp > 0.9 || off > 0.08) continue;
+        const far = sp > 0 ? q : e;
+        if (!end || (end.e === e && sp > ((end.plate[0] - e[0]) * t[0] + (end.plate[1] - e[1]) * t[1]) * d)) end = { e, d, plate: [far[0], far[1], e[2]] };
+      }
+  }
+  if (!end) return null;
+  const colAt = (p: V3) => columns.find((c) => Math.hypot(c.x - p[0], c.y - p[1]) <= 0.25 && p[2] >= c.z0 - 0.1 && p[2] <= c.z1 + 0.1);
+  const on: { id: string; s: number; p: V3; key?: string }[] = [];
+  for (const c of couplers) {
+    if (isFlange(c)) continue;
+    const q: V3 = [c.part.m[3], c.part.m[7], c.part.m[11]];
+    const sp = (q[0] - a[0]) * t[0] + (q[1] - a[1]) * t[1] + (q[2] - a[2]) * t[2];
+    if (sp < -0.05 || sp > L + 0.05) continue;
+    const p: V3 = [a[0] + sp * t[0], a[1] + sp * t[1], a[2] + sp * t[2]];
+    if (Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]) > 0.1) continue;
+    const g = colAt(p) ? undefined : flatGirderAt(q, flats);
+    if (!colAt(p) && !g) continue;
+    if (on.some((o) => Math.abs(o.s - sp) < 0.05)) continue;
+    on.push({ id: c.part.id, s: sp, p, key: g?.key });
+  }
+  if (!on.length) return null;
+  // from the jack inwards
+  const sj = end.d < 0 ? 0 : L;
+  on.sort((x, y) => Math.abs(x.s - sj) - Math.abs(y.s - sj));
+  const first = on[0];
+  const gs = on.filter((o) => o.key).map((o) => ({ p: o.p, key: o.key! }));
+  return {
+    id: w.part.id,
+    couplers: on.map((o) => o.id),
+    flange: [],
+    atStandard: first.p,
+    atStructure: end.plate,
+    length: Math.hypot(end.plate[0] - first.p[0], end.plate[1] - first.p[1]),
+    via: on.slice(1).map((o) => o.p),
+    strut: true,
+    ...(gs.length ? { girderAt: gs } : {}),
+  };
+}
+
+function findAnchors(parts: WorldPart[], columns: Column[], roles: Record<string, AnchorRole> = {}, flats: Girder[] = []): Anchor[] {
   const couplers = parts.filter((w) => w.cls.kind === 'coupler');
   const isFlange = (w: WorldPart) => /\bUE[CF]\b|flansch|flange/i.test(`${w.part.name} ${w.part.desc}`);
   const pos = (w: WorldPart): V3 => [w.part.m[3], w.part.m[7], w.part.m[11]];
   const near = (p: V3, q: V3, r: number) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) <= r;
   const colAt = (p: V3) => columns.find((c) => Math.hypot(c.x - p[0], c.y - p[1]) <= 0.25 && p[2] >= c.z0 - 0.1 && p[2] <= c.z1 + 0.1);
+  const jacks = parts.filter((w) => w.cls.kind === 'jack');
   const out: Anchor[] = [];
   for (const w of parts) {
     if ((w.cls.kind !== 'tube' && w.cls.kind !== 'anchor') || !w.lines.length) continue;
@@ -550,15 +698,23 @@ function findAnchors(parts: WorldPart[], columns: Column[], roles: Record<string
       continue;
     }
     if (roles[w.part.id] === 'anchor' || roles[w.part.id] === 'strut') {
-      const an = chosenAnchor(w, a, b, couplers, columns, isFlange);
+      const an = jackStrut(w, a, b, couplers, columns, flats, jacks, isFlange) ?? chosenAnchor(w, a, b, couplers, columns, isFlange, flats);
       if (an) {
-        if (roles[w.part.id] === 'strut') an.strut = true;
+        an.chosen = true;
+        an.strut = roles[w.part.id] === 'strut';
         out.push(an);
         w.cls = { kind: 'anchor' };
       }
       continue;
     }
     if (w.cls.kind !== 'tube') continue;
+    // a strut: a jack with its plate against the building in one end
+    const js = jackStrut(w, a, b, couplers, columns, flats, jacks, isFlange);
+    if (js) {
+      out.push(js);
+      w.cls = { kind: 'anchor' };
+      continue;
+    }
     // anchors are horizontal: an inclined tube (a brace with its ends sticking out) is none
     {
       const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
@@ -656,13 +812,13 @@ function findAnchors(parts: WorldPart[], columns: Column[], roles: Record<string
  * end with no standard further on in its direction (of two alike: the one farther from the middle of
  * the scaffold). Null when the tube touches no standard.
  */
-function chosenAnchor(w: WorldPart, a: V3, b: V3, couplers: WorldPart[], columns: Column[], isFlange: (w: WorldPart) => boolean): Anchor | null {
+function chosenAnchor(w: WorldPart, a: V3, b: V3, couplers: WorldPart[], columns: Column[], isFlange: (w: WorldPart) => boolean, flats: Girder[] = []): Anchor | null {
   const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
   if (L < 0.1) return null;
   const t: V3 = [(b[0] - a[0]) / L, (b[1] - a[1]) / L, (b[2] - a[2]) / L];
   const colAt = (p: V3, r: number) => columns.find((c) => Math.hypot(c.x - p[0], c.y - p[1]) <= r && p[2] >= c.z0 - 0.1 && p[2] <= c.z1 + 0.1);
   const pos = (c: WorldPart): V3 => [c.part.m[3], c.part.m[7], c.part.m[11]];
-  const on: { id?: string; s: number; p: V3; col: Column }[] = [];
+  const on: { id?: string; s: number; p: V3; col?: Column; key?: string }[] = [];
   for (const c of couplers) {
     if (isFlange(c)) continue;
     const q = pos(c);
@@ -672,6 +828,9 @@ function chosenAnchor(w: WorldPart, a: V3, b: V3, couplers: WorldPart[], columns
     if (Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]) > 0.1) continue;
     const col = colAt(p, 0.25);
     if (col && !on.some((o) => o.col === col)) on.push({ id: c.part.id, s: sp, p, col });
+    // at the chord of a girder lying flat
+    const g = col ? undefined : flatGirderAt(q, flats);
+    if (g && !on.some((o) => Math.abs(o.s - sp) < 0.05)) on.push({ id: c.part.id, s: sp, p, key: g.key });
   }
   if (!on.length)
     for (const col of columns) {
@@ -718,6 +877,7 @@ function chosenAnchor(w: WorldPart, a: V3, b: V3, couplers: WorldPart[], columns
       .sort((x, y) => Math.abs(x.s - end.s.s) - Math.abs(y.s - end.s.s))
       .map((o) => o.p),
     chosen: true,
+    ...(on.some((o) => o.key) ? { girderAt: on.filter((o) => o.key).map((o) => ({ p: o.p, key: o.key! })) } : {}),
   };
 }
 

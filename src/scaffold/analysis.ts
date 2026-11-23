@@ -973,7 +973,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
   const runCombo = (cb: Combo) => {
     let sol: Solved;
     try {
-      sol = solveCombo(fr, model, cb.loads, opt.secondOrder, onStep, !!opt.diagSlack, !!opt.spliceNoTension, opt.spliceSlack ?? 0, opt.bows === false ? undefined : (Ns) => bowLoads(Ns, cb.dir));
+      sol = solveCombo(fr, model, cb.loads, opt.secondOrder, onStep, !!opt.diagSlack, !!opt.spliceNoTension && !model.suspended, opt.spliceSlack ?? 0, opt.bows === false ? undefined : (Ns) => bowLoads(Ns, cb.dir));
     } catch (e) {
       // a nearly free degree of freedom (some stiffness left, but far too little): held by a weak
       // spring as the free ones, and the combination again

@@ -131,6 +131,16 @@ function placedGeom(f: Record<string, string>, kind: string, name: string, tf: (
     return { o: O, geom: { lines: p.map((q, i) => [q, p[(i + 1) % 4]] as [V3, V3]), rosettes: [] } };
   }
   const [len, dir] = dims[order[0]];
+  // lattice girders: both chords (in the plane of the length and the height), with the end posts
+  if (kind === 'girder') {
+    const [hh, hv] = dims[order[1]];
+    const [tt, tv] = dims[order[2]];
+    const c1 = at([0, 0, 0], [tt / 2, tv], [tt / 2, hv]);
+    const c2 = at(c1, [Math.max(hh - tt, 0), hv]);
+    const e1 = at(c1, [len, dir]);
+    const e2 = at(c2, [len, dir]);
+    return { o: O, geom: { lines: [[c1, e1], [c2, e2], [c1, c2], [e1, e2]], rosettes: [] } };
+  }
   const vertical = kind === 'standard' || kind === 'base' || kind === 'jack';
   // standards and spindles: the insertion point is a corner of their square; ledgers lie on it
   const start = kind === 'ledger' ? O : at(O, [dims[order[1]][0] / 2, dims[order[1]][1]], [dims[order[2]][0] / 2, dims[order[2]][1]]);

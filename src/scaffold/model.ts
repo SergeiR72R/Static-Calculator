@@ -654,6 +654,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   /** point of a carrier axis next to P: parameter t, point and distances */
   const project = (c: Carrier, P: V3) => {
     const L = len3(c.a, c.b);
+    // a carrier without length (a part of an export without its size) holds nothing
+    if (!(L > 1e-6)) return { t: Infinity, q: c.a, dh: Infinity, dz: Infinity, L };
     const u: V3 = [(c.b[0] - c.a[0]) / L, (c.b[1] - c.a[1]) / L, (c.b[2] - c.a[2]) / L];
     const s = (P[0] - c.a[0]) * u[0] + (P[1] - c.a[1]) * u[1] + (P[2] - c.a[2]) * u[2];
     const q: V3 = [c.a[0] + u[0] * s, c.a[1] + u[1] * s, c.a[2] + u[2] * s];

@@ -90,8 +90,25 @@ function placedGeom(f: Record<string, string>, kind: string, name: string, tf: (
   const n = unit(N0);
   const a = unit(Math.abs(n[0]) < 1 / 64 && Math.abs(n[1]) < 1 / 64 ? cross([0, 1, 0], n) : cross([0, 0, 1], n));
   const b = cross(n, a);
-  const x: V3 = [0, 1, 2].map((i) => Math.cos(r) * a[i] + Math.sin(r) * b[i]) as V3;
-  const y = cross(n, x);
+  const x0: V3 = [0, 1, 2].map((i) => Math.cos(r) * a[i] + Math.sin(r) * b[i]) as V3;
+  const y0 = cross(n, x0);
+  // the side of the insertion point the box lies on: from the exported extents (drawings with
+  // mirrored parts have it on −y)
+  const mn = point(f.Min);
+  const mx = point(f.Max);
+  const raw = Number(f.width) || 0;
+  const rawD = Number(f.depth) || 0;
+  const rawH = Number(f.height) || 0;
+  let sx = 1;
+  let sy = 1;
+  if (mn && mx) {
+    const tol = 2e-3 * Math.max(1, ...[0, 1, 2].map((i) => mx[i] - mn[i]));
+    const inBox = (p: number[]) => [0, 1, 2].every((i) => p[i] >= mn[i] - tol && p[i] <= mx[i] + tol);
+    const hit = ([1, -1] as const).flatMap((u) => ([1, -1] as const).map((v) => [u, v] as const)).find(([u, v]) => inBox([0, 1, 2].map((i) => L[i] + (u * raw * x0[i] + v * rawD * y0[i] + rawH * n[i]) / 2)));
+    if (hit) [sx, sy] = hit;
+  }
+  const x: V3 = [x0[0] * sx, x0[1] * sx, x0[2] * sx];
+  const y: V3 = [y0[0] * sy, y0[1] * sy, y0[2] * sy];
   const X = unit(turn(x));
   const Y = unit(turn(y));
   const Z = unit(turn(n));
@@ -105,6 +122,14 @@ function placedGeom(f: Record<string, string>, kind: string, name: string, tf: (
   // a diagonal of standards (UBK / UBS): across its two large sizes, from the insertion point
   if (kind === 'diagonal' && w > 0.3 && h > 0.3) return { o: O, geom: { lines: [[[0, 0, 0], at([0, 0, 0], [w, X], [h, Z])]], rosettes: [] } };
   const order = [0, 1, 2].sort((i, j) => dims[j][0] - dims[i][0]);
+  // decks and toe boards: their outline in the plane of their two large sizes (a deck at its top, a
+  // toe board in its middle), so that they have an area like the parts of PERI CAD drawings
+  if (kind === 'deck' || kind === 'toeboard') {
+    const [u, v, t] = order.map((i) => dims[i]);
+    const c = at([0, 0, 0], [kind === 'deck' ? t[0] : t[0] / 2, t[1]]);
+    const p = [c, at(c, u), at(c, u, v), at(c, v)];
+    return { o: O, geom: { lines: p.map((q, i) => [q, p[(i + 1) % 4]] as [V3, V3]), rosettes: [] } };
+  }
   const [len, dir] = dims[order[0]];
   const vertical = kind === 'standard' || kind === 'base' || kind === 'jack';
   // standards and spindles: the insertion point is a corner of their square; ledgers lie on it

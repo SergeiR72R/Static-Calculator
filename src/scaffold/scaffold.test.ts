@@ -134,6 +134,30 @@ describe('drawing of parts of the older kind only', () => {
     expect(merged.parts).toHaveLength(2);
     expect(merged.exported?.added).toBe(2);
   });
+
+  it('parts placed by insertion point and rotation; mirrored parts on the side of their extents; decks with their area', () => {
+    // a standard UVR 100 (box 0.16 × 0.16 × 1) turned by 90°, once drawn normally (box towards −x of the
+    // insertion point) and once mirrored (towards +x); a deck 1.5 × 0.2 m
+    const row = (h: string, art: string, name: string, w: number, d: number, ht: number, loc: number[], rot: number, min: number[], max: number[]) =>
+      `T=PERI_AEC_DB_BAUTEIL\tHandle=${h}\tArtNr=${art}\tBezeichnung=${name}\twidth=${w}\tdepth=${d}\theight=${ht}\tLocation=${loc.join(',')}\tRotation=${rot}\tNormal=0,0,1\tMin=${min.join(',')}\tMax=${max.join(',')}`;
+    const txt = [
+      'PERIEXPORT\t1\tINSUNITS=6',
+      row('2A', '101306', 'UVR 100', 0.16, 0.16, 1, [1, 1, 0], Math.PI / 2, [0.84, 1, 0], [1, 1.16, 1]),
+      row('2B', '101306', 'UVR 100', 0.16, 0.16, 1, [3, 1, 0], Math.PI / 2, [3, 1, 0], [3.16, 1.16, 1]),
+      row('2C', '124109', 'Stahlbelag UDG 25x150', 1.5, 0.2, 0.03, [5, 1, 1], 0, [5, 1, 1], [6.5, 1.2, 1.03]),
+    ].join('\r\n');
+    const doc = parsePeriCadDxf(dxf, 'a.dxf', undefined, { allowEmpty: true });
+    const st = analyzeScaffold(mergePeriExport(doc, parsePeriExport(txt)!, 'a_peri.txt'));
+    const cols = st.columns.map((c) => [+c.x.toFixed(3), +c.y.toFixed(3)]).sort((a, b) => a[0] - b[0]);
+    expect(cols).toEqual([
+      [0.92, 1.08],
+      [3.08, 1.08],
+    ]);
+    const deck = st.parts.find((w) => w.cls.kind === 'deck')!;
+    expect(deck.max[0] - deck.min[0]).toBeCloseTo(1.5, 6);
+    expect(deck.max[1] - deck.min[1]).toBeCloseTo(0.2, 6);
+    expect(deck.min[2]).toBeCloseTo(1.03, 6);
+  });
 });
 
 describe('part kinds', () => {

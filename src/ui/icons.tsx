@@ -148,6 +148,13 @@ export const IconScaffold = (p: P) => (
     <path d="M5 14l14-7" />
   </Icon>
 );
+/** enclosure: monopitch roof on standards */
+export const IconTent = (p: P) => (
+  <Icon {...p}>
+    <path d="M3 9l18-4M5 8.6V21M19 5.4V21M3 21h18" />
+    <path d="M5 13h14" />
+  </Icon>
+);
 export const IconDesigner = (p: P) => (
   <Icon {...p}>
     <path d="M7 21V5M15 21V9M7 9h8M7 15h8M7 15l8-6M15 13h5" />

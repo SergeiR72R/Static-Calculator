@@ -709,7 +709,10 @@
     "scaffoldSubtitle": "Scaffold from PERI CAD: DXF import and lattice girders",
     "designer": "Designer",
     "designerHint": "Section of a PERI UP scaffold from catalogue parts: build in 2D and calculate",
-    "designerSubtitle": "Designer: PERI UP section from the catalogue and analysis"
+    "designerSubtitle": "Designer: PERI UP section from the catalogue and analysis",
+    "tent": "Enclosure",
+    "tentHint": "PERI UP enclosure (tent) after EN 16508: wind on the cladding, snow on the roof, girders, sliding and overturning",
+    "tentSubtitle": "Enclosure: roof and wall loads, girders, sliding and overturning"
   },
   "scaffold": {
     "title": "Scaffold from PERI CAD",
@@ -1528,6 +1531,13 @@
         "why": "Usually a scaffold has one class – so it need not be entered each time.",
         "effect": "Only for new decks: a placed deck keeps its own class, changed in the properties of the part."
       }
+    },
+    "tent": {
+      "method": {
+        "what": "How the enclosure is calculated.",
+        "why": "Follows the PERI reports for enclosures (EN 16508).",
+        "effect": "Wind q_p(z) of the mixed profile of DIN EN 1991-1-4/NA times k(T). Walls: c_pe = +0.8 / −0.5, roof: −0.6 / −0.9. Snow s = μ1 · Ce · Ct · s_k. Girders: forces at the purlins, PERI checks (chord, chord buckling Euler with Lcr = restraint spacing, diagonals, couplers). Sliding: 1.5·H ≤ μ · (G_k − uplift) / 1.3. Overturning: 1.5·H·h/2 ≤ (G_k − uplift) · b/2."
+      }
     }
   },
   "designer": {
@@ -1640,5 +1650,109 @@
     "unstable": "The section loses its stability (sway): add diagonals or anchors",
     "classNew": "Load class of new decks",
     "comboLegend": "A — in service: outdoors with the working wind 0.2 kN/m², indoors with the notional horizontal load. A0 — in service outdoors on a day without wind (notional horizontal load instead of the wind). R — out of service with the maximum wind, S — stability (permanent loads γ = 0.9). ±x — direction of the wind and the sway."
+  },
+  "tent": {
+    "auto": "from drawing",
+    "title": "Enclosure (tent)",
+    "intro": "Open the PERI CAD drawing of the enclosure (DXF and …_peri.txt) — the same as in the scaffold mode. The program finds the roof girders and sizes, takes wind on the cladding and snow after DIN EN 1991-1-3/-4/NA and EN 16508, checks the girders, sliding and overturning — as the PERI report does.",
+    "loaded": "Drawing: {file} — {n} parts, girders: {g}",
+    "geometry": "Sizes",
+    "L": "Length along the eaves",
+    "B": "Depth (girder span in plan)",
+    "hLow": "Height of the low eave",
+    "hHigh": "Height of the high eave",
+    "roofArea": "Roof area",
+    "pitch": "Roof pitch",
+    "wind": "Wind (DIN EN 1991-1-4/NA)",
+    "windZone": "Wind zone",
+    "exposure": "Location",
+    "z": "Height z",
+    "duration": "Standing time",
+    "dur": {
+      "3d": "up to 3 days",
+      "3m": "up to 3 months (May–August)",
+      "12m": "up to 12 months",
+      "24m": "up to 24 months"
+    },
+    "measures": "Measures",
+    "meas": {
+      "none": "no measures",
+      "reinforce": "reinforcing measures",
+      "protect": "protective measures"
+    },
+    "qp": "q_p(z, T) by hand",
+    "qpRow": "q_p(z = {z}), mixed profile",
+    "qpT": "q_p(z, T) = k(T) · q_p",
+    "cpe": "Pressure coefficients c_pe (EN 16508, monopitch)",
+    "cpeKey": {
+      "roofLow": "roof: wind on the low eave",
+      "roofHigh": "roof: wind on the high eave",
+      "wallPressure": "wall: pressure",
+      "wallSuction": "wall: suction"
+    },
+    "snow": "Snow (DIN EN 1991-1-3/NA)",
+    "snowZone": "Snow zone",
+    "altitude": "Altitude A",
+    "s": "s on the roof by hand",
+    "sk": "s_k on the ground",
+    "sRoof": "s = μ1 · Ce · Ct · s_k",
+    "weight": "Self weight",
+    "roofCladding": "Roof cladding",
+    "extraG": "Further weight (walls, ballast)",
+    "gRoof": "Roof weight per m²",
+    "Gk": "Total weight G_k",
+    "partsWeight": "Parts of the drawing",
+    "roofParts": "of which roof (girders, purlins)",
+    "unknownWeight": "Weight of {n} parts unknown — add it to \"Further weight\".",
+    "ground": "Ground and girders",
+    "friction": "Bearing",
+    "fr": {
+      "timber": "timber / steel",
+      "concrete": "concrete / steel",
+      "steel": "steel / steel"
+    },
+    "girdersSettings": "Roof girders",
+    "purlin": "Purlin spacing",
+    "restraint": "Chord restraint spacing (Lcr)",
+    "reset": "Reset settings",
+    "empty": "Open the drawing of an enclosure.",
+    "summary": "Utilisation (as in the PERI report)",
+    "check": "Check",
+    "where": "Where",
+    "sum": {
+      "chord": "Girders: chord section",
+      "buckling": "Girders: chord buckling",
+      "diagonal": "Girders: diagonals",
+      "coupler": "Slip of coupler RA at the bearing",
+      "sliding": "Local sliding",
+      "overturning": "Overturning"
+    },
+    "ok": "All checks fulfilled, max η = {eta}.",
+    "notOk": "Exceeded: max η = {eta}.",
+    "loads": "Loads on the enclosure",
+    "wallA": "Wind on the high wall ({a})",
+    "wallB": "Wind on the low wall ({a})",
+    "across": "Total across the eaves H",
+    "along": "Along the eaves, on a gable ({a})",
+    "uplift": "Roof uplift ({a})",
+    "GkRow": "Weight G_k",
+    "Nd": "N_d = G_k − uplift",
+    "gRoofRow": "Roof weight on the girders",
+    "stability": "Sliding and overturning",
+    "dir": {
+      "across": "Governing: wind across the eaves, on the high wall.",
+      "along": "Governing: wind along the eaves, on a gable."
+    },
+    "girders": {
+      "title": "Roof girders",
+      "none": "No ULS / ULA girders in the drawing.",
+      "girder": "Girder",
+      "width": "Tributary width",
+      "loads": "G / S / W per purlin",
+      "loadsTitle": "characteristic loads on a middle purlin: self weight / snow / wind suction",
+      "open": "to calculator",
+      "note": "Loads as forces at the purlins (spacing {a}); combinations 1.35·G + 1.5·S and 1.0·G + 1.5·W; chord buckling between restraints {r}.",
+      "replaceConfirm": "Open the girder in the beam calculator? The open beam list will be closed."
+    }
   }
 }

@@ -20,6 +20,7 @@ import { isRtl } from './units/format';
 
 const ScaffoldApp = lazy(() => import('./ui/scaffold/ScaffoldApp'));
 const DesignerApp = lazy(() => import('./ui/designer/DesignerApp'));
+const TentApp = lazy(() => import('./ui/tent/TentApp'));
 
 const INPUT_TABS: InputTab[] = ['beam', 'supports', 'loads', 'cases', 'settings'];
 
@@ -120,6 +121,10 @@ export function App() {
             ) : appMode === 'designer' ? (
               <Suspense fallback={<div className="flex-1" />}>
                 <DesignerApp />
+              </Suspense>
+            ) : appMode === 'tent' ? (
+              <Suspense fallback={<div className="flex-1" />}>
+                <TentApp />
               </Suspense>
             ) : (
               <>

@@ -98,7 +98,8 @@ export async function openDxfFile(f: File, txt: File[] = []): Promise<boolean> {
     setLoad({ phase: 'scaffold.progress.structure', frac: null });
     await frame();
     useScaffold.getState().setDoc(doc);
-    if (app.appMode !== 'scaffold') app.setPrefs({ appMode: 'scaffold' });
+    // the enclosure mode works on the same drawing
+    if (app.appMode !== 'scaffold' && app.appMode !== 'tent') app.setPrefs({ appMode: 'scaffold' });
     // old-kind parts not in the DXF and no export file with it: ask for the …_peri.txt
     if (txt.length) app.showToast('scaffold.export.loadedBoth', { n: doc.parts.length, m: doc.exported?.added ?? 0 });
     else if (doc.aecParts) app.showToast('scaffold.export.missing', { n: doc.parts.length, m: doc.aecParts });

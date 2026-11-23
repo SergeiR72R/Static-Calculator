@@ -709,7 +709,10 @@
     "scaffoldSubtitle": "Gerüst aus PERI CAD: DXF-Import und Gitterträger",
     "designer": "Konstruktor",
     "designerHint": "Gerüstschnitt PERI UP aus Katalogteilen: Aufbau in 2D und Berechnung",
-    "designerSubtitle": "Konstruktor: Schnitt PERI UP aus dem Katalog und Berechnung"
+    "designerSubtitle": "Konstruktor: Schnitt PERI UP aus dem Katalog und Berechnung",
+    "tent": "Einhausung",
+    "tentHint": "Einhausung (Zelt) PERI UP nach DIN EN 16508: Wind auf die Plane, Schnee auf das Dach, Gitterträger, Gleiten und Kippen",
+    "tentSubtitle": "Einhausung: Dach- und Wandlasten, Gitterträger, Gleiten und Kippen"
   },
   "scaffold": {
     "title": "Gerüst aus PERI CAD",
@@ -1528,6 +1531,13 @@
         "why": "Meist hat ein Gerüst eine Klasse – so muss sie nicht jedes Mal eingegeben werden.",
         "effect": "Nur für neue Beläge: bei gesetzten gehört die Klasse zum Teil und wird in dessen Eigenschaften geändert."
       }
+    },
+    "tent": {
+      "method": {
+        "what": "Wie die Einhausung berechnet wird.",
+        "why": "Wie die PERI-Berichte für Einhausungen (DIN EN 16508).",
+        "effect": "Wind q_p(z) nach Mischprofil DIN EN 1991-1-4/NA mal k(T). Wände: c_pe = +0,8 / −0,5, Dach: −0,6 / −0,9. Schnee s = μ1 · Ce · Ct · s_k. Gitterträger: Kräfte an den Pfetten, PERI-Nachweise (Gurt, Knicken Gurt Euler mit Lcr = Aussteifungsabstand, Diagonalen, Kupplungen). Gleiten: 1,5·H ≤ μ · (G_k − Abheben) / 1,3. Kippen: 1,5·H·h/2 ≤ (G_k − Abheben) · b/2."
+      }
     }
   },
   "designer": {
@@ -1640,5 +1650,109 @@
     "unstable": "Der Schnitt verliert seine Stabilität (Schwanken): Diagonalen oder Anker setzen",
     "classNew": "Lastklasse neuer Beläge",
     "comboLegend": "A — Arbeitsbetrieb: im Freien mit Arbeitswind 0,2 kN/m², im Gebäude mit der horizontalen Ersatzlast. A0 — Arbeitsbetrieb im Freien bei Windstille (horizontale Ersatzlast statt Wind). R — außer Betrieb mit maximalem Wind, S — Standsicherheit (ständige Lasten γ = 0,9). ±x — Richtung von Wind und Schiefstellung."
+  },
+  "tent": {
+    "auto": "aus Zeichnung",
+    "title": "Einhausung (Zelt)",
+    "intro": "Öffnen Sie die PERI-CAD-Zeichnung der Einhausung (DXF und …_peri.txt) – dieselbe wie im Modus Gerüst. Das Programm findet die Dachträger und Abmessungen, setzt Wind auf die Plane und Schnee nach DIN EN 1991-1-3/-4/NA und DIN EN 16508 an und weist Gitterträger, Gleiten und Kippen nach – wie der PERI-Bericht.",
+    "loaded": "Zeichnung: {file} – {n} Teile, Gitterträger: {g}",
+    "geometry": "Abmessungen",
+    "L": "Länge entlang der Traufen",
+    "B": "Tiefe (Trägerspannweite im Grundriss)",
+    "hLow": "Höhe niedrige Traufe",
+    "hHigh": "Höhe hohe Traufe",
+    "roofArea": "Dachfläche",
+    "pitch": "Dachneigung",
+    "wind": "Wind (DIN EN 1991-1-4/NA)",
+    "windZone": "Windzone",
+    "exposure": "Lage",
+    "z": "Höhe z",
+    "duration": "Standzeit",
+    "dur": {
+      "3d": "bis 3 Tage",
+      "3m": "bis 3 Monate (Mai–August)",
+      "12m": "bis 12 Monate",
+      "24m": "bis 24 Monate"
+    },
+    "measures": "Maßnahmen",
+    "meas": {
+      "none": "ohne Sicherungsmaßnahmen",
+      "reinforce": "mit verstärkenden Maßnahmen",
+      "protect": "mit schützenden Maßnahmen"
+    },
+    "qp": "q_p(z, T) von Hand",
+    "qpRow": "q_p(z = {z}), Mischprofil",
+    "qpT": "q_p(z, T) = k(T) · q_p",
+    "cpe": "Aerodynamische Beiwerte c_pe (DIN EN 16508, Pultdach)",
+    "cpeKey": {
+      "roofLow": "Dach: Wind auf niedrige Traufe",
+      "roofHigh": "Dach: Wind auf hohe Traufe",
+      "wallPressure": "Wand: Druck",
+      "wallSuction": "Wand: Sog"
+    },
+    "snow": "Schnee (DIN EN 1991-1-3/NA)",
+    "snowZone": "Schneelastzone",
+    "altitude": "Geländehöhe A",
+    "s": "s auf dem Dach von Hand",
+    "sk": "s_k am Boden",
+    "sRoof": "s = μ1 · Ce · Ct · s_k",
+    "weight": "Eigengewicht",
+    "roofCladding": "Dachplane / Eindeckung",
+    "extraG": "Weiteres Gewicht (Wände, Ballast)",
+    "gRoof": "Dachgewicht je m²",
+    "Gk": "Gesamtgewicht G_k",
+    "partsWeight": "Teile der Zeichnung",
+    "roofParts": "davon Dach (Träger, Pfetten)",
+    "unknownWeight": "Gewicht von {n} Teilen unbekannt – unter „Weiteres Gewicht“ ergänzen.",
+    "ground": "Untergrund und Träger",
+    "friction": "Auflager",
+    "fr": {
+      "timber": "Holz / Stahl",
+      "concrete": "Beton / Stahl",
+      "steel": "Stahl / Stahl"
+    },
+    "girdersSettings": "Dachträger",
+    "purlin": "Pfettenabstand",
+    "restraint": "Aussteifungsabstand Gurt (Lcr)",
+    "reset": "Einstellungen zurücksetzen",
+    "empty": "Öffnen Sie die Zeichnung einer Einhausung.",
+    "summary": "Ausnutzung (wie im PERI-Bericht)",
+    "check": "Nachweis",
+    "where": "Wo",
+    "sum": {
+      "chord": "Gitterträger: Gurtquerschnitt",
+      "buckling": "Gitterträger: Knicken Gurt",
+      "diagonal": "Gitterträger: Diagonalen",
+      "coupler": "Rutschen Normalkupplung RA am Auflager",
+      "sliding": "Lokales Gleiten",
+      "overturning": "Kippnachweis"
+    },
+    "ok": "Alle Nachweise erfüllt, max η = {eta}.",
+    "notOk": "Überschritten: max η = {eta}.",
+    "loads": "Lasten auf die Einhausung",
+    "wallA": "Wind auf hohe Wand ({a})",
+    "wallB": "Wind auf niedrige Wand ({a})",
+    "across": "Summe quer zur Traufe H",
+    "along": "Längs zur Traufe, auf Giebel ({a})",
+    "uplift": "Abheben Dach ({a})",
+    "GkRow": "Gewicht G_k",
+    "Nd": "N_d = G_k − Abheben",
+    "gRoofRow": "Dachgewicht auf die Träger",
+    "stability": "Gleiten und Kippen",
+    "dir": {
+      "across": "Maßgebend: Wind quer zur Traufe, auf die hohe Wand.",
+      "along": "Maßgebend: Wind längs zur Traufe, auf den Giebel."
+    },
+    "girders": {
+      "title": "Dachträger",
+      "none": "Keine Gitterträger ULS / ULA in der Zeichnung.",
+      "girder": "Träger",
+      "width": "Einzugsbreite",
+      "loads": "G / S / W je Pfette",
+      "loadsTitle": "charakteristische Lasten an einer mittleren Pfette: Eigengewicht / Schnee / Windsog",
+      "open": "im Balkenrechner",
+      "note": "Lasten als Kräfte an den Pfetten (Abstand {a}); Kombinationen 1,35·G + 1,5·S und 1,0·G + 1,5·W; Knicken Gurt zwischen Aussteifungen {r}.",
+      "replaceConfirm": "Träger im Balkenrechner öffnen? Die offene Trägerliste wird geschlossen."
+    }
   }
 }

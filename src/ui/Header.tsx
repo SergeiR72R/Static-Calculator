@@ -28,6 +28,7 @@ import {
   IconBeam,
   IconScaffold,
   IconDesigner,
+  IconTent,
 } from './icons';
 import { buildDxf, dxfLang } from '../export/dxf';
 import { buildCsv } from '../export/csv';
@@ -113,7 +114,7 @@ export function Header() {
         <div className="leading-tight">
           <h1 className="text-base font-bold text-accent-700 dark:text-accent-200">{fmt.t('app.title')}</h1>
           <p className="hidden max-w-[15rem] truncate text-[11px] 2xl:max-w-[24rem] text-slate-500 sm:block dark:text-slate-400" data-testid="header-project">
-            {st.appMode === 'scaffold' ? fmt.t('mode.scaffoldSubtitle') : st.appMode === 'designer' ? fmt.t('mode.designerSubtitle') : st.model.name ? `${fmt.t('header.project')}: ${st.model.name}` : fmt.t('app.subtitle')}
+            {st.appMode === 'scaffold' ? fmt.t('mode.scaffoldSubtitle') : st.appMode === 'designer' ? fmt.t('mode.designerSubtitle') : st.appMode === 'tent' ? fmt.t('mode.tentSubtitle') : st.model.name ? `${fmt.t('header.project')}: ${st.model.name}` : fmt.t('app.subtitle')}
           </p>
         </div>
       </div>
@@ -124,7 +125,7 @@ export function Header() {
         aria-label={fmt.t('mode.label')}
         data-testid="mode-switch"
       >
-        {(['beam', 'scaffold', 'designer'] as const).map((m) => (
+        {(['beam', 'scaffold', 'designer', 'tent'] as const).map((m) => (
           <button
             key={m}
             type="button"
@@ -139,7 +140,7 @@ export function Header() {
                 : 'text-accent-800 hover:bg-accent-50 dark:text-accent-200 dark:hover:bg-slate-800',
             )}
           >
-            {m === 'beam' ? <IconBeam /> : m === 'scaffold' ? <IconScaffold /> : <IconDesigner />}
+            {m === 'beam' ? <IconBeam /> : m === 'scaffold' ? <IconScaffold /> : m === 'designer' ? <IconDesigner /> : <IconTent />}
             {fmt.t(`mode.${m}`)}
           </button>
         ))}

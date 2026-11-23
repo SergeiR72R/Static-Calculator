@@ -52,6 +52,12 @@ export interface UserFixing {
   vec?: [number, number, number];
   /** design resistance of one fixing (resultant of its forces), N; none: no check */
   limit?: number;
+  /**
+   * a support at the bottom of the standards chosen (instead of what the drawing gives there: base,
+   * support on the structure, a beam or girder under it): springs per axis (N/m; absent: rigid) and
+   * whether the vertical support takes pressure only (lifts off like a base)
+   */
+  support?: { k?: Partial<Record<'x' | 'y' | 'z', number>>; compression?: boolean };
 }
 
 /** dynamic horizontal load (ForceControl "DHB"): share of the load moved by the crane (10 %) */

@@ -439,6 +439,30 @@ describe('scaffold analysis', () => {
     expect(open.member.filter((l) => l.q[0] !== 0).some((l) => m.members[l.m].kind === 'ledger')).toBe(true);
   });
 
+  it('supports set by hand at the bottom of standards: in place of the base, springs, pressure only', () => {
+    const st = tower();
+    const auto = buildScaffoldModel(st);
+    // the lowest part of the first column (a base standard on its spindle) and its node
+    const col = st.columns[0];
+    const lowest = st.parts.filter((w) => col.parts.includes(w.part.id) && ['standard', 'base'].includes(w.cls.kind)).sort((a, b) => a.min[2] - b.min[2])[0];
+    const K = 5e6;
+    const m = buildScaffoldModel(st, [], [], { fixings: [{ id: 'S1', name: 'HEB', parts: [lowest.part.id], at: 0, dirs: ['x', 'y', 'z'], support: { k: { z: K }, compression: true } }] });
+    // the same number of bases: the automatic one of this column replaced by the spring
+    expect(m.bases).toHaveLength(auto.bases.length);
+    const b = m.bases.find((q) => q.part === lowest.part.id)!;
+    expect(m.frame.supports.slice(b.sup, b.sup + 3).map((q) => q.k)).toEqual([Infinity, Infinity, K]);
+    // the spring settles under load: the vertical reaction is k · displacement
+    const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: false, keep: true });
+    const c = r.combos[0];
+    expect(c.reactions![b.sup + 2]).toBeCloseTo(-K * c.u![b.node * 6 + 2], 0);
+    expect(c.reactions![b.sup + 2]).toBeGreaterThan(0);
+    // horizontal only (no Z): a fixing, not a base; the column then hangs on the others
+    const h = buildScaffoldModel(st, [], [], { fixings: [{ id: 'S2', name: 'H', parts: [lowest.part.id], at: 0, dirs: ['x', 'y'], support: {} }] });
+    expect(h.bases).toHaveLength(auto.bases.length - 1);
+    const f = h.fixings.find((q) => q.id === 'S2')!;
+    expect(f.sups.map((q) => q.dir)).toEqual(['x', 'y']);
+  });
+
   it('toe boards are in the wind by their face', () => {
     const m = buildScaffoldModel(tower());
     const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 };

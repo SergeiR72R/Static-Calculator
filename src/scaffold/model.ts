@@ -699,6 +699,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
 
   // standards on spindles, on beams / ledgers, on the standard below; base supports
   const supports: FrameModel3['supports'] = [];
+  /** supports set by hand with not all three axes / not lifting off (reported with the fixings) */
+  const userFixings: { id: string; part: string; node: number; sups: { dir: 'x' | 'y' | 'z'; sup: number }[] }[] = [];
   const bases: BaseSupport[] = [];
   const jacks = st.parts.filter((w) => w.cls.kind === 'jack');
   const near = (w: WorldPart, x: number, y: number) => w.min[0] <= x + JACK_XY && w.max[0] >= x - JACK_XY && w.min[1] <= y + JACK_XY && w.max[1] >= y - JACK_XY;
@@ -730,10 +732,48 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     return top;
   };
   const hanging = new Set(opts.hanging ?? []);
+  // supports set by hand at the bottom of the lowest standard of a column: in place of the automatic one
+  const springK = (s: NonNullable<UserFixing['support']>, d: 'x' | 'y' | 'z') => {
+    const v = s.k?.[d];
+    return v !== undefined && v > 0 ? v : Infinity;
+  };
+  const bottomSupport = new Map<number, UserFixing>();
+  for (const f of opts.fixings ?? []) {
+    if (!f.support) continue;
+    cols.forEach((c, k) => {
+      if (f.parts.includes(c.parts[0].w.part.id) && !bottomSupport.has(k)) bottomSupport.set(k, f);
+    });
+  }
+  const userBottomDone = new Set<string>();
   cols.forEach((c, k) => {
     if (hanging.size && hanging.has(c.parts[0].w.part.id)) return;
     const isBase = c.parts[0].w.cls.kind === 'base';
     const under = jackUnder(c);
+    const us = bottomSupport.get(k);
+    if (us?.support) {
+      // at the foot of its spindle, else at the bottom of the standard; with all three axes and pressure
+      // only vertically: a base (reported with the bases, lifts off), else supports per axis
+      const ft = Math.min(c.z0, ...under.map((w) => w.min[2]));
+      let n = c.ns[0];
+      if (ft < c.z0 - 0.02) {
+        n = addNode([c.x, c.y, ft], k);
+        feet.push({ col: k, foot: n, part: under[0].part.id });
+      }
+      const dirs = new Set(us.dirs);
+      const s = us.support;
+      if (dirs.has('z') && s.compression !== false) {
+        bases.push({ node: n, sup: supports.length, part: c.parts[0].w.part.id, column: k });
+        for (const d of ['x', 'y', 'z'] as const) supports.push({ node: n, dof: 'xyz'.indexOf(d), k: dirs.has(d) ? springK(s, d) : 0 });
+      } else {
+        const sups = [...dirs].map((d) => {
+          supports.push({ node: n, dof: 'xyz'.indexOf(d), k: springK(s, d) });
+          return { dir: d, sup: supports.length - 1 };
+        });
+        userFixings.push({ id: us.id, part: c.parts[0].w.part.id, node: n, sups });
+      }
+      userBottomDone.add(`${us.id}|${c.parts[0].w.part.id}`);
+      return;
+    }
     // a base standard without a spindle in the drawing (older PERI CAD parts are not written to DXF)
     // on timber planks: the spindle is added, from the planks up into the standard
     const pad = isBase && !under.length ? padTop(c) : null;
@@ -925,7 +965,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   });
 
   // ---- fixings to the building set by the user: supports at a node of the part (as the point loads)
-  const fixings: ScaffoldModel['fixings'] = [];
+  const fixings: ScaffoldModel['fixings'] = [...userFixings];
   const fixSup = new Map<string, number>();
   for (const f of opts.fixings ?? []) {
     const dirs = [...new Set(f.dirs)].filter((d) => d === 'x' || d === 'y' || d === 'z');
@@ -933,7 +973,9 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     const vec: V3 | null = f.vec && vl > 1e-9 ? [f.vec[0] / vl, f.vec[1] / vl, f.vec[2] / vl] : null;
     if (!dirs.length && !vec) continue;
     for (const id of f.parts) {
-      const at = Math.min(Math.max(f.at, 0), 1);
+      // a support at the bottom of the lowest standard of a column: already in place of the automatic one
+      if (f.support && userBottomDone.has(`${f.id}|${id}`)) continue;
+      const at = f.support ? 0 : Math.min(Math.max(f.at, 0), 1);
       let node = -1;
       // a part of a lattice girder: the girder (its carrier carries the first part)
       const gFirst = st.girders.find((g) => g.parts.includes(id))?.parts[0];
@@ -963,6 +1005,16 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
         fm.push({ i: node, j: far, sec: trussSec(1e10), truss: true });
         mm.push({ kind: 'link', part: id, g: 0, tie: true });
         fixings.push({ id: f.id, part: id, node, sups: [], tie: { member: fm.length - 1, vec }, ...(f.limit && f.limit > 0 ? { limit: f.limit } : {}) });
+        continue;
+      }
+      // a support by hand higher up a column (bottom of that standard): springs per axis
+      if (f.support) {
+        const sp = f.support;
+        const sups = dirs.map((d) => {
+          supports.push({ node, dof: 'xyz'.indexOf(d), k: springK(sp, d) });
+          return { dir: d, sup: supports.length - 1 };
+        });
+        fixings.push({ id: f.id, part: id, node, sups });
         continue;
       }
       // one support per node and axis (two fixings at the same point share it)

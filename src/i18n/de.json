@@ -826,7 +826,19 @@
       "points": "Punkte",
       "remove": "Entfernen",
       "results": "Befestigungen am Bauwerk: {n} Punkte (Kräfte des Gerüsts auf das Bauwerk, Bemessungswerte, Größtwert)",
-      "reportNote": "Kräfte des Gerüsts auf das Bauwerk, Bemessungswerte; η nur mit angegebenem Widerstand."
+      "reportNote": "Kräfte des Gerüsts auf das Bauwerk, Bemessungswerte; η nur mit angegebenem Widerstand.",
+      "kind": "Art",
+      "kind_fixing": "Befestigung",
+      "kind_support": "Auflager (Stielfuß)",
+      "supportDefault": "Auflager",
+      "compression": "Z — nur Druck (Abheben)",
+      "k": "Steifigkeit {d}",
+      "kHint": "0 — starres Lager; Feder z. B. Auflager auf einem HEB-Träger: k = F / Durchbiegung.",
+      "addSupport": "Fuß von {n} Stielen als Auflager",
+      "selectStandards": "Stiele in 3D wählen (Strg — mehrere).",
+      "notStandards": "keine Stiele: {n} — übersprungen",
+      "pressureShort": "Druck",
+      "bottom": "Stielfuß"
     },
     "loads": {
       "title": "Benutzerdefinierte Lasten",
@@ -1465,6 +1477,11 @@
         "what": "Das Gerüst ist mit Netz oder Plane bekleidet.",
         "why": "Der Wind wirkt auf die Bekleidung wie auf ein geschlossenes Bauwerk, nicht auf die Rohre.",
         "effect": "Die Last q · c_f · Einflussbreite (halber Abstand zu den Nachbarstielen) wirkt auf die Stiele zur Windseite; Stiele dahinter erhalten keine. c_f = 1,3 wie in den PERI-Berichten für geschlossene Gerüste."
+      },
+      "fixSupport": {
+        "what": "Ein von Hand gesetztes Auflager am unteren Ende eines Stiels.",
+        "why": "Um festzulegen, worauf das Gerüst steht, wie in PERI ForceControl: Boden, Bauwerk oder ein Träger mit seiner Nachgiebigkeit.",
+        "effect": "Das Auflager sitzt im unteren Knoten des gewählten Stiels (mit Spindel: an ihrem Fuß). Am untersten Stiel eines Stielzugs ersetzt es, was die Zeichnung ergibt: Fußpunkt, Auflager am Bauwerk, Auflagerung auf Gitterträger oder Träger. Je Achse starr oder Feder k. Mit Achse Z und „nur Druck“ hebt es ab wie ein Fußpunkt."
       }
     },
     "designer": {

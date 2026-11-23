@@ -826,7 +826,19 @@
       "points": "Points",
       "remove": "Remove",
       "results": "Fixings to the building: {n} points (forces of the scaffold on the building, design values, largest)",
-      "reportNote": "Forces of the scaffold on the building, design values; η only with a resistance given."
+      "reportNote": "Forces of the scaffold on the building, design values; η only with a resistance given.",
+      "kind": "Kind",
+      "kind_fixing": "Fixing",
+      "kind_support": "Support (bottom of standard)",
+      "supportDefault": "Support",
+      "compression": "Z — pressure only (lifts off)",
+      "k": "Stiffness {d}",
+      "kHint": "0 — rigid support; a spring, e.g. a support on an HEB beam: k = F / deflection.",
+      "addSupport": "Make the bottom of {n} standards a support",
+      "selectStandards": "Select standards in 3D (Ctrl — several).",
+      "notStandards": "not standards: {n} — skipped",
+      "pressureShort": "pressure",
+      "bottom": "bottom of standard"
     },
     "loads": {
       "title": "User loads",
@@ -1465,6 +1477,11 @@
         "what": "The scaffold is covered with netting or sheeting.",
         "why": "The wind acts on the cladding as on a closed structure, not on the tubes.",
         "effect": "The load q · c_f · influence width (halfway to the neighbouring standards) acts on the standards facing the wind; standards behind them get none. c_f = 1.3 as in the PERI reports for closed scaffolds."
+      },
+      "fixSupport": {
+        "what": "A support at the bottom end of a standard, set by hand.",
+        "why": "To set what the scaffold stands on, as in PERI ForceControl: the ground, the structure or a beam with its elasticity.",
+        "effect": "The support is placed at the bottom node of the chosen standard (with a spindle: at its foot). At the lowest standard of a column it replaces what the drawing gives: base, support on the structure, bearing on a girder or beam. Each axis rigid or a spring k. With the axis Z and \"pressure only\" it lifts off like a base."
       }
     },
     "designer": {

@@ -104,12 +104,19 @@ export function healParts(parts: WorldPart[], tol: number, maxFollow = MAX_FOLLO
   const moves: PartMove[] = [];
   const checks: HealCheck[] = [];
   if (!(tol > 0)) return { moves, checks };
+  const moveOf = new Map<string, PartMove>();
+  let onMove: ((w: WorldPart) => void) | null = null;
   const move = (w: WorldPart, d: V3, reason: PartMove['reason']) => {
     if (norm(d) < EPS || norm(d) > tol * Math.SQRT2 + 1e-9) return;
     translatePart(w, d);
-    const m = moves.find((x) => x.id === w.part.id);
+    onMove?.(w);
+    const m = moveOf.get(w.part.id);
     if (m) m.d = [m.d[0] + d[0], m.d[1] + d[1], m.d[2] + d[2]];
-    else moves.push({ id: w.part.id, d, reason });
+    else {
+      const n: PartMove = { id: w.part.id, d, reason };
+      moves.push(n);
+      moveOf.set(n.id, n);
+    }
   };
 
   // 1. standards
@@ -158,6 +165,33 @@ export function healParts(parts: WorldPart[], tol: number, maxFollow = MAX_FOLLO
     });
   }
 
+  // spatial grid of the column axes (plan): the lookups below stay local on large drawings
+  const CELL = 0.5;
+  const grid = new Map<string, number[]>();
+  const cellKey = (i: number, j: number) => `${i},${j}`;
+  const gridAdd = (k: number) => {
+    const key = cellKey(Math.floor(cols[k].x / CELL), Math.floor(cols[k].y / CELL));
+    const g = grid.get(key);
+    if (g) g.push(k);
+    else grid.set(key, [k]);
+  };
+  const gridDel = (k: number) => {
+    const key = cellKey(Math.floor(cols[k].x / CELL), Math.floor(cols[k].y / CELL));
+    const g = grid.get(key);
+    if (g) g.splice(g.indexOf(k), 1);
+  };
+  cols.forEach((_, k) => gridAdd(k));
+  /** indices (ascending) of the columns whose axis may lie within r of (x, y) */
+  const near = (x: number, y: number, r: number): number[] => {
+    const out: number[] = [];
+    const i0 = Math.floor((x - r) / CELL);
+    const i1 = Math.floor((x + r) / CELL);
+    const j0 = Math.floor((y - r) / CELL);
+    const j1 = Math.floor((y + r) / CELL);
+    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) for (const k of grid.get(cellKey(i, j)) ?? []) out.push(k);
+    return out.sort((a, b) => a - b);
+  };
+
   // 2. parts connected at their ends to the rosettes; what stands or lies on a moved part follows it
   interface EndHit {
     w: WorldPart;
@@ -177,7 +211,8 @@ export function healParts(parts: WorldPart[], tol: number, maxFollow = MAX_FOLLO
     const ends = [...ml].sort((a, b) => a[2] - b[2] || a[0] - b[0] || a[1] - b[1]);
     ends.forEach((p, k) => {
       let best: { col: Col; r: number } | null = null;
-      for (const col of cols) {
+      for (const ci of near(p[0], p[1], 0.25 + tol)) {
+        const col = cols[ci];
         const r = Math.hypot(p[0] - col.x, p[1] - col.y);
         if (r > 0.25 + tol || p[2] < col.z0 - tol || p[2] > col.z1 + tol) continue;
         // a standard on the tip of a bracket is carried by it, it does not hold it
@@ -218,6 +253,22 @@ export function healParts(parts: WorldPart[], tol: number, maxFollow = MAX_FOLLO
     return learned.get(key)!;
   };
 
+  /** ends of a ledger that are not at a standard (it lies on a ledger receiver there); cached per ledger */
+  const ledgers = endParts.filter((w) => w.cls.kind === 'ledger');
+  const free = new Map<WorldPart, V3[]>();
+  const freeEnds = (l: WorldPart): V3[] => {
+    let f = free.get(l);
+    if (!f) {
+      f = (mainLine(l) ?? []).filter(
+        (p) => !near(p[0], p[1], 0.25).some((k) => {
+          const c = cols[k];
+          return Math.hypot(p[0] - c.x, p[1] - c.y) <= 0.25 && p[2] >= c.z0 - tol && p[2] <= c.z1 + tol;
+        }),
+      );
+      free.set(l, f);
+    }
+    return f;
+  };
   /** standards (column index) and ledgers that stand or lie on the bracket / ledger w */
   const carried = (w: WorldPart): { cols: number[]; ledgers: WorldPart[] } => {
     const res = { cols: [] as number[], ledgers: [] as WorldPart[] };
@@ -226,7 +277,7 @@ export function healParts(parts: WorldPart[], tol: number, maxFollow = MAX_FOLLO
     const L = len2(ml[0], ml[1]);
     if (L < 0.05) return res;
     const u = [(ml[1][0] - ml[0][0]) / L, (ml[1][1] - ml[0][1]) / L];
-    const near = (p: number[], dzMin: number, dzMax: number) => {
+    const onPart = (p: number[], dzMin: number, dzMax: number) => {
       const t = ((p[0] - ml[0][0]) * u[0] + (p[1] - ml[0][1]) * u[1]) / L;
       if (t < -0.05 || t > 1.05) return false;
       const dh = Math.abs(-(p[0] - ml[0][0]) * u[1] + (p[1] - ml[0][1]) * u[0]);
@@ -235,15 +286,12 @@ export function healParts(parts: WorldPart[], tol: number, maxFollow = MAX_FOLLO
     };
     // a standard stands on the part if it starts there (the standards the part hangs on run on below it)
     cols.forEach((c, k) => {
-      if (near([c.x, c.y, c.z0], -tol, 0.8)) res.cols.push(k);
+      if (onPart([c.x, c.y, c.z0], -tol, 0.8)) res.cols.push(k);
     });
-    for (const l of endParts) {
-      if (l === w || l.cls.kind !== 'ledger') continue;
-      const lm = mainLine(l);
-      if (!lm) continue;
-      for (const p of lm) {
-        const atCol = cols.some((c) => Math.hypot(p[0] - c.x, p[1] - c.y) <= 0.25 && p[2] >= c.z0 - tol && p[2] <= c.z1 + tol);
-        if (!atCol && near(p, -0.06 - tol, 0.4)) {
+    for (const l of ledgers) {
+      if (l === w) continue;
+      for (const p of freeEnds(l)) {
+        if (onPart(p, -0.06 - tol, 0.4)) {
           res.ledgers.push(l);
           break;
         }
@@ -253,13 +301,17 @@ export function healParts(parts: WorldPart[], tol: number, maxFollow = MAX_FOLLO
   };
   const moveColumn = (k: number, d: V3) => {
     for (const w of colParts[k]) move(w, d, 'follow');
+    gridDel(k);
+    free.clear();
     const c = cols[k];
     c.x += d[0];
     c.y += d[1];
     c.z0 += d[2];
     c.z1 += d[2];
     c.rosettes = c.rosettes.map((z) => z + d[2]);
+    gridAdd(k);
   };
+  onMove = (w) => free.delete(w);
   const order = ['bracket', 'ledger', 'diagonal'];
   for (const w of [...endParts].sort((a, b) => order.indexOf(a.cls.kind) - order.indexOf(b.cls.kind))) {
     const ds: V3[] = [];

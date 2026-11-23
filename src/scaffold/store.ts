@@ -8,6 +8,7 @@ import type { ScaffoldDoc } from './pericad';
 import { STANDING_FACTOR, germanWindZone, qpEN, qpGermany, type Admin, type ExposureDE } from './wind';
 import { VB0_LU, VB0_NL, belgianVb0, dutchTerrain, dutchWindArea, qpNetherlands } from './windBenelux';
 import type { UbkModel } from './model';
+import type { AnchorRole } from './structure';
 import { DHB_SHARE, type UserFixing, type UserLoad } from './userLoads';
 
 const KEY = 'balken.scaffold';
@@ -169,9 +170,9 @@ export interface ScaffoldState extends ScaffoldOpts {
   addFixing: (f: UserFixing) => void;
   removeFixing: (id: string) => void;
   /** tubes chosen by the user as anchors or as no anchors (part id); belong to the drawing */
-  anchorRoles: Record<string, 'anchor' | 'tube'>;
+  anchorRoles: Record<string, AnchorRole>;
   /** the role of these tubes; null: as recognised from the drawing */
-  setAnchorRole: (ids: string[], role: 'anchor' | 'tube' | null) => void;
+  setAnchorRole: (ids: string[], role: AnchorRole | null) => void;
   setDoc: (doc: ScaffoldDoc | null) => void;
   setOpts: (o: Partial<ScaffoldOpts>) => void;
   /** advanced settings back to their defaults */
@@ -191,8 +192,8 @@ function loadDoc(): ScaffoldDoc | null {
   }
 }
 
-function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[]; anchorRoles: Record<string, 'anchor' | 'tube'> } {
-  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null, loads: [] as UserLoad[], loadsFile: null as string | null, dhbParts: [] as string[], fixings: [] as UserFixing[], anchorRoles: {} as Record<string, 'anchor' | 'tube'> };
+function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[]; anchorRoles: Record<string, AnchorRole> } {
+  const o = { ...DEFAULT_SCAFFOLD_OPTS, batchRef: null, loads: [] as UserLoad[], loadsFile: null as string | null, dhbParts: [] as string[], fixings: [] as UserFixing[], anchorRoles: {} as Record<string, AnchorRole> };
   try {
     const saved = JSON.parse(storage.get(OPT_KEY) ?? '{}');
     // options of version 1: deck self weight was the old default 0.20 kN/m² → new default
@@ -205,7 +206,7 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads
     if (!Array.isArray(o.dhbParts)) o.dhbParts = [];
     if (!Array.isArray(o.fixings)) o.fixings = [];
     if (!o.anchorRoles || typeof o.anchorRoles !== 'object' || Array.isArray(o.anchorRoles)) o.anchorRoles = {};
-    o.anchorRoles = Object.fromEntries(Object.entries(o.anchorRoles).filter(([, v]) => v === 'anchor' || v === 'tube'));
+    o.anchorRoles = Object.fromEntries(Object.entries(o.anchorRoles).filter(([, v]) => v === 'anchor' || v === 'tube' || v === 'strut'));
     if (o.ubkModel !== 'annexA' && o.ubkModel !== 'table15') o.ubkModel = 'annexA';
   } catch {
     /* ignore */
@@ -214,7 +215,7 @@ function loadOpts(): ScaffoldOpts & { batchRef: ScaffoldState['batchRef']; loads
 }
 
 function save(s: ScaffoldState) {
-  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[]; anchorRoles: Record<string, 'anchor' | 'tube'> } = {
+  const o: ScaffoldOpts & { v: number; batchRef: ScaffoldState['batchRef']; loads: UserLoad[]; loadsFile: string | null; dhbParts: string[]; fixings: UserFixing[]; anchorRoles: Record<string, AnchorRole> } = {
     v: 3,
     loadClass: s.loadClass,
     g: s.g,

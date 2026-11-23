@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useScaffold } from '../../scaffold/store';
-import type { ScaffoldStructure } from '../../scaffold/structure';
+import type { AnchorRole, ScaffoldStructure } from '../../scaffold/structure';
 import { Button, FoldCard, FoldState, HelpTip, cx } from '../common';
 import { useFmt } from '../hooks';
 
@@ -91,7 +91,7 @@ export function AnchorsCard({ st }: { st: ScaffoldStructure }) {
                   >
                     <td className="px-1.5 py-0.5">
                       <button type="button" className="text-start underline decoration-dotted" onClick={() => sel([id])} aria-pressed={on}>
-                        {a ? '⚓ ' : ''}
+                        {a ? (a.strut ? '⇥ ' : '⚓ ') : ''}
                         {w.part.name}
                       </button>
                     </td>
@@ -101,12 +101,13 @@ export function AnchorsCard({ st }: { st: ScaffoldStructure }) {
                       <select
                         className="rounded border border-slate-300 bg-white px-1 py-0.5 text-xs dark:border-slate-600 dark:bg-slate-800"
                         value={roles[id] ?? 'auto'}
-                        onChange={(e) => sc.setAnchorRole([id], e.target.value === 'auto' ? null : (e.target.value as 'anchor' | 'tube'))}
+                        onChange={(e) => sc.setAnchorRole([id], e.target.value === 'auto' ? null : (e.target.value as AnchorRole))}
                         aria-label={fmt.t('scaffold.anchor.colRole')}
                         data-testid={`scaffold-anchor-role-${id}`}
                       >
                         <option value="auto">{fmt.t(a && !roles[id] ? 'scaffold.anchor.autoYes' : 'scaffold.anchor.autoNo')}</option>
                         <option value="anchor">{fmt.t('scaffold.anchor.optAnchor')}</option>
+                        <option value="strut">{fmt.t('scaffold.anchor.optStrut')}</option>
                         <option value="tube">{fmt.t('scaffold.anchor.optTube')}</option>
                       </select>
                     </td>

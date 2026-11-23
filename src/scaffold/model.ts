@@ -110,7 +110,15 @@ export interface ScaffoldModel {
   /** anchors: truss member of the anchor tube (to the building), its node at the first standard and
    * members of the tube from the building through all its couplers at standards (`chain`) and the
    * links of the couplers from the tube to the standards (`links`: the force of a coupler) */
-  anchors: { member: number; part: string; node: number; chain: number[]; links: number[] }[];
+  anchors: {
+    member: number;
+    part: string;
+    node: number;
+    chain: number[];
+    links: number[];
+    /** strut: pushes only; its supports at the building (x, y) and the direction into the scaffold */
+    strut?: { sups: number[]; dir: [number, number] };
+  }[];
   /** beam ends supported by assumption */
   assumedSupports: { node: number; sup: number; part: string }[];
   /** deck levels (height, deck area) */
@@ -120,6 +128,8 @@ export interface ScaffoldModel {
   carriers: { part: string; kind: MKind; members: number[]; length: number; points?: BeamPoint[] }[];
   /** weight of parts that are not members (toe boards, couplers …), kg at a node */
   masses: { node: number; kg: number }[];
+  /** plates in the wind (toe boards): projected areas across x and y, m², shared by nodes */
+  plates: { node: number; ax: number; ay: number }[];
   /** weight that could not be placed, kg */
   lostKg: number;
   notes: ModelNote[];
@@ -1275,6 +1285,26 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // ---- tubes: anchors and bracing
   const anchors: ScaffoldModel['anchors'] = [];
   const anchorTubes = new Set(st.anchors.map((a) => a.id));
+  /** couplers joining a bracing tube to an anchor tube away from the standards: [anchor id] → points */
+  const tubeAxis = new Map(st.parts.filter((w) => w.cls.kind === 'tube' || w.cls.kind === 'anchor').map((w) => [w.part.id, longestLine(w)] as const));
+  const onAxis = (ml: [V3, V3] | null | undefined, q: V3) => {
+    if (!ml) return false;
+    const [a, b] = ml;
+    const L = len3(a, b);
+    if (L < 1e-6) return false;
+    const s = ((q[0] - a[0]) * (b[0] - a[0]) + (q[1] - a[1]) * (b[1] - a[1]) + (q[2] - a[2]) * (b[2] - a[2])) / L;
+    if (s < -0.1 || s > L + 0.1) return false;
+    return len3([a[0] + (s * (b[0] - a[0])) / L, a[1] + (s * (b[1] - a[1])) / L, a[2] + (s * (b[2] - a[2])) / L], q) <= 0.12;
+  };
+  const tubeJoints = new Map<string, { q: V3; tube: string; node?: number }[]>();
+  for (const c of couplerParts) {
+    const q: V3 = [c.part.m[3], c.part.m[7], c.part.m[11]];
+    if (colAt(q, 0.25, 0.15) >= 0) continue;
+    const on = [...tubeAxis.keys()].filter((id) => onAxis(tubeAxis.get(id), q));
+    const anc = on.find((id) => anchorTubes.has(id));
+    const other = on.find((id) => !anchorTubes.has(id));
+    if (anc && other) tubeJoints.set(anc, [...(tubeJoints.get(anc) ?? []), { q, tube: other }]);
+  }
   for (const a of st.anchors) {
     const k = colAt(a.atStandard, 0.3, 0.15);
     if (k < 0) continue;
@@ -1283,6 +1313,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     // force of its link); the anchor plate holds the end of the tube horizontally, across and along
     // the facade (as PERI ForceControl)
     const far = addNode(a.atStructure);
+    const farSups = [supports.length, supports.length + 1];
     for (const dof of [0, 1]) supports.push({ node: far, dof, k: Infinity });
     const tubeDir: V3 = (() => {
       const d: V3 = [a.atStandard[0] - a.atStructure[0], a.atStandard[1] - a.atStructure[1], 0];
@@ -1298,7 +1329,24 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     const links: number[] = [];
     let prev = far;
     let node = -1;
+    // joints with bracing tubes between the building and a coupler at a standard: nodes on the tube
+    const joints = (tubeJoints.get(a.id) ?? []).map((j) => {
+      const s = (j.q[0] - a.atStructure[0]) * tubeDir[0] + (j.q[1] - a.atStructure[1]) * tubeDir[1];
+      return { j, s };
+    });
+    const sOf = (p: V3) => (p[0] - a.atStructure[0]) * tubeDir[0] + (p[1] - a.atStructure[1]) * tubeDir[1];
+    const tubeTo = (upTo: number) => {
+      for (const { j, s } of joints.filter((x) => x.j.node === undefined && x.s < upTo).sort((x, y) => x.s - y.s)) {
+        const nj = addNode([a.atStructure[0] + s * tubeDir[0], a.atStructure[1] + s * tubeDir[1], j.q[2]]);
+        chain.push(fm.length);
+        fm.push({ i: nj, j: prev, sec: tubeSection('t32') });
+        mm.push(chain.length === 1 ? { kind: 'anchor', part: a.id, tube: 't32', g: TUBES.t32.g } : { kind: 'tube', part: a.id, tube: 't32', g: 0, anchorChain: true });
+        j.node = nj;
+        prev = nj;
+      }
+    };
     for (const [i, q] of points.entries()) {
+      tubeTo(sOf(q.p));
       const ns = colNode(q.k, q.p[2], 0.03);
       // the tube beside the standard (a coupler joins them): the point of its axis next to the
       // standard, the link across the tube (at least 5 cm)
@@ -1311,14 +1359,14 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       // the tube itself: stiff (it bends and carries the force along the facade to the couplers); the
       // slip is in the couplers, which work side by side
       fm.push({ i: nt, j: prev, sec: tubeSection('t32') });
-      mm.push(i === 0 ? { kind: 'anchor', part: a.id, tube: 't32', g: TUBES.t32.g } : { kind: 'tube', part: a.id, tube: 't32', g: 0, anchorChain: true });
+      mm.push(i === 0 && chain.length === 1 ? { kind: 'anchor', part: a.id, tube: 't32', g: TUBES.t32.g } : { kind: 'tube', part: a.id, tube: 't32', g: 0, anchorChain: true });
       links.push(fm.length);
       fm.push({ i: ns, j: nt, sec: couplerLink(len3(nodes[ns], nodes[nt])) });
       mm.push({ kind: 'link', part: a.id, g: 0, tie: true });
       if (i === 0) node = ns;
       prev = nt;
     }
-    anchors.push({ member: chain[0], part: a.id, node, chain, links });
+    anchors.push({ member: chain[0], part: a.id, node, chain, links, ...(a.strut ? { strut: { sups: farSups, dir: [tubeDir[0], tubeDir[1]] as [number, number] } } : {}) });
   }
   for (const w of st.parts) {
     if ((w.cls.kind !== 'tube' && w.cls.kind !== 'anchor') || anchorTubes.has(w.part.id)) continue;
@@ -1328,6 +1376,20 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     // diagonal tube with couplers at the top and the bottom; its ends may stick out beyond the
     // standards); without couplers in the drawing to the first and the last standard it passes
     const cpl = tubeCouplers(ml);
+    // coupled to an anchor tube: from its coupler at a standard to the node on the anchor tube
+    const toAnchor = [...tubeJoints.values()].flat().filter((j) => j.tube === w.part.id && j.node !== undefined);
+    if (toAnchor.length && cpl.length >= 1) {
+      const [a0, b0] = ml;
+      const L0 = len3(a0, b0) || 1;
+      const sOn = (p: V3) => ((p[0] - a0[0]) * (b0[0] - a0[0]) + (p[1] - a0[1]) * (b0[1] - a0[1]) + (p[2] - a0[2]) * (b0[2] - a0[2])) / L0;
+      const pts = [...cpl.map((c) => ({ n: colNode(c.k, c.z, 0.03), s: c.s })), ...toAnchor.map((j) => ({ n: j.node!, s: sOn(j.q) }))].sort((x, y) => x.s - y.s);
+      for (let i = 0; i + 1 < pts.length; i++) {
+        if (pts[i].n === pts[i + 1].n) continue;
+        fm.push({ i: pts[i].n, j: pts[i + 1].n, sec: tubeSec(pts[i].n, pts[i + 1].n), truss: true });
+        mm.push({ kind: 'tube', part: w.part.id, tube: 't32', g: TUBES.t32.g });
+      }
+      continue;
+    }
     const cross = cpl.length >= 2 ? cpl : tubeCrossings(ml);
     if (cross.length < 2) {
       note('tubeFree', w.part.id);
@@ -1506,6 +1568,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   const modelled = new Set([...mm.map((m) => m.part), ...absorbed]);
   for (const g of st.girders) for (const id of g.parts) modelled.add(id);
   const masses: ScaffoldModel['masses'] = [];
+  const plates: ScaffoldModel['plates'] = [];
   const weighed = new Set<string>();
   for (const w of st.parts) {
     if (modelled.has(w.part.id) || w.cls.kind === 'deck') continue;
@@ -1515,6 +1578,15 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     if (n >= 0) {
       masses.push({ node: n, kg });
       weighed.add(w.part.id);
+      if (w.cls.kind === 'toeboard') {
+        // its face in the wind, half to the node nearest each end
+        const h = w.max[2] - w.min[2];
+        const ends: V3[] = w.max[0] - w.min[0] >= w.max[1] - w.min[1] ? [[w.min[0], (w.min[1] + w.max[1]) / 2, w.min[2]], [w.max[0], (w.min[1] + w.max[1]) / 2, w.min[2]]] : [[(w.min[0] + w.max[0]) / 2, w.min[1], w.min[2]], [(w.min[0] + w.max[0]) / 2, w.max[1], w.min[2]]];
+        for (const e of ends) {
+          const ne = nearestNode(e, 1);
+          plates.push({ node: ne >= 0 ? ne : n, ax: ((w.max[1] - w.min[1]) * h) / 2, ay: ((w.max[0] - w.min[0]) * h) / 2 });
+        }
+      }
     } else lostKg += kg;
   }
 
@@ -1623,6 +1695,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     decks,
     carriers: carrierOut,
     masses,
+    plates,
     lostKg,
     notes,
     user,

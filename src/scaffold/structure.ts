@@ -94,7 +94,12 @@ export interface Anchor {
   via?: V3[];
   /** chosen as an anchor by the user */
   chosen?: boolean;
+  /** a strut against the building (chosen by the user): it only pushes, released when pulled */
+  strut?: boolean;
 }
+
+/** role of a tube chosen by the user: anchor, strut (pressure only) or bracing tube */
+export type AnchorRole = 'anchor' | 'tube' | 'strut';
 
 export interface ScaffoldStructure {
   parts: WorldPart[];
@@ -399,10 +404,10 @@ export interface StructureOptions {
   maxFollow?: number;
   /**
    * role of tubes chosen by the user (part id): 'anchor' — an anchor to the building, coupled to
-   * the standards by all its couplers; 'tube' — not an anchor (bracing, a tie of a hoist …);
-   * tubes not listed: as recognised from the drawing
+   * the standards by all its couplers; 'strut' — the same, pushing against the building only;
+   * 'tube' — not an anchor (bracing, a tie of a hoist …); tubes not listed: as recognised
    */
-  anchorRoles?: Record<string, 'anchor' | 'tube'>;
+  anchorRoles?: Record<string, AnchorRole>;
 }
 
 export const DEFAULT_TOL = 0.05;
@@ -529,7 +534,7 @@ export function analyzeScaffold(doc: ScaffoldDoc, opt: StructureOptions = { tol:
  * itself is usually not drawn — on the other end. Tubes with standards at both ends are bracing.
  * The tubes of anchors get the kind "anchor".
  */
-function findAnchors(parts: WorldPart[], columns: Column[], roles: Record<string, 'anchor' | 'tube'> = {}): Anchor[] {
+function findAnchors(parts: WorldPart[], columns: Column[], roles: Record<string, AnchorRole> = {}): Anchor[] {
   const couplers = parts.filter((w) => w.cls.kind === 'coupler');
   const isFlange = (w: WorldPart) => /\bUE[CF]\b|flansch|flange/i.test(`${w.part.name} ${w.part.desc}`);
   const pos = (w: WorldPart): V3 => [w.part.m[3], w.part.m[7], w.part.m[11]];
@@ -544,9 +549,10 @@ function findAnchors(parts: WorldPart[], columns: Column[], roles: Record<string
       w.cls = { kind: 'tube' };
       continue;
     }
-    if (roles[w.part.id] === 'anchor') {
+    if (roles[w.part.id] === 'anchor' || roles[w.part.id] === 'strut') {
       const an = chosenAnchor(w, a, b, couplers, columns, isFlange);
       if (an) {
+        if (roles[w.part.id] === 'strut') an.strut = true;
         out.push(an);
         w.cls = { kind: 'anchor' };
       }

@@ -125,6 +125,8 @@ export const ARTS: Record<string, Art> = {
   // 12.5 cm beside the other one on the upper ledger, drawn 5 cm beside the ledger axis
   UBL: { article: '132795', name: 'UBL-2 200/200', desc: 'Riegeldiagonale UBL-2 200/200', layer: '0', lines: [[[0, 0.05, 0], [1.75, 0.05, 2]]] },
   TUBE: { article: '026411', name: 'TUBE 1m', desc: 'Gerüstrohr 48,3x3,2mm 1m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [1, 0, 0]]] },
+  // a tube 4,5 m drawn diagonally in plan (bracing to an anchor tube)
+  TUBED: { article: '026413', name: 'TUBE 4,5m', desc: 'Gerüstrohr 48,3x3,2mm 4,5m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [4.4, 1.1, 0]]] },
   TUBE2: { article: '026412', name: 'TUBE 2m', desc: 'Gerüstrohr 48,3x3,2mm 2m vz', layer: 'PERI_TUBE', lines: [[[0, 0, 0], [2, 0, 0]]] },
   RA: { article: '017020', name: 'RA 48/48', desc: 'Normalkupplung RA Ø48/48mm vz', layer: 'PERI_Coupler', lines: [], circles: [[0.076, 0.05, 0.05]] },
   // steel beam SRU U120 2.22 m along x (axis at 6 cm), and the universal coupling UK 70 joining two

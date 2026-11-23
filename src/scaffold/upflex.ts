@@ -309,6 +309,10 @@ export const CALIB = {
   /** ledger diagonals UBL: half the spring of tables 16 / 17 (as PERI ForceControl, R-049) */
   diagUBL: 0.5,
   diagUBH: 1,
+  /** wind: equivalent strip of equipment along the deck levels (× its height) and toe boards by their
+   * own face. As PERI ForceControl: the toe boards, no strip (R-051) */
+  windStrip: 0,
+  windPlates: 1,
 };
 export const jointK = () => JOINT.k * CALIB.joint;
 

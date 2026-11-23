@@ -379,6 +379,60 @@ describe('scaffold analysis', () => {
     expect(none.anchors).toHaveLength(0);
     expect(none.parts.find((w) => w.part.id === anchored.anchors[0].id)?.cls.kind).toBe('tube');
   });
+
+  it('a strut against the building pushes only; a brace coupled to an anchor tube is part of the model', () => {
+    // the anchor tube of the test above (towards the building at y = 2.1) and a tube diagonal in plan
+    // from the standard at (4, 2) to a coupler on the anchor tube at y ≈ 1 (away from the standards)
+    const parts = towerParts();
+    parts.push({ art: 'TUBE2', rot: 'y', t: [-0.05, 0.1, 3.2] }, { art: 'RA', rot: 'x', t: [-0.05, 0.12, 3.2] }, { art: 'RA', rot: 'x', t: [-0.05, 2, 3.2] });
+    parts.push({ art: 'TUBED', rot: 'x', t: [-0.25, 0.9975, 3.25] }, { art: 'RA', rot: 'x', t: [3.98, 2.055, 3.25] }, { art: 'RA', rot: 'x', t: [-0.05, 1.0475, 3.225] });
+    const doc = parsePeriCadDxf(periDxf(parts), 'tower.dxf');
+    const ids = analyzeScaffold(doc).parts;
+    const anchorId = ids.find((w) => w.part.name === 'TUBE 2m')!.part.id;
+    const braceId = ids.find((w) => w.part.name === 'TUBE 4,5m')!.part.id;
+    const model = (role: 'anchor' | 'strut') => buildScaffoldModel(analyzeScaffold(doc, { tol: 0.05, anchorRoles: { [anchorId]: role, [braceId]: 'tube' } }));
+    const m = model('strut');
+    expect(m.anchors).toHaveLength(1);
+    expect(m.anchors[0].strut?.dir[1]).toBeCloseTo(-1, 6);
+    // the brace: from the standard to a node on the anchor tube
+    const brace = m.members.map((x, k) => [x, k] as const).filter(([x]) => x.part === braceId);
+    expect(brace.length).toBeGreaterThan(0);
+    expect(m.notes.some((n) => n.key === 'tubeFree' && n.parts.includes(braceId))).toBe(false);
+    const chainNodes = new Set(m.anchors[0].chain.flatMap((k) => [m.frame.members[k].i, m.frame.members[k].j]));
+    expect(brace.some(([, k]) => chainNodes.has(m.frame.members[k].i) || chainNodes.has(m.frame.members[k].j))).toBe(true);
+    // pushed (+y, towards the building) it bears, pulled (−y) it is released
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800, keep: true };
+    const r = analyzeScaffoldModel(m, opt);
+    const [sx, sy] = m.anchors[0].strut!.sups;
+    const R = (name: string) => { const c = r.combos.find((q) => q.name === name)!; return [c.reactions![sx], c.reactions![sy]]; };
+    expect(-R('R +y')[1]).toBeGreaterThan(100);
+    expect(R('R −y').map(Math.abs)).toEqual([0, 0]);
+    // as an anchor it holds both ways
+    const ma = model('anchor');
+    expect(ma.anchors[0].strut).toBeUndefined();
+    const ra = analyzeScaffoldModel(ma, opt);
+    const far = ma.frame.members[ma.anchors[0].chain[0]].j;
+    const sa = ma.frame.supports.findIndex((q) => q.node === far && q.dof === 1);
+    expect(Math.abs(ra.combos.find((c) => c.name === 'R −y')!.reactions![sa])).toBeGreaterThan(100);
+  });
+
+  it('toe boards are in the wind by their face', () => {
+    const m = buildScaffoldModel(tower());
+    const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 };
+    const sumX = (mm: typeof m) => {
+      const w = buildLoadCases(mm, opt).wind([1, 0, 0], 0);
+      let x = 0;
+      for (const l of w.member) {
+        const fm = mm.frame.members[l.m];
+        x += l.q[0] * Math.hypot(...[0, 1, 2].map((i) => mm.frame.nodes[fm.j][i] - mm.frame.nodes[fm.i][i]));
+      }
+      for (let n = 0; n < mm.frame.nodes.length; n++) x += w.nodal[n * 6];
+      return x;
+    };
+    const base = sumX(m);
+    const withPlate = { ...m, plates: [...m.plates, { node: 0, ax: 1, ay: 0.5 }] };
+    expect(sumX(withPlate) - base).toBeCloseTo(opt.cf * 1, 6);
+  });
 });
 
 describe('ledger diagonals UBL', () => {

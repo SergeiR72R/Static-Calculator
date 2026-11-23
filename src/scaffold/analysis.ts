@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, bracketZul, jointK, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
+import { CALIB, COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, bracketZul, jointK, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
 
 const G = 9.81;
 
@@ -18,6 +18,8 @@ export interface AnalysisOptions {
   loadClass: number;
   /** loaded deck level (index of model.levels) or −1: the level with the largest deck area */
   level: number;
+  /** service load on every deck level at once (stair towers, as PERI ForceControl loads them) */
+  allLevels?: boolean;
   outdoor: boolean;
   /** velocity pressure of the working wind, N/m² (EN 12811-1: 200) */
   qWork: number;
@@ -322,7 +324,7 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
   const s = emptyLoads3(frame);
   let totalQ = 0;
   for (const d of model.decks) {
-    if (d.level === level) {
+    if (opt.allLevels || d.level === level) {
       totalQ += d.area * opt.p;
       if (d.carrier !== undefined) onCarrier(q, d.carrier, d.area * opt.p);
       else if (d.node !== undefined) q.nodal[d.node * 6 + 2] -= d.area * opt.p;
@@ -350,6 +352,13 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
       const f = opt.cf * (width(k) + 2 * opt.ice);
       if (Math.hypot(...e) > 1e-6) w.member.push({ m: k, q: [e[0] * f, e[1] * f, 0] });
     });
+    // toe boards by their face
+    for (const pl of model.plates ?? []) {
+      const F = CALIB.windPlates * opt.cf * (pl.ax * Math.abs(d[0]) + pl.ay * Math.abs(d[1]));
+      w.nodal[pl.node * 6] += F * d[0];
+      w.nodal[pl.node * 6 + 1] += F * d[1];
+    }
+    h *= CALIB.windStrip;
     // equipment and material on the decks: area of the height h along the deck level, once per level
     model.levels.forEach((_, lv) => {
       const cars = [...new Set(model.decks.filter((x) => x.level === lv && x.carrier !== undefined).map((x) => x.carrier!))];
@@ -741,6 +750,25 @@ function solveCombo(fr: Frame3, model: ScaffoldModel, loads0: Loads3, secondOrde
         bflips[b.sup]++;
         // a base lifted off holds nothing, horizontally neither (as PERI ForceControl)
         supActive[b.sup] = supActive[b.sup + 1] = supActive[b.sup + 2] = want;
+        changed = true;
+      }
+    }
+    // struts against the building: pushing only. Pulled (the building would have to hold the tube)
+    // they are released, across too; pressed against the building again they bear again
+    for (const an of model.anchors) {
+      if (!an.strut) continue;
+      const [sx, sy] = an.strut.sups;
+      const [dx, dy] = an.strut.dir;
+      const on = supActive[sx];
+      const far = frame.supports[sx].node;
+      // reaction into the scaffold (the building pushes) positive; movement towards the building positive
+      const push = r.reactions[sx] * dx + r.reactions[sy] * dy;
+      const toward = -(r.u[far * 6] * dx + r.u[far * 6 + 1] * dy);
+      const want = noLift ? true : on ? !(push < -LIFT_TOL) : toward > 0 && bflips[sx] < BASE_FLIPS;
+      if (on && !want) released = true;
+      if (want !== on) {
+        bflips[sx]++;
+        supActive[sx] = supActive[sy] = want;
         changed = true;
       }
     }

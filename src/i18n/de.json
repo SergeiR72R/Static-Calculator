@@ -1240,6 +1240,7 @@
       "autoYes": "Anker (Zeichnung)",
       "autoNo": "kein Anker (Zeichnung)",
       "optAnchor": "Anker",
+      "optStrut": "Abstützung (nur Druck)",
       "optTube": "kein Anker"
     }
   },
@@ -1452,7 +1453,7 @@
       "anchorRole": {
         "what": "Welche Rohre Anker zum Bauwerk sind. Standard: wie aus der Zeichnung erkannt.",
         "why": "In PERI-CAD-Zeichnungen sind Anker oft als normale Gerüstrohre gezeichnet, und Rohre zur Aufzugsabstützung oder Aussteifung sehen wie Anker aus. Falsche Anker ändern die ganze Berechnung.",
-        "effect": "Das Ankerende am Bauwerk ist in beiden horizontalen Achsen gehalten, quer und parallel zur Fassade, wie in PERI ForceControl. Das Rohr läuft durch alle seine Kupplungen durch; die Kraft jeder Kupplung ist ihr Anteil, Nachweis 13,65 kN (Bemessung). „Kein Anker“: das Rohr ist eine Aussteifung zwischen Stielen."
+        "effect": "Das Ankerende am Bauwerk ist in beiden horizontalen Achsen gehalten, quer und parallel zur Fassade, wie in PERI ForceControl. Das Rohr läuft durch alle seine Kupplungen durch; die Kraft jeder Kupplung ist ihr Anteil, Nachweis 13,65 kN (Bemessung). „Kein Anker“: das Rohr ist eine Aussteifung zwischen Stielen. „Abstützung“ — das Rohr stützt sich am Gebäude ab: nur Druck, bei Zug fällt es aus (wie ein Lager „nur Druck“ in PFC)."
       }
     },
     "designer": {

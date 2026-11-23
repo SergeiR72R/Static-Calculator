@@ -1240,6 +1240,7 @@
       "autoYes": "anchor (drawing)",
       "autoNo": "no anchor (drawing)",
       "optAnchor": "anchor",
+      "optStrut": "strut (pressure only)",
       "optTube": "no anchor"
     }
   },
@@ -1452,7 +1453,7 @@
       "anchorRole": {
         "what": "Which tubes are anchors to the building. By default as recognised from the drawing.",
         "why": "In PERI CAD drawings anchors are often drawn as plain tubes, and the ties of a hoist or bracing tubes look like anchors. Wrong anchors change the whole analysis.",
-        "effect": "The end of an anchor at the building is held in both horizontal axes, across and along the facade, as in PERI ForceControl. The tube runs continuous through all its couplers; the force of each coupler is its share, checked against 13.65 kN (design). \"Not an anchor\": the tube is bracing between standards."
+        "effect": "The end of an anchor at the building is held in both horizontal axes, across and along the facade, as in PERI ForceControl. The tube runs continuous through all its couplers; the force of each coupler is its share, checked against 13.65 kN (design). \"Not an anchor\": the tube is bracing between standards. \"Strut\" — the tube bears against the building: it takes pressure only and is released when pulled (as a compression-only support in PFC)."
       }
     },
     "designer": {

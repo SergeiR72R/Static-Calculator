@@ -8,7 +8,7 @@ import { X_TOL } from './types';
 import { findPeriProduct, girderSupport, periInteraction, rcsInteraction, rcsResistances } from '../sections/peri';
 import { analyzeLattice, characteristicCombination, latticeEnvelope, latticeOf, type LatticeMode } from './lattice';
 import { flexElements, flexLength, type MemberRole } from '../sections/lattice';
-import { findFlexConfig, flexTableCheck, type FlexTableLoad, type PeriParts } from './latticePeri';
+import { findFlexConfig, flexTableApplies, flexTableCheck, type FlexTableLoad, type PeriParts } from './latticePeri';
 import { flexConnectors } from './latticeLayout';
 
 export interface StressCheck {
@@ -154,6 +154,9 @@ export function strengthCheck(prep: Prepared, b: Basis): StressCheck | null {
   for (let k = 0; k < b.grid.x.length; k++) {
     const ei = b.grid.elem[k];
     if (periOf(prep, ei)) continue;
+    // a section without its moduli (entered by hand, W = 0): no strength check (σ would lack M / W)
+    const sec = prep.mesh.elements[ei].section;
+    if (!(sec.Wtop > 0) || !(sec.Wbot > 0)) continue;
     const fd = designStrength(prep.mesh.elements[ei].material);
     const s = b.max.sigma[k];
     const eta = s / fd;
@@ -397,8 +400,12 @@ function latticeChecks(an: Analysis, out: Checks, view: ViewResult) {
   if (def.id === 'ULSFLEX') {
     const el = flexElements(def.cfg, an.model.L);
     const conf = findFlexConfig(el);
-    const fc = conf ? flexTableCheck(an.model, conf, flexConnectors(el), ulsUsed) : null;
-    if (fc) {
+    // outside the scope of the table (supports, moments, axial or lifting loads): the member checks
+    const inScope = flexTableApplies(an.model, ulsUsed);
+    const fc = conf && inScope ? flexTableCheck(an.model, conf, flexConnectors(el), ulsUsed) : null;
+    if (conf && !inScope) {
+      // no table item: the members below decide
+    } else if (fc) {
       flexEta = fc.eta;
       items.push({ key: 'flexTable', Ed: fc.eta, Rd: 1, eta: fc.eta, x: 0, flex: { span: conf!.span, elements: conf!.elements, qEd: fc.qEd, qRd: fc.qRd, loads: fc.loads, combo: fc.combo } });
     } else items.push({ key: 'flexTable', Ed: 0, Rd: 1, eta: 0, x: 0, flex: { span: flexLength(el), elements: el.map((e) => Math.round(e * 100)), qEd: 0, qRd: 0, loads: [], combo: '', missing: true } });

@@ -162,6 +162,19 @@ export function validateModel(model: BeamModel): Issue[] {
     issues.push(err('settings.deflLimitCantilever', 'err.positive'));
   if (st.selfWeight && !model.loadCases.some((c) => c.category === 'G'))
     issues.push({ path: 'settings.selfWeight', key: 'warn.noGCase', severity: 'warning' });
+  // loads in a load case that no ULS combination carries: they would not be in the checks
+  const uls = model.combinations.filter((c) => c.type === 'ULS');
+  if (uls.length) {
+    const loaded = new Set(model.loads.map((l) => l.caseId));
+    const out = model.loadCases.filter((c) => loaded.has(c.id) && !uls.some((u) => (u.factors[c.id] ?? 0) !== 0)).map((c) => c.id);
+    if (out.length) issues.push({ path: 'combinations', key: 'warn.caseNotCombined', params: { cases: out.join(', ') }, severity: 'warning' });
+  }
+  // a section entered by hand without its moduli: no strength check
+  for (const sg of model.segments)
+    if (sg.section.kind === 'manual' && (!(sg.section.Wtop > 0) || !(sg.section.Wbot > 0))) {
+      issues.push({ path: `segments.${sg.id}.section`, key: 'warn.noSectionModulus', severity: 'warning' });
+      break;
+    }
   latticeIssues(model, issues);
   return issues;
 }

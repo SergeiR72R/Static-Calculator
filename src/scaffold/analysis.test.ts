@@ -463,6 +463,26 @@ describe('scaffold analysis', () => {
     expect(f.sups.map((q) => q.dir)).toEqual(['x', 'y']);
   });
 
+  it('notional horizontal load: per bay 2.5 % of its service load, at least 0.3 kN (EN 12811-1, 6.2.3)', () => {
+    const m = buildScaffoldModel(tower());
+    const sumX = (p: number) => {
+      const lc = buildLoadCases(m, { ...DEFAULT_ANALYSIS, outdoor: false, p, level: 0 });
+      const w = lc.notional([1, 0, 0]);
+      let x = 0;
+      for (let n = 0; n < m.frame.nodes.length; n++) x += w.nodal[n * 6];
+      return { x, Q: lc.totalQ, bays: new Set(m.decks.filter((d) => d.level === 0).map((d) => d.bay)).size };
+    };
+    // two bays of 2 × 2 m with 2 kN/m²: 2.5 % of 8 kN is below 0.3 kN in each
+    const a = sumX(2000);
+    expect(a.bays).toBe(2);
+    expect(a.Q).toBeGreaterThan(15000);
+    expect(a.Q).toBeLessThan(16100);
+    expect(a.x).toBeCloseTo(2 * 300, 6);
+    // 6 kN/m²: 2.5 % of 24 kN per bay
+    const b = sumX(6000);
+    expect(b.x).toBeCloseTo(0.025 * b.Q, 6);
+  });
+
   it('toe boards are in the wind by their face', () => {
     const m = buildScaffoldModel(tower());
     const opt = { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 };

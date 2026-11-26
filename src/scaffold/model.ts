@@ -99,6 +99,8 @@ export interface DeckShare {
   node?: number;
   area: number;
   kg: number;
+  /** the bay of the deck: the carriers it lies on (decks on the same carriers share a bay) */
+  bay?: string;
 }
 
 export interface ScaffoldModel {
@@ -195,7 +197,13 @@ function standardVariant(w: WorldPart, rosette6 = false): Variant {
 
 function ledgerType(w: WorldPart): { head: LedgerHead; sec: keyof typeof LEDGERS } {
   const t = `${w.part.name} ${w.part.desc}`;
-  if (/UH[VA]?-2/i.test(t)) return { head: 'PLUS', sec: 'r24' };
+  // UH-2: wall 2.0 mm (approval tables 1 / 2, detail p. 16; the weights of the parts list agree) but for
+  // UH-2 100 / 125 / 133 and the reinforced UHV-2 (2.4 mm, S460)
+  if (/UHV-2/i.test(t)) return { head: 'PLUS', sec: 'r24' };
+  if (/UH[A]?-2/i.test(t)) {
+    const n = Number(/UH[A]?-2\s*(\d{2,3})/i.exec(t)?.[1]);
+    return { head: 'PLUS', sec: n === 100 || n === 125 || n === 133 ? 'r24' : 'r20' };
+  }
   if (/\+|plus|UHV/i.test(t)) {
     // UH Plus 100 / 125 and UHV: wall 3 mm (from the weights of the parts list), else 2 mm
     const n = Number(/(\d{2,3})/.exec(w.part.name)?.[1]);
@@ -1737,11 +1745,12 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       if (best) found.push(best);
     }
     if (found.length) {
-      for (const c of found) decks.push({ level: lv, carrier: carrierIndex.get(c)!, area: area / found.length, kg: kg / found.length });
+      const bay = found.map((c) => carrierIndex.get(c)!).sort((a, b) => a - b).join('-');
+      for (const c of found) decks.push({ level: lv, carrier: carrierIndex.get(c)!, area: area / found.length, kg: kg / found.length, bay });
       if (found.length === 1) note('deckOneSupport', w.part.id);
     } else {
       const n = nearestNode([(w.min[0] + w.max[0]) / 2, (w.min[1] + w.max[1]) / 2, z], 2);
-      if (n >= 0) decks.push({ level: lv, node: n, area, kg });
+      if (n >= 0) decks.push({ level: lv, node: n, area, kg, bay: `n${n}` });
       else lostKg += kg;
       note('deckNoSupport', w.part.id);
     }

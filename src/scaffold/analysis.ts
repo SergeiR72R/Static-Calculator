@@ -418,15 +418,29 @@ export function buildLoadCases(model: ScaffoldModel, opt: AnalysisOptions) {
     });
     return w;
   };
-  /** notional horizontal load: 2.5 % of the service load (at least 0.3 kN) at the loaded level */
+  /**
+   * notional horizontal load (EN 12811-1, 6.2.3): for every bay of the loaded level 2.5 % of its service
+   * load, at least 0.3 kN, at the level of the decks
+   */
   const notional = (d: V3): Loads3 => {
     const w = emptyLoads3(frame);
-    const cars = [...new Set(model.decks.filter((x) => x.level === level && x.carrier !== undefined).map((x) => x.carrier!))];
-    const ns = [...new Set(cars.flatMap((c) => model.carriers[c].members.flatMap((m) => [frame.members[m].i, frame.members[m].j])))];
-    const F = Math.max(0.025 * totalQ, totalQ > 0 ? 300 : 0);
-    for (const n of ns) {
-      w.nodal[n * 6] += (F / ns.length) * d[0];
-      w.nodal[n * 6 + 1] += (F / ns.length) * d[1];
+    if (!(opt.p > 0)) return w;
+    const bays = new Map<string, { Q: number; nodes: Set<number> }>();
+    for (const x of model.decks) {
+      if (!(opt.allLevels || x.level === level)) continue;
+      const key = x.bay ?? (x.carrier !== undefined ? `c${x.carrier}` : `n${x.node}`);
+      const b = bays.get(key) ?? bays.set(key, { Q: 0, nodes: new Set() }).get(key)!;
+      b.Q += x.area * opt.p;
+      if (x.carrier !== undefined) for (const m of model.carriers[x.carrier].members) b.nodes.add(frame.members[m].i).add(frame.members[m].j);
+      else if (x.node !== undefined) b.nodes.add(x.node);
+    }
+    for (const b of bays.values()) {
+      if (!b.nodes.size || !(b.Q > 0)) continue;
+      const F = Math.max(0.025 * b.Q, 300) / b.nodes.size;
+      for (const n of b.nodes) {
+        w.nodal[n * 6] += F * d[0];
+        w.nodal[n * 6 + 1] += F * d[1];
+      }
     }
     return w;
   };
@@ -540,6 +554,8 @@ export function buildCombos(model: ScaffoldModel, opt: AnalysisOptions): { combo
       addScaled(c, lc.wind(d, 0.2), GAMMA_F * opt.qMax);
       if (psi) addScaled(c, swayOf(v, psi, d, model), 1);
       addScaled(c, lc.userH('G', d), GAMMA_F);
+      // horizontal service loads of the user: the share as the vertical ones
+      addScaled(c, lc.userH('Q', d), GAMMA_F * share);
       addScaled(c, lc.userH('G', d, 'rest'), GAMMA_F);
       addScaled(c, lc.userH('Q', d, 'rest'), GAMMA_F);
       combos.push({ name: `R ${dn}`, loads: c, dir: d });

@@ -512,6 +512,15 @@ function designMembersPeri(la: LatticeAnalysis, r: FrameResult): MemberDesign[] 
   // Euler case 2 with the distance of the restraints as buckling length, curve b, γ_M1 = 1.1)
   const chordOf = new Map<number, 0 | 1>();
   for (const c of [0, 1] as const) for (const k of chordMembers(lm, c)) chordOf.set(k, c);
+  // x of the joints of the web members (diagonals, posts) on each chord, sorted
+  const chordNodes = [new Set<number>(), new Set<number>()];
+  for (const c of [0, 1] as const) for (const k of chordMembers(lm, c)) chordNodes[c].add(lm.members[k].i).add(lm.members[k].j);
+  const webJoints: [number[], number[]] = [[], []];
+  for (const wm of lm.members) {
+    if (wm.role === 'top' || wm.role === 'bottom' || wm.role === 'std') continue;
+    for (const n of [wm.i, wm.j]) for (const c of [0, 1] as const) if (chordNodes[c].has(n)) webJoints[c].push(lm.nodes[n].x);
+  }
+  for (const c of [0, 1] as const) webJoints[c] = [...new Set(webJoints[c].map((x) => Math.round(x * 1e6) / 1e6))].sort((p, q) => p - q);
   return lm.members.map((m, k) => {
     const xi = lm.nodes[m.i].x;
     const xj = lm.nodes[m.j].x;
@@ -527,7 +536,10 @@ function designMembersPeri(la: LatticeAnalysis, r: FrameResult): MemberDesign[] 
     if (ch !== undefined && Nc < 0) {
       const xm = (xi + xj) / 2;
       const [a, b] = interval(lm.restraints[ch], xm, lm.L);
-      const Lcr = b - a;
+      // out of the plane of the girder between the lateral restraints; in its plane between the joints
+      // of the web members on the chord: the longer of the two
+      const [pa, pb] = interval(webJoints[ch], xm, lm.L);
+      const Lcr = Math.max(b - a, pb - pa);
       if (Lcr > 0) {
         const bk = standardBuckling(Lcr);
         const eta = -Nc / bk.NRd;

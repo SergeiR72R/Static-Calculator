@@ -15,6 +15,17 @@ describe('parametric sections', () => {
     expect(rel(p.zTop, 0.1)).toBeLessThan(1e-12);
   });
 
+  it('tee with the neutral axis in the flange: the shear stress governs in the web at the flange', () => {
+    // h 150, b 200, tw 10, tf 30 mm: z_c = 27.5 mm < tf
+    const p = sectionProps({ kind: 'tee', h: 0.15, b: 0.2, tw: 0.01, tf: 0.03 });
+    expect(p.zc).toBeCloseTo(0.0275, 6);
+    const sWeb = 0.01 * 0.12 * (0.03 + 0.06 - p.zc);
+    expect(p.bNA).toBe(0.01);
+    expect(rel(p.S, sWeb)).toBeLessThan(1e-12);
+    // τ = V·S / (I·tw) for V = 90 kN: 89.8 MPa
+    expect((90e3 * p.S) / (p.I * p.bNA) / 1e6).toBeCloseTo(89.8, 0);
+  });
+
   it('circle and tube', () => {
     const c = sectionProps({ kind: 'circle', D: 0.1 });
     expect(rel(c.A, (Math.PI * 0.01) / 4)).toBeLessThan(1e-12);

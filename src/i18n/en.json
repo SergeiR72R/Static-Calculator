@@ -381,6 +381,8 @@
     "springZero": "Spring support without stiffness.",
     "illConditioned": "Stiffness matrix is ill-conditioned (κ ≈ {cond}). Please check the results.",
     "noGCase": "No load case of category G – the self weight is not applied.",
+    "caseNotCombined": "Load cases {cases} carry loads but are in no ULS combination — they are not in the checks. Add their factors to the combinations.",
+    "noSectionModulus": "A section entered by hand has no section moduli W — no strength check.",
     "latticeMixed": "Lattice girder: the beam must consist of one lattice girder only – no member model check.",
     "latticeLength": "Lattice girder: the length is not a catalogue length ({lengths} m); the nodes are arranged from the girder end.",
     "flexLength": "ULS Flex: the elements give the system length {L} m, not the beam length."

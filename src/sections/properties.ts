@@ -67,8 +67,17 @@ export function teeProps(h: number, b: number, tw: number, tf: number): SectionP
     S = Af * (zc - tf / 2) + (tw * (zc - tf) ** 2) / 2;
     bNA = tw;
   } else {
-    S = (b * (tf - zc) ** 2) / 2 + Aw * (tf + hw / 2 - zc);
-    bNA = b;
+    // neutral axis in the flange: the largest shear stress is in the web at the flange (first moment
+    // of the web about the neutral axis over the web thickness), not at the neutral axis
+    const sNA = (b * (tf - zc) ** 2) / 2 + Aw * (tf + hw / 2 - zc);
+    const sWeb = Aw * (tf + hw / 2 - zc);
+    if (sWeb / tw >= sNA / b) {
+      S = sWeb;
+      bNA = tw;
+    } else {
+      S = sNA;
+      bNA = b;
+    }
   }
   const zTop = zc;
   const zBot = h - zc;

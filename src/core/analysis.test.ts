@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { testModel, solve, rel, EI, E } from './testutil';
 import { udl, pointLoad, momentLoad } from './defaults';
 import { analyze } from './analysis';
+import { runChecks } from './checks';
+import { computeView } from './results';
 import { equilibrium } from './postprocess';
 import { equivalentNodalLoads, localStiffness, fixedEndState } from './element';
 import type { Load } from './types';
@@ -363,3 +365,32 @@ function gauss(f: (x: number) => number, a: number, b: number): number {
   }
   return s;
 }
+
+describe('audit: extremes, warnings', () => {
+  it('maximum moment of a nearly uniform load built from two triangles (stable roots)', () => {
+    // fixed – roller, L = 18 ft, two opposite triangular loads of 200 plf (sum uniform), extra nodes
+    const ft = 0.3048;
+    const plf = 14.5939 / 1e3; // kN/m per plf
+    const L = 18 * ft;
+    const q = 200 * plf;
+    const s = solve(testModel(L, [['fixed', 0], ['roller', L]], [udl('G', 0, L, 0, q), udl('G', 0, L, q, 0), pointLoad('Q', 2 * ft, 1), pointLoad('Q', 16 * ft, 1)]));
+    close(s.vr.extremes.M.max.value, (9 * q * kN * L * L) / 128, 1e-6);
+    close(s.vr.extremes.M.max.x, (5 * L) / 8, 1e-6);
+  });
+
+  it('warnings: loads in a case of no ULS combination; a section by hand without its moduli gets no strength check', () => {
+    const m = testModel(6, [['pinned', 0], ['roller', 6]], [udl('S', 0, 6, 100)]);
+    const an = analyze(m);
+    expect(an.warnings.map((w) => w.key)).toContain('warn.caseNotCombined');
+    const m2 = testModel(6, [['pinned', 0], ['roller', 6]], [udl('G', 0, 6, 50)], { edit: (x) => { x.segments[0].section = { kind: 'manual', A: 5e-3, I: 5e-5, Wtop: 0, Wbot: 0, As: 0 }; } });
+    const an2 = analyze(m2);
+    expect(an2.warnings.map((w) => w.key)).toContain('warn.noSectionModulus');
+    const vr = computeView(an2, { type: 'case', id: 'G' })!;
+    expect(runChecks(an2, vr)?.strength ?? null).toBeNull();
+  });
+
+  it('points closer than a micrometre are one node (no false mechanism)', () => {
+    const s = solve(testModel(6, [['pinned', 0], ['roller', 6]], [pointLoad('G', 3, 10), pointLoad('G', 3 + 2e-8, 10)]));
+    close(s.vr.extremes.M.max.value, (20 * kN * 6) / 4, 1e-6);
+  });
+});

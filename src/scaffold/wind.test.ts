@@ -20,6 +20,18 @@ describe('German wind zones by administrative boundaries (DIBt table)', () => {
     // Landkreis Stade: zone 3, the area Kehdingen (Freiburg, Balje, …) zone 4
     expect(germanWindZone({ state: 'Niedersachsen', county: 'Landkreis Stade', town: 'Balje' })).toMatchObject({ zone: 4, sure: true });
     expect(germanWindZone({ state: 'Niedersachsen', county: 'Landkreis Stade', town: 'Buxtehude' })).toMatchObject({ zone: 3, sure: false });
+    // a district whose table rows are a part ("alle Gemeinden in den Amtsgebieten …", zone 2) and the
+    // rest ("alle Gemeinden, soweit nicht Windzone 2", zone 3): the rest is the general rule
+    expect(germanWindZone({ state: 'Mecklenburg-Vorpommern', county: 'Landkreis Rostock', town: 'Bad Doberan' })).toMatchObject({ zone: 3, sure: false });
+    expect(germanWindZone({ state: 'Mecklenburg-Vorpommern', county: 'Nordwestmecklenburg', town: 'Grevesmühlen' })).toMatchObject({ zone: 3, sure: false });
+    // towns listed by their own name
+    expect(germanWindZone({ state: 'Mecklenburg-Vorpommern', town: 'Rostock' })).toMatchObject({ zone: 3, sure: true });
+    expect(germanWindZone({ state: 'Mecklenburg-Vorpommern', county: 'Nordwestmecklenburg', town: 'Wismar' })).toMatchObject({ zone: 3, sure: true });
+    expect(germanWindZone({ state: 'Mecklenburg-Vorpommern', county: 'Landkreis Rostock', town: 'Güstrow' })).toMatchObject({ zone: 2, sure: true });
+    // a municipality with a name of several words in a remark
+    expect(germanWindZone({ state: 'Niedersachsen', county: 'Landkreis Göttingen', town: 'Bad Sachsa' })).toMatchObject({ zone: 2, sure: true });
+    expect(germanWindZone({ state: 'Niedersachsen', county: 'Landkreis Hameln-Pyrmont', town: 'Bad Münder' })).toMatchObject({ zone: 2, sure: true });
+    expect(germanWindZone({ state: 'Niedersachsen', county: 'Landkreis Göttingen', town: 'Göttingen' })).toMatchObject({ zone: 1, sure: false });
     // Kreis Ostallgäu: zone 1 for the named municipalities, zone 2 for the others
     expect(germanWindZone({ state: 'Bayern', district: 'Schwaben', county: 'Landkreis Ostallgäu', town: 'Füssen' })).toMatchObject({ zone: 1, sure: true });
     expect(germanWindZone({ state: 'Bayern', district: 'Schwaben', county: 'Landkreis Ostallgäu', town: 'Buchloe' })).toMatchObject({ zone: 2, sure: false });

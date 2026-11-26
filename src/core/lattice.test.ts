@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptyLoad, frameSolver, MEMBER_SAMPLES } from './frame2d';
 import { testModel } from './testutil';
-import { pointLoad, udl } from './defaults';
+import { momentLoad, pointLoad, udl } from './defaults';
 import { analyze } from './analysis';
 import { analyzeLattice, latticeEnvelope, latticeView } from './lattice';
 import { runChecks } from './checks';
@@ -144,6 +144,45 @@ describe('lattice design against the PERI tables (Tabellenbuch PERI UP, S. 50–
     const e1 = latticeEnvelope(an1, analyzeLattice(an1)!, m1.combinations.filter((c) => c.type === 'ULS'), [], undefined);
     const top = (e: typeof env) => Math.max(...e.members.filter((d) => d.mode === 'periBuckling').map((d) => d.eta), 0);
     expect(top(e1)).toBeLessThan(top(env));
+  });
+
+  it('ULS chords: in the plane of the girder they buckle between the web joints, however close the restraints', () => {
+    const run = (a: number) => {
+      const m = girder('ULS50', 6.25, [0.125, 6.125], [pointLoad('Q', 3.125, 23.2)], { restraint: a, eccentric: false });
+      const an = analyze(m);
+      const env = latticeEnvelope(an, analyzeLattice(an)!, m.combinations.filter((c) => c.type === 'ULS'), [], undefined);
+      return env.members.filter((d) => d.mode === 'periBuckling');
+    };
+    // restraints every 0.25 m: the buckling length stays the distance of the web joints (1 m)
+    const close = run(0.25);
+    expect(close.length).toBeGreaterThan(0);
+    expect(Math.min(...close.map((d) => d.Lcr!))).toBeGreaterThanOrEqual(0.99);
+    expect(Math.max(...close.map((d) => d.eta))).toBeCloseTo(Math.max(...run(1).map((d) => d.eta)), 6);
+  });
+
+  it('ULS chord check: the moment is not dropped at a shear force above 0.9 V_Rd', () => {
+    const lo = periChordCheck(0, 0.89 * 48.5 * kN, 1 * kN).eta;
+    const hi = periChordCheck(0, 0.95 * 48.5 * kN, 1 * kN).eta;
+    expect(hi).toBeGreaterThan(lo);
+    expect(periChordCheck(0, 0.95 * 48.5 * kN, 0).eta).toBeCloseTo(0.95, 6);
+  });
+
+  it('ULS Flex: the table of permissible loads only for a girder on its ends under downward loads — else the members', () => {
+    const eta = (m: ReturnType<typeof girder>) => {
+      const an = analyze(m);
+      const c = runChecks(an, computeView(an, { type: 'envelope' })!)!;
+      return { eta: c.peri[0].eta, table: c.peri[0].items.some((i) => i.key === 'flexTable'), members: c.peri[0].items.filter((i) => i.key !== 'flexTable').length };
+    };
+    // a moment at midspan: outside the table, the members decide (far over 1)
+    const mom = eta(girder('ULSFLEX', 4, [0, 4], [momentLoad('Q', 2, 30)], { flex: [1, 1, 1] }));
+    expect(mom.table).toBe(false);
+    expect(mom.members).toBeGreaterThan(0);
+    expect(mom.eta).toBeGreaterThan(1);
+    // a cantilever (supports at 0 and 1 m) and a lifting load: outside the table too
+    expect(eta(girder('ULSFLEX', 4, [0, 1], [udl('Q', 0, 4, 5.42)], { flex: [1, 1, 1] })).table).toBe(false);
+    expect(eta(girder('ULSFLEX', 4, [0, 4], [udl('Q', 0, 4, -20)], { flex: [1, 1, 1] })).eta).toBeGreaterThan(1);
+    // within the table: as before
+    expect(eta(girder('ULSFLEX', 4, [0, 4], [udl('Q', 0, 4, 2)], { flex: [1, 1, 1] })).table).toBe(true);
   });
 
   it('larger restraint spacing (out-of-plane buckling L_cr = a): on the safe side of the table', () => {

@@ -37,9 +37,10 @@ export function snowShape(alphaDeg: number): number {
 /** peak velocity pressure after DIN EN 1991-1-4/NA, mixed profile (annex NA.B.3.3), N/m² */
 export function qpProfileDE(zone: number, exposure: ExposureDE, z: number): number {
   const qb = QB_DE[zone] ?? QB_DE[1];
-  if (exposure === 'coast' && zone > 1) return z <= 4 ? 1.8 * qb : 2.3 * qb * (Math.min(z, 50) / 10) ** 0.27;
+  // above 50 m the profiles go on with their upper branch (up to 300 m)
+  if (exposure === 'coast' && zone > 1) return z <= 4 ? 1.8 * qb : z <= 50 ? 2.3 * qb * (z / 10) ** 0.27 : 2.6 * qb * (z / 10) ** 0.19;
   if (exposure === 'island') return z <= 2 ? 1.1 * 1e3 : 1.5 * 1e3 * (z / 10) ** 0.19;
-  return z <= 7 ? 1.5 * qb : 1.7 * qb * (Math.min(z, 50) / 10) ** 0.37;
+  return z <= 7 ? 1.5 * qb : z <= 50 ? 1.7 * qb * (z / 10) ** 0.37 : 2.1 * qb * (z / 10) ** 0.24;
 }
 
 /** reduction of the wind for temporary states (DIN EN 1991-1-4/NA, table NA.B.5): duration × measures */

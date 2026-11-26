@@ -219,4 +219,4 @@ export interface Issue {
 
 export const G_ACC = 9.81;
 /** merge tolerance for characteristic points, m */
-export const X_TOL = 1e-9;
+export const X_TOL = 1e-6;

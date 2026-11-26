@@ -170,8 +170,14 @@ function quadRoots(a: number, b: number, c: number): number[] {
   if (Math.abs(a) < 1e-300) return Math.abs(b) > 1e-300 ? [-c / b] : [];
   const D = b * b - 4 * a * c;
   if (D < 0) return [];
-  const s = Math.sqrt(D);
-  return [(-b + s) / (2 * a), (-b - s) / (2 * a)];
+  // stable form (no cancellation when |a| ≪ |b|, a load that is nearly uniform): q = −(b + sgn(b)·√D)/2,
+  // roots q / a and c / q
+  const q = -(b + (b >= 0 ? 1 : -1) * Math.sqrt(D)) / 2;
+  const roots: number[] = [];
+  if (Math.abs(q) > 1e-300) roots.push(c / q);
+  const r2 = q / a;
+  if (Number.isFinite(r2)) roots.push(r2);
+  return roots;
 }
 
 function emptyExtremes(): Extremes {

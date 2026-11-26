@@ -381,6 +381,8 @@
     "springZero": "Federlager ohne Federsteifigkeit.",
     "illConditioned": "Steifigkeitsmatrix schlecht konditioniert (κ ≈ {cond}). Ergebnisse prüfen.",
     "noGCase": "Kein Lastfall der Kategorie G vorhanden – Eigengewicht wird nicht angesetzt.",
+    "caseNotCombined": "Lastfälle {cases} haben Lasten, sind aber in keiner GZT-Kombination — sie fehlen in den Nachweisen. Faktoren in den Kombinationen ergänzen.",
+    "noSectionModulus": "Ein von Hand eingegebener Querschnitt hat keine Widerstandsmomente W — kein Spannungsnachweis.",
     "latticeMixed": "Gitterträger: der Träger muss vollständig aus einem Gitterträger bestehen – Stabwerksnachweis entfällt.",
     "latticeLength": "Gitterträger: Länge ist keine Katalog-Länge ({lengths} m); die Knoten werden vom Trägerende aus angeordnet.",
     "flexLength": "ULS Flex: die Elemente ergeben die Systemlänge {L} m, nicht die Trägerlänge."

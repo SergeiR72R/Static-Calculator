@@ -23,7 +23,7 @@
  *    single loads at the positions A, B, … (connectors from the left); design values ×1.5; the
  *    resistances include the self weight and decks UDG.
  */
-import type { Load } from './types';
+import type { BeamModel, Load } from './types';
 
 const kN = 1e3;
 const kNcm = 10;
@@ -54,19 +54,45 @@ export function periChordCheck(N: number, V: number, M: number): { eta: number; 
   if (v <= 1 / 3 && n <= 0.1) {
     m = Ma / R;
     c = 1;
-  } else if (v > 1 / 3 && v <= 0.9 && n <= 0.1) {
+  } else if (v > 1 / 3 && v < 1 && n <= 0.1) {
+    // the reduction by the shear force goes on up to v = 1 (the report gives it up to 0.9; above it the
+    // moment must not be dropped)
     m = Ma / (R * Math.sqrt(1 - v * v));
     c = 2;
   } else if (v <= 1 / 3 && n > 0.1 && n <= 1) {
     m = Ma / (R * Math.cos((Math.PI * n) / 2));
     c = 3;
-  } else if (v > 1 / 3 && v <= 0.9 && n > 0.1 && n <= 1) {
+  } else if (v > 1 / 3 && v < 1 && n > 0.1 && n <= 1) {
     const r = Math.sqrt(1 - v * v);
     const k = (Math.PI * n) / (2 * r);
     m = k >= Math.PI / 2 ? Infinity : Ma / (R * r * Math.cos(k));
     c = 4;
-  } else m = n > 1 || v > 0.9 ? Math.max(n, v) : 0;
+  } else m = Ma > 1e-9 ? Infinity : Math.max(n, v);
   return { eta: Math.max(n, v, m), parts: { n, v, m, case: c } };
+}
+
+/**
+ * The table of permissible loads of ULS Flex (PI 550) holds for a girder on its two ends under loads
+ * acting downwards. Other supports (cantilevers, inner supports), moments, axial or lifting loads are
+ * outside it: the members are checked then.
+ */
+export function flexTableApplies(model: BeamModel, combos: { factors: Record<string, number> }[]): boolean {
+  const xs = model.supports.map((s) => s.x).sort((a, b) => a - b);
+  if (xs.length !== 2 || Math.abs(xs[0]) > 0.05 || Math.abs(xs[1] - model.L) > 0.05) return false;
+  for (const l of model.loads) {
+    const fs = combos.map((c) => c.factors[l.caseId] ?? 0).filter((f) => f !== 0);
+    if (!fs.length) continue;
+    if (fs.some((f) => f < 0)) return false;
+    if (l.kind === 'moment') {
+      if (l.M !== 0) return false;
+    } else if (l.kind === 'dist') {
+      if (l.dir !== 'z' ? l.q1 !== 0 || l.q2 !== 0 : Math.min(l.q1, l.q2) < 0) return false;
+    } else if (l.kind === 'point') {
+      const a = (((l.angle % 360) + 360) % 360) * (Math.PI / 180);
+      if (l.P * Math.sin(a) < 0 || Math.abs(l.P * Math.cos(a)) > 1e-6 * Math.max(Math.abs(l.P), 1)) return false;
+    }
+  }
+  return true;
 }
 
 /** ULS diagonal: cross-section check of the PERI report (in-plane: V_z, M_y; out of plane: V_y, M_z) */

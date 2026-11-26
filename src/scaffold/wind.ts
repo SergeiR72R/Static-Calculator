@@ -66,6 +66,9 @@ export function germanWindZone(a: Admin): ZoneResult | null {
   if (!state) return null;
   const rows = STATES[state];
   let hit = rows.filter((r) => names(r[0]).some((n) => cand.includes(n)));
+  // a town listed by its own name without any remark (e.g. "Rostock, Stralsund, Wismar")
+  const own = town ? hit.find((r) => !r[2] && !r[3].length && names(r[0]).includes(town)) : undefined;
+  if (own) return { zone: own[1], sure: true, rows: [`${own[0]}: Windzone ${own[1]}`] };
   // most specific first: a county before a district
   const byCounty = hit.filter((r) => names(r[0]).includes(norm(a.county ?? a.town ?? '')));
   if (byCounty.length) hit = byCounty;
@@ -75,13 +78,16 @@ export function germanWindZone(a: Admin): ZoneResult | null {
   const opts = hit.flatMap((r) => [[r[1], r[2]] as [number, string], ...r[3]]);
   const text = hit.flatMap((r) => [`${r[0]}: Windzone ${r[1]}${r[2] ? ` – ${r[2]}` : ''}`, ...r[3].map((x) => `… Windzone ${x[0]} – ${x[1]}`)]);
   if (opts.length === 1 && !/soweit nicht|ausnahme|teile/i.test(opts[0][1])) return { zone: opts[0][0], sure: true, rows: text };
-  // the municipality named in a remark
+  // the general rule of a district: "alle Gemeinden" with nothing but "soweit nicht …" after it (a remark
+  // "alle Gemeinden in den Amtsgebieten …" names a part of the district)
+  const isGeneral = (remark: string) => /^(jeweils )?alle (samtgemeinden\/)?gemeinden(,? soweit nicht.*)?$/i.test(remark.trim());
+  // the municipality named in a remark (names of several words too: "Stadt Bad Sachsa")
   if (town) {
-    const named = opts.find((o) => !/^alle gemeinden/i.test(o[1]) && norm(o[1]).split(' ').includes(town));
+    const named = opts.find((o) => !isGeneral(o[1]) && ` ${norm(o[1])} `.includes(` ${town} `));
     if (named) return { zone: named[0], sure: true, rows: text };
   }
-  // otherwise the general rule of the district ("alle Gemeinden, soweit nicht …"), to be confirmed
-  const general = opts.find((o) => /^(jeweils )?alle gemeinden/i.test(o[1])) ?? opts[0];
+  // otherwise the general rule of the district, to be confirmed; without one the highest zone listed
+  const general = opts.find((o) => isGeneral(o[1])) ?? opts.reduce((a, b) => (b[0] > a[0] ? b : a));
   return { zone: general[0], sure: false, rows: text };
 }
 

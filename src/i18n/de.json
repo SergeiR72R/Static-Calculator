@@ -1149,6 +1149,7 @@
       "notes": "Annahmen des Modells",
       "note": {
         "beamAssumed": "Träger SRU / RCS ohne Auflager in der Zeichnung ({n}) – an den Enden auf dem Bauwerk gelagert angenommen.",
+        "diagonalTable": "Diagonalen, deren Feld nicht in den Tabellen der Zulassung steht ({n}): Steifigkeit und Beanspruchbarkeit der nächsten Zeile — prüfen.",
         "beamNoSupport": "Träger SRU / RCS mit zu wenig Auflagern ({n}): die Trägerauflager sind von Hand gesetzt — „Befestigungen am Bauwerk“ prüfen.",
         "diagonalFree": "Diagonalen, deren Enden nicht an Stielen liegen ({n}) – nicht angesetzt.",
         "diagonalType": "Diagonalen unbekannter Art ({n}: {names}) – nicht angesetzt.",

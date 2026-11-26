@@ -412,6 +412,8 @@ export interface DiagonalData {
   nC: number;
   /** slack, m */
   slack: number;
+  /** the bay is not in the table of the approval: the values of the nearest row */
+  approx?: boolean;
 }
 
 // L, H [m]; tension R8: EA [kN], N_Rd [kN]; tension R6; compression R8; compression R6
@@ -500,6 +502,8 @@ const UBH: number[][] = [
 function nearestRow(t: number[][], L: number, H: number): number[] {
   return t.reduce((a, b) => (Math.abs(b[0] - L) + Math.abs(b[1] - H) < Math.abs(a[0] - L) + Math.abs(a[1] - H) ? b : a));
 }
+/** the bay L × H is more than 6 cm off the row taken for it */
+const offRow = (r: number[], L: number, H: number) => (Math.abs(r[0] - L) > 0.06 || Math.abs(r[1] - H) > 0.06 ? { approx: true } : {});
 
 // annex A, table A.1 (UBK) and A.2 (UBK-2), same columns as table 15; with the static model of annex A
 // pages 20 / 21 (diagonal head e_x = 8.3 cm beside the standard, e_y = 3.6 cm (UBK) / 5.0 cm (UBK-2))
@@ -564,14 +568,14 @@ export const UBK_HEAD = { ex: 0.083, ey: 0.036, ey2: 0.05 };
 export function ubkData(L: number, H: number, r6: boolean, annexA?: { ubk2: boolean }): DiagonalData {
   const r = nearestRow(annexA ? (annexA.ubk2 ? UBK_A2 : UBK_A1) : UBK, L, H);
   const o = r6 ? 2 : 0;
-  return { eaT: r[2 + o] * kN, nT: r[3 + o] * kN, eaC: r[6 + o] * kN, nC: r[7 + o] * kN, slack: r6 ? 0.012 : 0.01 };
+  return { eaT: r[2 + o] * kN, nT: r[3 + o] * kN, eaC: r[6 + o] * kN, nC: r[7 + o] * kN, slack: r6 ? 0.012 : 0.01, ...offRow(r, L, H) };
 }
 
 /** bracing diagonal UBS (table 14); slack 0.1 cm (rosette 8 mm) / 0.3 cm (6 mm) */
 export function ubsData(L: number, H: number, r6: boolean): DiagonalData {
   const r = nearestRow(UBS, L, H);
   const o = r6 ? 2 : 0;
-  return { eaT: r[2 + o] * kN, nT: r[3 + o] * kN, eaC: r[6 + o] * kN, nC: r[7 + o] * kN, slack: r6 ? 0.003 : 0.001 };
+  return { eaT: r[2 + o] * kN, nT: r[3 + o] * kN, eaC: r[6 + o] * kN, nC: r[7 + o] * kN, slack: r6 ? 0.003 : 0.001, ...offRow(r, L, H) };
 }
 
 /** horizontal diagonal UBH Flex (table 19) for the bay L × B (L ≥ B); slack 0.2 cm */
@@ -580,7 +584,7 @@ export function ubhData(L0: number, B0: number): DiagonalData {
   const B = Math.min(L0, B0);
   const r = nearestRow(UBH, L, B);
   const n = (r[0] === 3 && r[1] === 3 ? 11.1 : 11.2) * kN;
-  return { eaT: r[2] * kN, eaC: r[2] * kN, nT: n, nC: n, slack: 0.002 };
+  return { eaT: r[2] * kN, eaC: r[2] * kN, nT: n, nC: n, slack: 0.002, ...offRow(r, L, B) };
 }
 
 // Riegeldiagonale UBL / UBL-2 (tables 16: at UH, 17: at UH Plus / UH-2): L, H [m]; spring Cd in

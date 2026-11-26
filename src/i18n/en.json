@@ -1149,6 +1149,7 @@
       "notes": "Assumptions of the model",
       "note": {
         "beamAssumed": "Beams SRU / RCS without supports in the drawing ({n}) – assumed supported on the structure at their ends.",
+        "diagonalTable": "Diagonals whose bay is not in the tables of the approval ({n}): stiffness and resistance of the nearest row — to be checked.",
         "beamNoSupport": "Beams SRU / RCS short of supports ({n}): the beam supports are set by hand — check \"Fixings to the building\".",
         "diagonalFree": "Diagonals with ends away from the standards ({n}) – not considered.",
         "diagonalType": "Diagonals of unknown kind ({n}: {names}) – not considered.",

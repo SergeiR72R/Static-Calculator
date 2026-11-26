@@ -1113,7 +1113,7 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
             const tension = sf.N > 0 ? sf.N / JOINT_TENSION[m.tube!] + M / JOINT.MRd : 0;
             const eta = Math.max(M / JOINT.MRd, Math.max(-sf.N, 0) / JOINT.NRd, tension);
             const nj = frame.members[k].i;
-            put({ part: m.part, check: 'joint', eta, combo: cb.name, N: sf.N, M, at: frame.nodes[nj], ...(tension >= eta && tension > 0 ? { detail: `Gl. 23: N⁺ ${(sf.N / 1e3).toFixed(1)} / ${(JOINT_TENSION[m.tube!] / 1e3).toFixed(1)} kN` } : {}) });
+            put({ part: m.part, check: 'joint', eta, combo: cb.name, N: sf.N, M, at: frame.nodes[nj], ...(tension >= eta && sf.N > LIFT_TOL ? { detail: `Gl. 23: N⁺ ${(sf.N / 1e3).toFixed(1)} / ${(JOINT_TENSION[m.tube!] / 1e3).toFixed(1)} kN` } : {}) });
             putPoint({ check: 'joint', part: m.part, node: nj, at: frame.nodes[nj], eta, combo: cb.name });
           }
         }

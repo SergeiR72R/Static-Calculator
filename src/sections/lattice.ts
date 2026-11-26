@@ -128,19 +128,38 @@ export function chs(D: number, t: number, mat: LatticeMaterial): MemberSection {
 }
 
 /** Rectangular hollow section h × b × t (h in the plane of the girder) */
-export function rhs(h: number, b: number, t: number, mat: LatticeMaterial): MemberSection {
+export function rhs(h: number, b: number, t: number, mat: LatticeMaterial, rounded = mat.E > 150e9): MemberSection {
   const hi = h - 2 * t;
   const bi = b - 2 * t;
-  const A = (h * b - hi * bi) * mm * mm;
-  const Iy = ((b * h ** 3 - bi * hi ** 3) / 12) * mm ** 4;
-  const Iz = ((h * b ** 3 - hi * bi ** 3) / 12) * mm ** 4;
+  // cold-formed steel sections (EN 10219-2, annex B): corners with the outer radius 2 t and the inner
+  // radius t (t ≤ 6 mm); aluminium extrusions with sharp corners
+  const ro = rounded ? 2 * t : 0;
+  const ri = rounded ? t : 0;
+  const k = 1 - Math.PI / 4;
+  const c = (10 - 3 * Math.PI) / (12 - 3 * Math.PI);
+  const ci = 1 / 3 - Math.PI / 16 - 1 / (3 * (12 - 3 * Math.PI));
+  /** second moment and plastic modulus about the axis across the side H */
+  const about = (H: number, B: number) => {
+    const Ag = k * ro * ro;
+    const Ax = k * ri * ri;
+    const hg = H / 2 - c * ro;
+    const hx = (H - 2 * t) / 2 - c * ri;
+    const I = (B * H ** 3) / 12 - ((B - 2 * t) * (H - 2 * t) ** 3) / 12 - 4 * (ci * ro ** 4 + Ag * hg * hg) + 4 * (ci * ri ** 4 + Ax * hx * hx);
+    const Wpl = (B * H * H) / 4 - ((B - 2 * t) * (H - 2 * t) ** 2) / 4 - 4 * Ag * hg + 4 * Ax * hx;
+    return { I, Wpl };
+  };
+  const y = about(h, b);
+  const z = about(b, h);
+  const A = (h * b - hi * bi - (4 - Math.PI) * (ro * ro - ri * ri)) * mm * mm;
+  const Iy = y.I * mm ** 4;
+  const Iz = z.I * mm ** 4;
   return {
     name: `RR ${fmtMm(h)} × ${fmtMm(b)} × ${fmtMm(t)}`,
     A,
     Iy,
     Iz,
     Wel: Iy / ((h / 2) * mm),
-    Wpl: ((b * h * h - bi * hi * hi) / 4) * mm ** 3,
+    Wpl: y.Wpl * mm ** 3,
     Av: (A * h) / (b + h),
     aw: Math.min(0.5, (A - 2 * b * t * mm * mm) / A),
     tube: false,

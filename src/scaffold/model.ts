@@ -1382,6 +1382,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
       const dc = r6c === r6 ? ds : data(r6c);
       d = { ...ds, nT: dc.nT, nC: dc.nC };
     }
+    // a bay that is not in the tables of the approval: the nearest row was taken
+    if (d.approx) note('diagonalTable', w.part.id);
     let ends: [MemberEnd, MemberEnd] | undefined;
     if (kind === 'ubk' && ubkModel === 'annexA' && Lh > 0.3) {
       // annex A page 20 / 21: the diagonal head sits e_x beside the standard towards the bay and e_y

@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { CALIB, COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, JOINT_TENSION, LEDGERS, TUBES, bracketZul, jointK, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, oppositeOmega, rosetteBase, rosetteTension, tubeUtilisation, type ConnForces, type Variant } from './upflex';
+import { CALIB, CLASS_Q, COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, JOINT_TENSION, LEDGERS, SCAFFOLD_TUBE, TUBES, TUBE_NET, couplerUtilisation, jointMomentRd, bracketZul, jointK, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, oppositeOmega, rosetteBase, rosetteTension, tubeUtilisation, type ConnForces, type Variant } from './upflex';
 
 const G = 9.81;
 
@@ -86,7 +86,7 @@ export const GAMMA_G_FAV = 0.9;
 /** partial factor for all actions (EN 12811-1, 10.3.2) */
 export const GAMMA_F = 1.5;
 
-export type CheckKind = 'conn' | 'node' | 'rosette' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'bracket' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable' | 'stability' | 'fixing';
+export type CheckKind = 'conn' | 'node' | 'rosette' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'bracket' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable' | 'stability' | 'fixing' | 'scaffoldTube' | 'deck';
 
 export interface PartCheck {
   part: string;
@@ -1082,6 +1082,18 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       return { eta, N: sf.N, M, V };
     };
 
+    // utilisation of a scaffold tube (S235) with the torsion: √(M² + (kT·M_t)²) against M_Rd
+    const scaffoldTubeEta = (mr: NonNullable<(typeof r.members)[number]>, x: number) => {
+      const T = SCAFFOLD_TUBE;
+      const sf = sectionForces(mr, x);
+      const M = Math.hypot(sf.My, sf.Mz, T.kT * sf.Mx);
+      const V = Math.hypot(sf.Vy, sf.Vz);
+      const v = V / T.VRd;
+      const rr = v > 1 / 3 ? Math.sqrt(Math.max(1 - v * v, 1e-9)) : 1;
+      const eta = v > 0.9 ? Math.max(1.01, v / 0.9) : tubeUtilisation(sf.N / T.NRd / rr, M / T.MRd / rr);
+      return { eta, N: sf.N, M, V };
+    };
+
     frame.members.forEach((_, k) => {
       const mr = r.members[k];
       const m = members[k];
@@ -1111,9 +1123,26 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
             // in tension (suspended scaffolds, secured joints): table 26 with one connector and the
             // interaction at the spigot n⁺ + √(m_y² + m_z²) ≤ 1 (Gl. 23)
             const tension = sf.N > 0 ? sf.N / JOINT_TENSION[m.tube!] + M / JOINT.MRd : 0;
-            const eta = Math.max(M / JOINT.MRd, Math.max(-sf.N, 0) / JOINT.NRd, tension);
+            // in compression (as PERI ForceControl): N / N_D,Rd (Gl. 25) and the bending against the
+            // spigot with the contact of the tube ends, M / (M_SB,Rd + M_KS,Rd(N)) (Gl. 24, 26)
+            const Nc = Math.max(-sf.N, 0);
+            const MRd = jointMomentRd(Nc);
+            const bend = M / MRd;
+            const eta = Math.max(bend, Nc / JOINT.NRd, tension);
             const nj = frame.members[k].i;
-            put({ part: m.part, check: 'joint', eta, combo: cb.name, N: sf.N, M, at: frame.nodes[nj], ...(tension >= eta && sf.N > LIFT_TOL ? { detail: `Gl. 23: N⁺ ${(sf.N / 1e3).toFixed(1)} / ${(JOINT_TENSION[m.tube!] / 1e3).toFixed(1)} kN` } : {}) });
+            const detail =
+              tension >= eta && sf.N > LIFT_TOL
+                ? `Gl. 23: N⁺ ${(sf.N / 1e3).toFixed(1)} / ${(JOINT_TENSION[m.tube!] / 1e3).toFixed(1)} kN`
+                : bend >= eta
+                  ? `Gl. 26: M_Rd = ${(MRd / 10).toFixed(0)} kNcm`
+                  : 'Gl. 25';
+            put({ part: m.part, check: 'joint', eta, combo: cb.name, N: sf.N, M, at: frame.nodes[nj], detail });
+            // the tube above the joint with its bolt holes (net section, as PERI ForceControl)
+            const net = TUBE_NET[m.tube!];
+            const Vj = Math.hypot(sf.Vy, sf.Vz);
+            const vj = Vj / T.VRd;
+            const rj = vj > 1 / 3 ? Math.sqrt(Math.max(1 - vj * vj, 1e-9)) : 1;
+            put({ part: m.part, check: 'tube', eta: tubeUtilisation(sf.N / net.NRd / rj, M / net.MRd / rj), combo: cb.name, N: sf.N, M, V: Vj, detail: 'Nettoquerschnitt am Stoß (2 × Ø11)' });
             putPoint({ check: 'joint', part: m.part, node: nj, at: frame.nodes[nj], eta, combo: cb.name });
           }
         }
@@ -1162,8 +1191,9 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         for (const x of [0, mr.L]) {
           const sf = sectionForces(mr, x);
           const M = Math.hypot(sf.My, sf.Mz);
-          // as PERI ForceControl: base jacks N / N_R + M / M_R, head jacks under beams N / N_c,Rd
-          const eta = m.jack === 'head' && !m.link ? Math.max(-sf.N, 0) / JACK_CHECK.head.NcRd : Math.abs(sf.N) / JACK_CHECK.foot.NR + M / JACK_CHECK.foot.MR;
+          // as PERI ForceControl: base jacks with the cosine interaction of N / N_R and M / M_R
+          // (DIN 4420-1, table 7), head jacks under beams N / N_c,Rd
+          const eta = m.jack === 'head' && !m.link ? Math.max(-sf.N, 0) / JACK_CHECK.head.NcRd : tubeUtilisation(sf.N / JACK_CHECK.foot.NR, M / JACK_CHECK.foot.MR);
           put({ part: m.part, check: 'jack', eta, combo: cb.name, N: sf.N, M, V: Math.hypot(sf.Vy, sf.Vz), detail: m.jack === 'head' && !m.link ? 'EN 1993-1-1, 6.9' : 'DIN 4420-1, Tab. 7' });
         }
         if (m.link && mr.N > 100) put({ part: m.part, check: 'uplift', eta: 1.01, combo: cb.name, N: mr.N });
@@ -1172,30 +1202,45 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
         put({ part: m.part, check: 'diagonal', eta: N >= 0 ? N / m.diag.nT : -N / m.diag.nC, combo: cb.name, N });
       } else if (m.kind === 'tube' && !m.anchorChain) {
         const N = mr.N;
-        put({ part: m.part, check: 'coupler', eta: Math.abs(N) / COUPLER_RD, combo: cb.name, N });
+        put({ part: m.part, check: 'coupler', eta: Math.abs(N) / COUPLER_RD, combo: cb.name, N, detail: 'EN 12811-1, C.1' });
+      }
+      if ((m.kind === 'anchor' || m.kind === 'tube') && !frame.members[k].truss) {
+        // scaffold tube of S235 in bending, with the torsion (as PERI ForceControl: DIN 4420-1, table 7)
+        for (const x of [0, mr.L]) {
+          const t = scaffoldTubeEta(mr, x);
+          put({ part: m.part, check: 'scaffoldTube', eta: t.eta, combo: cb.name, N: t.N, M: t.M, V: t.V, detail: 'Ø48,3×3,2 S235, DIN 4420-1 Tab. 7' });
+        }
       }
     });
+
+    // decks: the load class of the analysis against the class allowed for the span (table 29)
+    if (opt.p > 0) for (const d of model.deckClasses) put({ part: d.part, check: 'deck', eta: opt.p / CLASS_Q[d.cls], combo: cb.name, detail: `Tab. 29: LK ≤ ${d.cls} (${(CLASS_Q[d.cls] / 1e3).toFixed(2)} kN/m²)` });
 
     // anchors: the force to the building (first piece of the tube) and the share of each coupler at
     // the standards (difference of the forces of the tube either side of it)
     for (const an of model.anchors) {
       const N = r.members[an.chain[0]]?.N ?? 0;
       // the force of each coupler: the resultant of its link from the tube to the standard
+      const worst = { eta: 0, eq: 'C.1' as 'C.1' | '10' };
       const F = an.links.map((k) => {
         const ml = r.members[k];
         if (!ml) return 0;
         const sf = sectionForces(ml, 0);
-        return Math.hypot(sf.N, sf.Vy, sf.Vz);
+        // the link lies across the tube and the standard: N pulls the coupler apart, the shears
+        // are the slips along the tube and along the standard
+        const u = couplerUtilisation(sf.N, sf.Vy, sf.Vz, sf.Mx);
+        if (u.eta > worst.eta) Object.assign(worst, u);
+        return Math.hypot(sf.Vy, sf.Vz);
       });
       const Fmax = Math.max(...F);
-      const eta = Fmax / COUPLER_RD;
+      const eta = worst.eta;
       put({
         part: an.part,
         check: 'anchor',
         eta,
         combo: cb.name,
         N,
-        detail: F.length > 1 ? `${F.length} Kupplungen: ${F.map((f) => (f / 1e3).toFixed(2)).join(' / ')} kN` : undefined,
+        detail: `EN 12811-1, ${worst.eq === '10' ? 'Eq. 10' : 'C.1'}${F.length > 1 ? `; ${F.length} Kupplungen: ${F.map((f) => (f / 1e3).toFixed(2)).join(' / ')} kN` : ''}`,
       });
       const o = anchorRes.get(an.part);
       if (!o) anchorRes.set(an.part, { part: an.part, Nmax: N, Nmin: N, eta, combo: cb.name, couplers: F.length, Fc: Fmax });

@@ -70,9 +70,10 @@ const GROUPS: { key: string; checks: CheckKind[] }[] = [
   { key: 'bracket', checks: ['bracket'] },
   { key: 'diagonal', checks: ['diagonal'] },
   { key: 'jack', checks: ['jack'] },
-  { key: 'tie', checks: ['anchor', 'fixing'] },
+  { key: 'tie', checks: ['anchor', 'fixing', 'scaffoldTube'] },
   // tubes on couplers between standards (bracing, a tube instead of a ledger): no anchors
   { key: 'coupler', checks: ['coupler'] },
+  { key: 'deck', checks: ['deck'] },
 ];
 
 /** issues of the import that have to be put right in the drawing, and notes of the model of that kind */

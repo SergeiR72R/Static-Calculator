@@ -352,7 +352,7 @@ describe('scaffold analysis', () => {
     }
     const r = analyzeScaffoldModel(m, { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800, keep: true });
     expect(r.anchors[0]).toMatchObject({ part: tube.part.id, couplers: 2 });
-    expect(r.checks.find((c) => c.check === 'anchor')?.detail).toMatch(/^2 Kupplungen/);
+    expect(r.checks.find((c) => c.check === 'anchor')?.detail).toMatch(/2 Kupplungen/);
     // the end at the building is held across and along the facade
     const far = m.frame.members[m.anchors[0].chain[0]].j;
     const sups = m.frame.supports.map((q, i) => ({ ...q, i })).filter((q) => q.node === far);
@@ -360,9 +360,11 @@ describe('scaffold analysis', () => {
     const peak = (dof: number) => Math.max(...r.combos.map((c) => Math.abs(c.reactions![sups.find((q) => q.dof === dof)!.i])));
     expect(peak(0)).toBeGreaterThan(100);
     expect(peak(1)).toBeGreaterThan(100);
-    // each coupler's force from its link; the anchor check is the larger one
+    // each coupler's slip force from its link; the anchor check is that of the worst coupler: the
+    // slip (EN 12811-1, C.1) or the interaction with the pull-apart force and the moment (Eq. 10)
     expect(r.anchors[0].Fc).toBeGreaterThan(0);
-    expect(r.anchors[0].eta).toBeCloseTo(r.anchors[0].Fc! / 13650, 6);
+    expect(r.anchors[0].eta).toBeGreaterThan(0);
+    expect(r.checks.find((c) => c.check === 'anchor')?.detail).toMatch(/^EN 12811-1, (C\.1|Eq\. 10)/);
     // the sway along the tube is smaller than without the anchor
     const dy = (x: typeof r) => x.combos.find((c) => c.name === 'R +y')!.dh;
     expect(dy(r)).toBeLessThan(dy(analyzeScaffoldModel(buildScaffoldModel(auto), { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 })));

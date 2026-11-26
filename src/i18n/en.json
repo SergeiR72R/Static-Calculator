@@ -804,6 +804,7 @@
         "girder": "Lattice girder {name}: {eta} %. Open it in the beam calculator; reduce the span or the load or use a deeper girder.",
         "coupler": "Tubes on couplers: {n} parts, up to {eta} %{dir}. The coupler may slip on the tube: add a safety coupler right next to the loaded one or replace the tube by a PERI UP ledger or diagonal.",
         "ledgerSway": "Ledgers: {n} parts, up to {eta} %{dir} – bending from the sway of the scaffold under wind, not from the deck load. Add diagonals in the adjacent bays or a fixing to the building: they take the moment off the ledgers.",
+        "deck": "Decks: {n} parts, up to {eta} %. The load class of the analysis exceeds the class allowed for the span of the deck (approval, table 29): shorten the span, use another deck type or lower the load class.",
         "bracket": "Brackets: {n} parts, up to {eta} %{dir}. Use a shorter bracket, a smaller field width or load on the bracket deck, or put a standard under the bracket."
       }
     },
@@ -1104,6 +1105,8 @@
         "conn": "Node: ledger connection",
         "node": "Node: standard + ledger",
         "rosette": "Rosette (tension and shear)",
+        "scaffoldTube": "Tube Ø48.3 S235 (N + M + torsion)",
+        "deck": "Deck: load class (table 29)",
         "tube": "Standard tube (N + M)",
         "buckling": "Buckling of the standard",
         "joint": "Standard joint",

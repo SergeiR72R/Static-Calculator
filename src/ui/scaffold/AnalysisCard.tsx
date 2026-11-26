@@ -34,7 +34,7 @@ export function etaColor(eta: number): string {
   return '#16a34a';
 }
 
-const CHECKS: CheckKind[] = ['stability', 'unstable', 'conn', 'node', 'rosette', 'tube', 'buckling', 'joint', 'ledger', 'bracket', 'diagonal', 'jack', 'anchor', 'coupler', 'fixing', 'uplift'];
+const CHECKS: CheckKind[] = ['stability', 'unstable', 'conn', 'node', 'rosette', 'tube', 'buckling', 'joint', 'ledger', 'bracket', 'diagonal', 'jack', 'anchor', 'coupler', 'scaffoldTube', 'deck', 'fixing', 'uplift'];
 
 /** Options, start and results of the space frame analysis of the scaffold */
 export function AnalysisCard({

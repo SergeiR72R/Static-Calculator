@@ -17,7 +17,7 @@ import { findPeriProduct, periSI } from '../sections/peri';
 import { deckedLedger, type ScaffoldStructure, type WorldPart } from './structure';
 import type { PartKind } from './catalog';
 import { partKg } from './weights';
-import { CALIB, E_STEEL, G_STEEL, JACK, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, couplerSlipK, jointK, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
+import { CALIB, deckLoadClass, E_STEEL, G_STEEL, JACK, LEDGERS, TUBES, UBK_HEAD, VARIANT_TUBE, connCz, couplerSlipK, jointK, connKx, connKy, connKz, ubhData, ubkData, ublData, ubsData, type DiagonalData, type LedgerHead, type Variant } from './upflex';
 import { planBlockLoads, type PlanLoads } from './planLoads';
 import { orderedAxis, type UserFixing, type UserLoad, type UserLoadWhen } from './userLoads';
 
@@ -131,6 +131,8 @@ export interface ScaffoldModel {
   /** deck levels (height, deck area) */
   levels: { z: number; area: number }[];
   decks: DeckShare[];
+  /** decks of approval table 29: the highest load class allowed for the span of each */
+  deckClasses: { part: string; cls: number }[];
   /** members of a carrier and its length */
   carriers: { part: string; kind: MKind; members: number[]; length: number; points?: BeamPoint[] }[];
   /** weight of parts that are not members (toe boards, couplers …), kg at a node */
@@ -216,11 +218,14 @@ const HINGE = [Infinity, Infinity, Infinity, Infinity, 0, 0];
 /**
  * Link of a coupler from a tube to a standard (a few cm, across both): the coupler slips along the
  * tube and along the standard (COUPLER_SLIP_K, as shear of the link fixed at both ends: 12 EI / L³),
- * stiff across (pull-apart) and in rotation.
+ * stiff across (pull-apart); about its own axis it turns with the cruciform stiffness of a
+ * right-angle coupler, c_φ = 15 kNm/rad (EN 74-1 / EN 12811-1, annex C).
  */
+const COUPLER_CPHI = 15e3;
 const couplerLink = (L: number): Section3 => {
-  const EI = (couplerSlipK() * Math.max(L, 0.01) ** 3) / 12;
-  return { EA: 1e9, EIy: EI, EIz: EI, GJ: 1e6 };
+  const l = Math.max(L, 0.01);
+  const EI = (couplerSlipK() * l ** 3) / 12;
+  return { EA: 1e9, EIy: EI, EIz: EI, GJ: COUPLER_CPHI * l };
 };
 /** end panel of a lattice girder (end element ULS 50 Flex), m, and area of its posts / diagonals, m² */
 const GIRDER_PANEL = 0.5;
@@ -1686,6 +1691,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
   // ---- decks
   const levels: ScaffoldModel['levels'] = [];
   const decks: DeckShare[] = [];
+  const deckClasses: { part: string; cls: number }[] = [];
   const levelOf = (z: number) => {
     let i = levels.findIndex((l) => Math.abs(l.z - z) < 0.3);
     if (i < 0) {
@@ -1721,6 +1727,8 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     const s1 = Math.max(...pts.map(ps));
     const area = (l1 - l0) * (s1 - s0);
     const kg = partKg(w.part) ?? 22 * area;
+    const cls = deckLoadClass(w.part.name ?? '', l1 - l0);
+    if (cls !== undefined) deckClasses.push({ part: w.part.id, cls });
     const z = w.min[2];
     const lv = levelOf(z);
     levels[lv].area += area;
@@ -1888,6 +1896,7 @@ export function buildScaffoldModel(st: ScaffoldStructure, userLoads0: UserLoad[]
     assumedSupports,
     levels,
     decks,
+    deckClasses,
     carriers: carrierOut,
     masses,
     plates,

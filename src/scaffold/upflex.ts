@@ -35,6 +35,18 @@ export const TUBES: Record<'t27' | 't32' | 't36', TubeData> = {
   t36: { name: 'Ø48,3×3,6 S355', A: 5.06 * cm2, I: 12.71 * cm4, NRd: 163 * kN, MRd: 212 * kNcm, VRd: 60.0 * kN, fyd: 323e6, g: 3.98 },
 };
 
+/**
+ * Net section of a standard at its joint (two holes Ø11 for the bolts), as PERI ForceControl checks
+ * the standards there with DIN 4420-1, table 7: N_Rd = (A − 2·11 mm·t)·f_yd; M_Rd from the
+ * utilisations of its reports (Ø48.3 × 3.2: 111 kN / 143 kNcm, × 3.6: 138 kN / 168 kNcm reproduce
+ * 122 of 123 rows to ±0.01 together with the full section; × 2.7 by the same ratios).
+ */
+export const TUBE_NET: Record<'t27' | 't32' | 't36', { NRd: number; MRd: number }> = {
+  t27: { NRd: 95.3 * kN, MRd: 125 * kNcm },
+  t32: { NRd: 111 * kN, MRd: 143 * kNcm },
+  t36: { NRd: 138 * kN, MRd: 168 * kNcm },
+};
+
 export const VARIANT_TUBE: Record<Variant, keyof typeof TUBES> = { '1a': 't32', '1b': 't36', '2a': 't32', '2b': 't36', '2c': 't27' };
 
 export interface LedgerSection {
@@ -280,8 +292,17 @@ export function tubeUtilisation(n0: number, m0: number): number {
   return 1 / ((lo + hi) / 2);
 }
 
-/** standard joint ("Übergreifstoß", 3.2.8.2) */
-export const JOINT = { k: 12900 * kNcm, MRd: 113 * kNcm, NRd: 100 * kN };
+/**
+ * Standard joint (3.2.8.2, 3.2.8.5): spigot M_SB,Rd = 113 kNcm, compression N_D,Rd = 100 kN; the
+ * contact of the tube ends adds M_KS,Rd(N) = M_KS,max·sin(π·N / N_D,Rd), M_KS,max = 77 kNcm (Gl. 24)
+ */
+export const JOINT = { k: 12900 * kNcm, MRd: 113 * kNcm, NRd: 100 * kN, MKS: 77 * kNcm };
+
+/** moment resistance of a standard joint under the compression Nc ≥ 0 (Gl. 26): M_SB,Rd + M_KS,Rd(N) */
+export function jointMomentRd(Nc: number): number {
+  const n = Math.min(Math.max(Nc, 0) / JOINT.NRd, 1);
+  return JOINT.MRd + JOINT.MKS * Math.sin(Math.PI * n);
+}
 
 /**
  * Tension of a standard joint (3.2.8.4, table 26) with two connectors (as PERI ForceControl takes it:
@@ -391,8 +412,36 @@ export function ledgerZulQ(head: LedgerHead, uhv: boolean, L: number): number | 
   return key === undefined ? undefined : t[key] * kN;
 }
 
-/** couplers EN 74-1 class B: design slip resistance (permissible 9.1 kN × 1.5) */
-export const COUPLER_RD = 9.1 * 1.5 * kN;
+/**
+ * Couplers EN 74-1 class B (EN 12811-1, table C.1, γ_M = 1.1): slip F_s,Rd = 15 / 1.1 = 13.6 kN,
+ * pull-apart F_p,Rd = 30 / 1.1 = 27.3 kN, cruciform moment M_B,Rd = 0.8 / 1.1 = 0.727 kNm.
+ */
+export const COUPLER = { FsRd: (15 * kN) / 1.1, FpRd: (30 * kN) / 1.1, MBRd: (80 * kNcm) / 1.1 };
+/** design slip resistance of a coupler */
+export const COUPLER_RD = COUPLER.FsRd;
+
+/**
+ * Check of a right-angle coupler as PERI ForceControl (60 utilisations of 9 reports reproduced):
+ * the greater of the slip along either tube, max(|F_s1|, |F_s2|) / F_s,Rd (EN 12811-1, table C.1),
+ * and the interaction (F_s1 + F_s2) / (2·F_s,Rd) + F_p / F_p,Rd + M / (2·M_B,Rd) (EN 12811-1,
+ * Eq. 10; ForceControl takes the pull-apart force against F_p,Rd and the moment about the axis of
+ * the coupler against 2·M_B,Rd). Fs1, Fs2: forces along the two tubes, Fp: across both, M: moment
+ * about the axis of the coupler.
+ */
+export function couplerUtilisation(Fp: number, Fs1: number, Fs2: number, M = 0): { eta: number; eq: 'C.1' | '10' } {
+  const s1 = Math.abs(Fs1);
+  const s2 = Math.abs(Fs2);
+  const slip = Math.max(s1, s2) / COUPLER.FsRd;
+  const inter = (s1 + s2) / (2 * COUPLER.FsRd) + Math.abs(Fp) / COUPLER.FpRd + Math.abs(M) / (2 * COUPLER.MBRd);
+  return inter > slip ? { eta: inter, eq: '10' } : { eta: slip, eq: 'C.1' };
+}
+
+/**
+ * Scaffold tube Ø48.3 × 3.2 of S235 (anchor tubes, bracing tubes) as PERI ForceControl checks it
+ * (DIN 4420-1, table 7): N_Rd = A·f_yd = 96.8 kN, M_Rd = 1.25·W_el·f_yd = 128.2 kNcm,
+ * V_Rd = 35.6 kN; the torsion with the bending as √(M² + (kT·M_t)²), kT = M_pl / T_pl = 2√3 / π.
+ */
+export const SCAFFOLD_TUBE = { NRd: 96.8 * kN, MRd: 128.2 * kNcm, VRd: 35.6 * kN, kT: (2 * Math.sqrt(3)) / Math.PI };
 
 /**
  * slip stiffness of a coupler along the tube (secant): 15 kN at a slip of 3 mm, calibrated with PERI
@@ -744,8 +793,29 @@ export const JACK = (() => {
 
 /**
  * Checks of the spindles as in PERI ForceControl (whose results this analysis follows):
- * base jack UJB 38: linear interaction N / N_R + M / M_R (DIN 4420-1, Tab. 7) with N_R = 135 kN,
- * M_R = 149.5 kNcm (fitted to the utilisations of a ForceControl report: ±0.01);
- * spindle of the spindle head SRU: compression N / N_c,Rd (EN 1993-1-1, 6.9) with N_c,Rd = 75 kN.
+ * base jack UJB 38: cosine interaction of DIN 4420-1, table 7 (as a tube) with N_R = 126 kN,
+ * M_R = 117 kNcm (the section of the spindle A = 4.36 cm², W_pl = 4.04 cm³ with f_y = 320 N/mm²;
+ * the pair fitted to 48 utilisations of five ForceControl reports: 45 to ±0.005, all to ±0.01);
+ * spindle of the spindle head SRU: compression N / N_c,Rd (EN 1993-1-1, 6.9) with N_c,Rd = 75.4 kN
+ * (38 of 39 utilisations).
  */
-export const JACK_CHECK = { foot: { NR: 135 * kN, MR: 149.5 * kNcm }, head: { NcRd: 75 * kN } };
+export const JACK_CHECK = { foot: { NR: 126 * kN, MR: 117 * kNcm }, head: { NcRd: 75.4 * kN } };
+
+/** uniformly distributed live load of the load classes 1…6 (EN 12811-1, table 3), N/m² */
+export const CLASS_Q = [0, 750, 1500, 2000, 3000, 4500, 6000];
+
+/**
+ * Highest load class a deck may be used in for its span, m (approval table 29, decks on ledgers
+ * UH / UH Plus / UH-2); undefined: the deck is not in the table. UDG-2 without its variant in the
+ * name: the least of the variants.
+ */
+export function deckLoadClass(name: string, span: number): number | undefined {
+  const l = span - 0.03;
+  if (/\bUAF-2\b/i.test(name)) return 3;
+  if (/\bUAF\b/i.test(name)) return 6;
+  if (/\bUA[ACWL]\b|\bUA[ACWL][- ]|\bUAL-3\b/i.test(name)) return 3;
+  if (/\bUDI\s*25(?!\d)/i.test(name)) return l <= 2.5 ? 6 : 5;
+  if (/\bUDG-2\b/i.test(name)) return l <= 2.0 ? 6 : l <= 2.5 ? 5 : 4;
+  if (/\bUDI\s*37|\bUDG\b/i.test(name)) return l <= 2.0 ? 6 : l <= 2.5 ? 5 : 4;
+  return undefined;
+}

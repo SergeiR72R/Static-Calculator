@@ -7,7 +7,7 @@
 import { Frame3, FrameError3, emptyLoads3, localAxes, sectionForces, type Loads3, type MemberResult, type MemberState, type V3 } from '../core/frame3d';
 import { standardBuckling } from '../core/latticePeri';
 import type { ScaffoldModel } from './model';
-import { CALIB, COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, LEDGERS, TUBES, bracketZul, jointK, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, tubeUtilisation, type ConnForces } from './upflex';
+import { CALIB, COUPLER_RD, E_STEEL, JACK_CHECK, JOINT, JOINT_TENSION, LEDGERS, TUBES, bracketZul, jointK, ledgerZulQ, connCz, connInteraction, connKx, connKy, connKz, connResistance, oppositeOmega, rosetteBase, rosetteTension, tubeUtilisation, type ConnForces, type Variant } from './upflex';
 
 const G = 9.81;
 
@@ -86,7 +86,7 @@ export const GAMMA_G_FAV = 0.9;
 /** partial factor for all actions (EN 12811-1, 10.3.2) */
 export const GAMMA_F = 1.5;
 
-export type CheckKind = 'conn' | 'node' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'bracket' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable' | 'stability' | 'fixing';
+export type CheckKind = 'conn' | 'node' | 'rosette' | 'tube' | 'buckling' | 'joint' | 'ledger' | 'bracket' | 'diagonal' | 'anchor' | 'coupler' | 'uplift' | 'jack' | 'unstable' | 'stability' | 'fixing';
 
 export interface PartCheck {
   part: string;
@@ -983,6 +983,14 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
     if (members[k].kind !== 'standard') return;
     for (const n of [m.i, m.j]) (stdAt.get(n) ?? stdAt.set(n, []).get(n)!).push(k);
   });
+  // diagonals at the rosettes (node diagonals UBK, bracing diagonals UBS, horizontal diagonals UBH)
+  const diagAt = new Map<number, number[]>();
+  frame.members.forEach((m, k) => {
+    const kd = members[k].kind;
+    if (!members[k].diag || !(kd === 'ubk' || kd === 'ubs' || kd === 'ubh')) return;
+    for (const n of [m.i, m.j]) if (stdAt.has(n)) (diagAt.get(n) ?? diagAt.set(n, []).get(n)!).push(k);
+  });
+  const rosetteNodes = [...new Set([...connAt.keys(), ...diagAt.keys()])].filter((n) => stdAt.has(n));
 
   /** rounds of weak springs added for nearly free degrees of freedom (all combinations) */
   let rounds = 0;
@@ -1065,7 +1073,13 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       const T = TUBES[members[k].tube!];
       const sf = sectionForces(mr, x);
       const M = Math.hypot(sf.My, sf.Mz);
-      return { eta: tubeUtilisation(sf.N / T.NRd, M / T.MRd), N: sf.N, M, V: Math.hypot(sf.Vy, sf.Vz) };
+      const V = Math.hypot(sf.Vy, sf.Vz);
+      // shear (Gl. 4): up to V_Rd / 3 no influence; up to 0.9 V_Rd the interaction of DIN 4420-1, table 7,
+      // column 4 (the curve reduced by √(1 − v²)); above 0.9 not allowed
+      const v = V / T.VRd;
+      const rr = v > 1 / 3 ? Math.sqrt(Math.max(1 - v * v, 1e-9)) : 1;
+      const eta = v > 0.9 ? Math.max(1.01, v / 0.9) : tubeUtilisation(sf.N / T.NRd / rr, M / T.MRd / rr);
+      return { eta, N: sf.N, M, V };
     };
 
     frame.members.forEach((_, k) => {
@@ -1094,9 +1108,12 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
           if (m.joint) {
             const sf = sectionForces(mr, 0);
             const M = Math.hypot(sf.My, sf.Mz);
-            const eta = Math.max(M / JOINT.MRd, Math.max(-sf.N, 0) / JOINT.NRd);
+            // in tension (suspended scaffolds, secured joints): table 26 with one connector and the
+            // interaction at the spigot n⁺ + √(m_y² + m_z²) ≤ 1 (Gl. 23)
+            const tension = sf.N > 0 ? sf.N / JOINT_TENSION[m.tube!] + M / JOINT.MRd : 0;
+            const eta = Math.max(M / JOINT.MRd, Math.max(-sf.N, 0) / JOINT.NRd, tension);
             const nj = frame.members[k].i;
-            put({ part: m.part, check: 'joint', eta, combo: cb.name, N: sf.N, M, at: frame.nodes[nj] });
+            put({ part: m.part, check: 'joint', eta, combo: cb.name, N: sf.N, M, at: frame.nodes[nj], ...(tension >= eta && tension > 0 ? { detail: `Gl. 23: N⁺ ${(sf.N / 1e3).toFixed(1)} / ${(JOINT_TENSION[m.tube!] / 1e3).toFixed(1)} kN` } : {}) });
             putPoint({ check: 'joint', part: m.part, node: nj, at: frame.nodes[nj], eta, combo: cb.name });
           }
         }
@@ -1247,6 +1264,90 @@ export function prepareAnalysis(model: ScaffoldModel, opt: AnalysisOptions, weak
       }
       put({ part, check: 'node', eta: worst + IS, combo: cb.name, detail: `α·I_A = ${worst.toFixed(2)}, I_S = ${IS.toFixed(2)}`, at: frame.nodes[n] });
       putPoint({ check: 'node', part, node: n, at: frame.nodes[n], eta: worst + IS, combo: cb.name });
+    }
+
+    // rosette (3.2.5 / 3.2.6): tension and shear from the ledgers and diagonals around the node
+    // (Gl. 15 / 22), sum of the vertical forces (Gl. 16 / 21), diagonals without a ledger beside them
+    // (Gl. 17 / 18), opposite ledger connections (Gl. 19 / 20)
+    for (const n of rosetteNodes) {
+      const part = (stdAt.get(n) ?? []).map((k) => members[k].part)[0];
+      if (!part) continue;
+      const here = frame.nodes[n];
+      const out = (k: number): V3 => {
+        const fk = frame.members[k];
+        const o = frame.nodes[fk.i === n ? fk.j : fk.i];
+        const L = Math.hypot(o[0] - here[0], o[1] - here[1], o[2] - here[2]) || 1;
+        return [(o[0] - here[0]) / L, (o[1] - here[1]) / L, (o[2] - here[2]) / L];
+      };
+      const plan = (t: V3) => Math.atan2(t[1], t[0]);
+      const between = (a: number, b: number) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+      // ledger connections: forces in the convention of the approval
+      const leds = (connAt.get(n) ?? []).flatMap(({ k, e }) => {
+        const mr = r.members[k];
+        const m = members[k];
+        if (!mr) return [];
+        const sf = sectionForces(mr, e === 0 ? 0 : mr.L);
+        const v = (m.connCap?.[e] ?? m.conn![e])!;
+        const My = -sf.My;
+        const Vz = e === 0 ? mr.fi[2] : mr.fj[2];
+        return [{ k, e, head: m.head!, v, ang: plan(out(k)), N: sf.N, My, Vz, NRo: rosetteTension(m.head!, sf.N, My) }];
+      });
+      // diagonals at the node: vertical (UBK, UBS) with their angle to the horizontal, horizontal (UBH)
+      const diags = (diagAt.get(n) ?? []).flatMap((k) => {
+        const mr = r.members[k];
+        if (!mr) return [];
+        const t = out(k);
+        const kind = members[k].kind;
+        return [{ k, N: mr.N, ang: plan(t), sin: Math.abs(t[2]), cos: Math.hypot(t[0], t[1]), down: -mr.N * t[2], vert: kind !== 'ubh' }];
+      });
+      const variant: Variant = leds[0]?.v ?? '1a';
+      const R = rosetteBase(variant);
+      const NEAR = (15 * Math.PI) / 180;
+      let eta = 0;
+      let detail = '';
+      const take = (v: number, d: string) => {
+        if (v > eta) [eta, detail] = [v, d];
+      };
+      // Gl. 15 (rosette 8 mm) / Gl. 22 (Rosette-2): every ledger once as A
+      for (const A of leds) {
+        const side = leds.filter((q) => q !== A && Math.abs(between(q.ang, A.ang) - Math.PI / 2) < NEAR);
+        // diagonals beside A (in the plane of A or of a ledger across it): the two with the largest share
+        const ds = diags
+          .filter((d) => between(d.ang, A.ang) < Math.PI / 2 + NEAR)
+          .map((d) => (d.vert ? { n: (Math.max(d.N, 0) * d.cos) / R.N, v: ((R.six ? 1 : 0.6) * Math.abs(d.N) * d.sin) / R.V } : { n: Math.max(d.N, 0) / R.N, v: 0 }))
+          .sort((p, q) => q.n + q.v - (p.n + p.v));
+        const fB = R.six ? 1 : 0.2;
+        // Rosette-2: one ledger B and one diagonal a (the worse ones); 8 mm: B and D, a and d
+        const sides = (R.six ? side.sort((p, q) => q.NRo + Math.max(q.Vz, 0) - (p.NRo + Math.max(p.Vz, 0))).slice(0, 1) : side).slice(0, 2);
+        const dd = ds.slice(0, R.six ? 1 : 2);
+        const nn = A.NRo / R.N + sides.reduce((s0, q) => s0 + (fB * q.NRo) / R.N, 0) + dd.reduce((s0, q) => s0 + q.n, 0);
+        const vv = Math.max(A.Vz, 0) / R.V + sides.reduce((s0, q) => s0 + (fB * Math.max(q.Vz, 0)) / R.V, 0) + dd.reduce((s0, q) => s0 + q.v, 0);
+        take(Math.hypot(nn, vv), `Gl. ${R.six ? 22 : 15}: n ${nn.toFixed(2)}, v ${vv.toFixed(2)}`);
+        // Gl. 19 / 20: the ledger opposite (180°), moments of the same sign
+        const C = leds.find((q) => q !== A && between(q.ang, A.ang) > Math.PI - NEAR);
+        if (C) {
+          const Rc = connResistance(A.head, A.v);
+          const [wp, wn] = oppositeOmega(A.head, A.v);
+          if (A.My > 0 && C.My > 0) take(Math.max(-A.N, 0) / Rc.NNeg + (A.My + wp * C.My) / Rc.MyPos, 'Gl. 19');
+          if (A.My < 0 && C.My < 0) take(Math.max(A.N, 0) / Rc.NPos + (-A.My + wn * -C.My) / Rc.MyNeg, 'Gl. 20');
+        }
+      }
+      // Gl. 16 / 21: sum of the vertical forces of the ledgers and vertical diagonals on the rosette
+      const vd = diags.filter((d) => d.vert);
+      if (leds.length || vd.length) {
+        const sum = Math.abs(leds.reduce((s0, q) => s0 + q.Vz, 0) + vd.reduce((s0, d) => s0 + d.down, 0));
+        take(sum / (R.sum * R.V), `Gl. ${R.six ? 21 : 16}: ΣV ${(sum / 1e3).toFixed(1)} kN`);
+      }
+      // Gl. 17: vertical diagonals without a ledger parallel to them; Gl. 18: two of them in one plane
+      const lone = vd.filter((d) => !leds.some((q) => between(q.ang, d.ang) < NEAR));
+      if (lone.length) {
+        take(lone.reduce((s0, d) => s0 + Math.abs(d.N) * d.sin, 0) / (0.7 * R.V), 'Gl. 17');
+        for (const a of lone) {
+          const pair = lone.filter((d) => d !== a && between(d.ang, a.ang) < NEAR).sort((p, q) => Math.abs(q.N) * q.sin - Math.abs(p.N) * p.sin)[0];
+          if (pair) take((Math.abs(a.N) * a.sin + Math.abs(pair.N) * pair.sin) / (0.35 * R.V), 'Gl. 18');
+        }
+      }
+      if (eta > 0) put({ part, check: 'rosette', eta, combo: cb.name, detail, at: here });
     }
 
     // beams: vertical force of every node on the beam members there

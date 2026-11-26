@@ -64,7 +64,7 @@ export interface AssessInput {
 const GROUPS: { key: string; checks: CheckKind[] }[] = [
   { key: 'stability', checks: ['stability', 'unstable'] },
   { key: 'uplift', checks: ['uplift'] },
-  { key: 'node', checks: ['conn', 'node'] },
+  { key: 'node', checks: ['conn', 'node', 'rosette'] },
   { key: 'standard', checks: ['tube', 'buckling', 'joint'] },
   { key: 'ledger', checks: ['ledger'] },
   { key: 'bracket', checks: ['bracket'] },

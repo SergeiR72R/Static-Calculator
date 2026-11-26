@@ -4,7 +4,7 @@ import { analyzeScaffold } from './structure';
 import { buildScaffoldModel } from './model';
 import { DEFAULT_ANALYSIS, GAMMA_F, analyzeScaffoldModel, buildCombos, buildLoadCases, mergeResults, prepareAnalysis, weakDofs } from './analysis';
 import type { UserLoad } from './userLoads';
-import { COUPLER_SLIP_K, E_STEEL, TUBES, connCz, connInteraction, connKy, connResistance, tubeUtilisation, ubkData, ubhData, ublData } from './upflex';
+import { COUPLER_SLIP_K, E_STEEL, JOINT, JOINT_TENSION, TUBES, connCz, connInteraction, connKy, connResistance, oppositeOmega, rosetteBase, rosetteTension, tubeUtilisation, ubkData, ubhData, ublData } from './upflex';
 import { periDxf, towerParts, type TestPart } from './testDxf';
 
 const tower = (edit?: (p: TestPart[]) => void) => {
@@ -885,5 +885,43 @@ describe('suspended scaffolds: girders lying flat, struts with jacks, secured jo
     const open = analyzeScaffoldModel({ ...m, suspended: false }, opt).combos[0];
     const foot = m.frame.nodes.findIndex((p) => Math.hypot(p[0], p[1] - 2) < 0.01 && p[2] < 0.2);
     expect(Math.abs(c.u![foot * 6 + 2])).toBeLessThan(0.3 * Math.abs(open.u![foot * 6 + 2]));
+  });
+});
+
+describe('rosette and joint in tension (approval 3.2.5, 3.2.6, 3.2.8.4)', () => {
+  it('tension of the rosette from a ledger connection (table 22, lever arms of table 23)', () => {
+    const kNcm = 10;
+    // UH Plus: e_o 6, e_u 5, e_Ri 3.5 cm. Tension 10 kN with M_y = +60 kNcm (> e_Ri·N = 35): top
+    expect(rosetteTension('PLUS', 10e3, 60 * kNcm) / 1e3).toBeCloseTo(10 * (1 - 3.5 / 6) + 60 / 6, 6);
+    // M_y ≤ e_Ri·N: bottom
+    expect(rosetteTension('PLUS', 10e3, -40 * kNcm) / 1e3).toBeCloseTo(10 * (1 + 3.5 / 5) + 40 / 5, 6);
+    // compression −10 kN: tension only by a moment beyond the lever arms
+    expect(rosetteTension('PLUS', -10e3, -100 * kNcm) / 1e3).toBeCloseTo(-10 * (1 + 3.5 / 5) + 100 / 5, 6);
+    expect(rosetteTension('PLUS', -10e3, 100 * kNcm) / 1e3).toBeCloseTo(-10 * (1 - 3.5 / 6) + 100 / 6, 6);
+    expect(rosetteTension('PLUS', -10e3, 10 * kNcm)).toBe(0);
+    // UH: e_o 5 cm
+    expect(rosetteTension('UH', 0, 50 * kNcm) / 1e3).toBeCloseTo(50 / 5, 6);
+    // basic values and ω of table 24
+    expect(rosetteBase('1a')).toMatchObject({ N: 90e3, V: 33e3, sum: 3 });
+    expect(rosetteBase('2c')).toMatchObject({ N: 50e3, V: 40e3, sum: 2.5 });
+    expect(oppositeOmega('PLUS', '1b')).toEqual([0.14, 0.1]);
+    expect(oppositeOmega('PLUS', '2a')).toEqual([0.42, 0.39]);
+    expect(oppositeOmega('UH', '2c')).toEqual([0.08, 0.08]);
+  });
+
+  it('the rosettes of a scaffold are checked; a joint in tension by table 26 and Gl. 23', () => {
+    const st = tower(braced);
+    const r = analyzeScaffoldModel(buildScaffoldModel(st), { ...DEFAULT_ANALYSIS, outdoor: true, qMax: 800 });
+    const ros = r.checks.filter((c) => c.check === 'rosette');
+    expect(ros.length).toBeGreaterThan(0);
+    expect(ros.every((c) => c.eta > 0 && /Gl\. (15|16|17|18|19|20|21|22)/.test(c.detail ?? ''))).toBe(true);
+    // hanging from the top: joints in tension
+    const tops = st.columns.filter((c) => c.z1 > 4).map((c) => st.parts.filter((w) => c.parts.includes(w.part.id)).sort((p, q) => q.max[2] - p.max[2])[0].part.id);
+    const fixings = [{ id: 'H', name: 'H', parts: tops, at: 1, dirs: ['x', 'y', 'z'] as ('x' | 'y' | 'z')[], support: {} }];
+    const h = analyzeScaffoldModel(buildScaffoldModel(st, [], [], { supportsManual: true, fixings }), { ...DEFAULT_ANALYSIS, outdoor: false });
+    const j = h.checks.filter((c) => c.check === 'joint' && (c.N ?? 0) > 0);
+    expect(j.length).toBeGreaterThan(0);
+    for (const c of j) expect(c.eta).toBeGreaterThanOrEqual(c.N! / JOINT_TENSION.t32 + (c.M ?? 0) / JOINT.MRd - 1e-9);
+    expect(JOINT_TENSION.t32).toBe(47e3);
   });
 });

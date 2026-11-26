@@ -1103,6 +1103,7 @@
       "check": {
         "conn": "Knoten: Riegelanschluss",
         "node": "Knoten: Ständer + Riegel",
+        "rosette": "Rosette (Zug und Querkraft)",
         "tube": "Ständerrohr (N + M)",
         "buckling": "Knicken Stiel",
         "joint": "Ständerstoß",

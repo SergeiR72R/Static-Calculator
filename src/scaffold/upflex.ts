@@ -284,6 +284,47 @@ export function tubeUtilisation(n0: number, m0: number): number {
 export const JOINT = { k: 12900 * kNcm, MRd: 113 * kNcm, NRd: 100 * kN };
 
 /**
+ * Tension of a standard joint (3.2.8.4, table 26) with two connectors (as PERI ForceControl takes it:
+ * its checks of Gl. 23 are met with 47.0 kN; Ø48.3 × 2.7 with bolts M10-8.8: 35.8 kN). With one
+ * connector the table gives 31.0 kN (17.9 kN). Interaction at the spigot: n⁺ + √(m_y² + m_z²) ≤ 1 (Gl. 23)
+ */
+export const JOINT_TENSION: Record<keyof typeof TUBES, number> = { t27: 35.8 * kN, t32: 47.0 * kN, t36: 47.0 * kN };
+
+/**
+ * Rosette (3.2.5 rosette 8 mm of the variants 1a / 1b, 3.2.6 Rosette-2 6 mm of 2a / 2b / 2c): basic
+ * values of its tension and shear, the factor of the sum of the vertical forces (Gl. 16 / 21)
+ */
+export function rosetteBase(v: Variant): { N: number; V: number; sum: number; six: boolean } {
+  return rosette6(v) ? { N: 50 * kN, V: 40 * kN, sum: 2.5, six: true } : { N: 90 * kN, V: 33 * kN, sum: 3, six: false };
+}
+
+/**
+ * Tension of the rosette from a ledger connection (table 22, lever arms of table 23): N tension
+ * positive, My positive = tension at the bottom of the ledger (as the approval), N and N·m
+ */
+export function rosetteTension(h: LedgerHead, N: number, My: number): number {
+  const eo = h === 'PLUS' ? 0.06 : 0.05;
+  const eu = 0.05;
+  const eRi = 0.035;
+  const top = N * (1 - eRi / eo) + My / eo;
+  const bottom = N * (1 + eRi / eu) - My / eu;
+  let r = 0;
+  if (N >= 0) r = My > eRi * N ? top : bottom;
+  else if (My < (eu + eRi) * N) r = bottom;
+  else if (My > -(eo - eRi) * N) r = top;
+  return Math.max(r, 0);
+}
+
+/** factors ω of opposite ledger connections (table 24): [for positive, for negative moments] */
+export function oppositeOmega(h: LedgerHead, v: Variant): [number, number] {
+  if (h !== 'PLUS') return v === '2c' ? [0.08, 0.08] : [0.04, 0.04];
+  if (v === '1a') return [0.26, 0.26];
+  if (v === '1b') return [0.14, 0.1];
+  if (v === '2c') return [0.47, 0.69];
+  return [0.42, 0.39];
+}
+
+/**
  * Calibration factors of the stiffnesses against PERI ForceControl (1: the values of the approval and
  * the tests). Only diagUBL differs, calibrated on 18_010 / 13_004 (decision log R-049); the others are
  * for comparisons.

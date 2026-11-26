@@ -1103,6 +1103,7 @@
       "check": {
         "conn": "Node: ledger connection",
         "node": "Node: standard + ledger",
+        "rosette": "Rosette (tension and shear)",
         "tube": "Standard tube (N + M)",
         "buckling": "Buckling of the standard",
         "joint": "Standard joint",

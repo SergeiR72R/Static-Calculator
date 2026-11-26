@@ -89,6 +89,13 @@ export interface MemberResult {
   /** local distributed load [qx, qy, qz] */
   q: V3;
   L: number;
+  /**
+   * second order: the axial force of the geometric stiffness (tension positive, 0 in first order) and
+   * the local displacements of the member ends [u, v, w, θx, θy, θz] at i and j — the section forces
+   * between the ends need the lever arm of the axial force in the displaced member
+   */
+  Ng?: number;
+  ue?: Float64Array;
 }
 
 export interface Result3 {
@@ -568,7 +575,8 @@ export class Frame3 {
       // section forces at j: forces on the positive face
       const fj = fe.slice(6, 12);
       const N = r.truss ? r.ea * (ue[6] - ue[0] - r.elong) : (fj[0] - fi[0]) / 2;
-      members.push({ fi, fj, N, di, dj, q: r.q, L });
+      const Ng = !r.truss && states?.[mi]?.N ? states[mi]!.N! : 0;
+      members.push({ fi, fj, N, di, dj, q: r.q, L, ...(Ng ? { Ng, ue } : {}) });
     }
     const reactions = new Float64Array(model.supports.length);
     model.supports.forEach((s, k) => {
@@ -597,7 +605,23 @@ export function sectionForces(r: MemberResult, x: number): { N: number; Vy: numb
   const Vz = -r.fi[2] - qz * x;
   const Mx = -r.fi[3];
   // moments of the end forces and of the load about the section
-  const My = -r.fi[4] - r.fi[2] * x - (qz * x * x) / 2;
-  const Mz = -r.fi[5] + r.fi[1] * x + (qy * x * x) / 2;
+  let My = -r.fi[4] - r.fi[2] * x - (qz * x * x) / 2;
+  let Mz = -r.fi[5] + r.fi[1] * x + (qy * x * x) / 2;
+  // second order: the axial force acts on the displaced member — its lever arm is the transverse
+  // displacement of the section against the end i (Hermite interpolation of the end displacements;
+  // θz = dv/dx, θy = −dw/dx). At x = L this gives the end moments of the member exactly.
+  if (r.Ng && r.ue) {
+    const L = r.L;
+    const t = Math.min(Math.max(x / L, 0), 1);
+    const h2 = L * (t - 2 * t * t + t * t * t);
+    const h3 = 3 * t * t - 2 * t * t * t;
+    const h4 = L * (-t * t + t * t * t);
+    const e = r.ue;
+    // v(x) − v_i and w(x) − w_i
+    const dv = h3 * (e[7] - e[1]) + h2 * e[5] + h4 * e[11];
+    const dw = h3 * (e[8] - e[2]) - h2 * e[4] - h4 * e[10];
+    My -= r.Ng * dw;
+    Mz += r.Ng * dv;
+  }
   return { N, Vy, Vz, Mx, My, Mz };
 }

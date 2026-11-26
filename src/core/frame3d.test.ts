@@ -185,6 +185,44 @@ describe('space frame', () => {
     expect(() => fr.solve(ld, r1.members.map(() => ({ N: -0.95 * Pcr })))).not.toThrow();
   });
 
+  it('second order: moments inside a compressed beam with a uniform load (exact secant solution), end moments of the members', () => {
+    // simply supported, q and P: M_mid = q/k² · (1/cos(kL/2) − 1); first order qL²/8
+    const Lb = 2;
+    const q = 200;
+    const n = 4;
+    const nodes = Array.from({ length: n + 1 }, (_, k) => [(k * Lb) / n, 0, 0] as [number, number, number]);
+    const model: FrameModel3 = {
+      nodes,
+      members: Array.from({ length: n }, (_, k) => ({ i: k, j: k + 1, sec: tube })),
+      supports: [0, 1, 2, 3].map((dof) => ({ node: 0, dof, k: Infinity })).concat([1, 2].map((dof) => ({ node: n, dof, k: Infinity }))),
+    };
+    const fr = new Frame3(model);
+    for (const ratio of [0.2, 0.5, 0.8]) {
+      const P = (ratio * Math.PI ** 2 * tube.EIy) / Lb ** 2;
+      const ld = emptyLoads3(model);
+      ld.nodal[n * 6] = -P;
+      for (let m = 0; m < n; m++) ld.member.push({ m, q: [0, 0, -q] });
+      const r = fr.solve(ld, model.members.map(() => ({ N: -P })));
+      const k = Math.sqrt(P / tube.EIy);
+      const exact = (q / k ** 2) * (1 / Math.cos((k * Lb) / 2) - 1);
+      // at the middle node from the member left of it, and inside a member (a quarter point)
+      expect(Math.abs(sectionForces(r.members[n / 2 - 1]!, Lb / n).My) / exact).toBeCloseTo(1, 2);
+      const xq = Lb / 4 + Lb / 8;
+      const exactQ = (q / k ** 2) * (Math.cos(k * (Lb / 2 - xq)) / Math.cos((k * Lb) / 2) - 1);
+      expect(Math.abs(sectionForces(r.members[1]!, Lb / 8).My) / exactQ).toBeCloseTo(1, 2);
+      // the section forces at the end j are the end forces of the member
+      for (const mr of r.members) {
+        const e = sectionForces(mr!, mr!.L);
+        expect(e.My).toBeCloseTo(mr!.fj[4], 6);
+        expect(e.Mz).toBeCloseTo(mr!.fj[5], 6);
+      }
+    }
+    // first order: nothing added
+    const ld = emptyLoads3(model);
+    for (let m = 0; m < n; m++) ld.member.push({ m, q: [0, 0, -q] });
+    expect(Math.abs(sectionForces(fr.solve(ld).members[1]!, Lb / n).My)).toBeCloseTo((q * Lb ** 2) / 8, 6);
+  });
+
   it('truss members with slack and tension / compression stiffness; inactive members', () => {
     // braced bay 2 × 2 m: pinned posts, diagonal as truss
     const sec: Section3 = { EA: 2460e3, EIy: 1, EIz: 1, GJ: 1 };
